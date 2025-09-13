@@ -1,36 +1,213 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ReColor AI - SaaS Photo Colorization Platform
 
-## Getting Started
+A full-stack SaaS application that uses AI to colorize black and white photos. Built with Next.js 14, deployed on Cloudflare Pages with D1 database, R2 storage, and powered by Google Gemini AI.
 
-First, run the development server:
+## 🌟 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **AI-Powered Colorization**: Uses Google Gemini API to intelligently colorize black and white photos
+- **User Authentication**: Secure email/password authentication with BetterAuth
+- **Cloud Storage**: Images stored on Cloudflare R2 with presigned URLs
+- **Real-time Dashboard**: Track upload progress and view colorization results
+- **Responsive Design**: Modern, mobile-friendly interface built with Tailwind CSS
+- **Edge Computing**: Deployed on Cloudflare Pages for global performance
+
+## 🛠 Tech Stack
+
+### Frontend
+- **Next.js 14** with App Router and TypeScript
+- **Tailwind CSS** for styling
+- **React** with modern hooks and client components
+
+### Backend
+- **Cloudflare Pages Functions** for serverless API routes
+- **BetterAuth** for authentication and session management
+- **Cloudflare D1** (SQLite) for database
+- **Cloudflare R2** for image storage
+
+### AI & External Services
+- **Google Gemini API** for image colorization
+- **AWS4Fetch** for R2 presigned URL generation
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+
+- Cloudflare account
+- Google AI Studio account (for Gemini API)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd saas-recolor
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   Fill in your API keys and configuration values.
+
+4. **Run development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 📁 Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes (Pages Functions)
+│   │   ├── auth/          # BetterAuth endpoints
+│   │   ├── get-upload-url/ # R2 presigned URL generation
+│   │   ├── submit-job/    # AI processing endpoint
+│   │   └── jobs/          # Job listing endpoint
+│   ├── dashboard/         # Protected dashboard page
+│   ├── login/            # Authentication pages
+│   ├── signup/
+│   └── layout.tsx        # Root layout
+├── components/           # Reusable React components
+│   ├── Navbar.tsx       # Navigation with auth state
+│   ├── Footer.tsx
+│   └── ...
+├── lib/                 # Utility libraries
+│   ├── auth.ts         # BetterAuth configuration
+│   └── db.ts           # Database helpers
+└── middleware.ts       # Route protection
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔐 Authentication Flow
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Sign Up**: Users create accounts with email/password
+2. **Login**: Secure session management with BetterAuth
+3. **Session**: Persistent sessions with HTTP-only cookies
+4. **Protection**: Middleware protects dashboard and API routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📊 Database Schema
 
-## Learn More
+```sql
+-- Users table
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
-To learn more about Next.js, take a look at the following resources:
+-- Jobs table
+CREATE TABLE jobs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  original_url TEXT NOT NULL,
+  output_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+);
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎨 How It Works
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Upload**: User uploads a black and white photo
+2. **Storage**: Image is stored in Cloudflare R2 via presigned URL
+3. **Processing**: Google Gemini AI colorizes the image
+4. **Result**: Colorized image is stored and displayed in dashboard
 
-## Deploy on Vercel
+## 🚀 Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions to Cloudflare Pages.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Quick deployment:
+```bash
+npm run build
+wrangler pages deploy .next --project-name saas-recolor
+```
+
+## 🔧 Environment Variables
+
+```env
+# Authentication
+BETTERAUTH_SECRET=your_secret_key
+
+# Database (local development)
+DATABASE_URL=file:./dev.db
+
+# Cloudflare R2
+R2_BUCKET=your-bucket-name
+R2_ACCESS_KEY_ID=your-access-key
+R2_SECRET_ACCESS_KEY=your-secret-key
+R2_PUBLIC_URL=https://your-bucket.r2.cloudflarestorage.com
+
+# AI Service
+GEMINI_API_KEY=your-gemini-api-key
+
+# App Configuration
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
+
+## 📝 API Endpoints
+
+- `POST /api/auth/sign-up` - User registration
+- `POST /api/auth/sign-in` - User login
+- `POST /api/auth/sign-out` - User logout
+- `GET /api/auth/session` - Get current session
+- `POST /api/get-upload-url` - Generate R2 upload URL
+- `POST /api/submit-job` - Process image with AI
+- `GET /api/jobs` - List user's jobs
+
+## 🛡 Security Features
+
+- **Authentication**: Secure password hashing with BetterAuth
+- **Authorization**: Route-level protection with middleware
+- **CORS**: Proper CORS configuration for R2 uploads
+- **Input Validation**: File type and size validation
+- **Session Management**: HTTP-only cookies with expiration
+
+## 🔄 Development Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run type-check   # TypeScript type checking
+```
+
+## 📊 Monitoring
+
+- **Cloudflare Analytics**: Traffic and performance metrics
+- **D1 Analytics**: Database usage and performance
+- **R2 Analytics**: Storage usage and bandwidth
+- **Pages Functions**: Execution logs and errors
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+- Check [DEPLOYMENT.md](./DEPLOYMENT.md) for deployment issues
+- Review Cloudflare documentation for platform-specific questions
+- Check Google AI documentation for Gemini API issues
+
+---
+
+Built with ❤️ using Next.js, Cloudflare, and Google Gemini AI

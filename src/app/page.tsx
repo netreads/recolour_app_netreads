@@ -1,103 +1,127 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Upload, Zap, Download, Sparkles, Star, ArrowRight } from "lucide-react";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 pt-20 pb-16">
+        <div className="text-center space-y-8 max-w-4xl mx-auto">
+          <div className="space-y-6">
+            <Badge variant="secondary" className="mx-auto">
+              <Sparkles className="w-3 h-3 mr-1" />
+              AI-Powered Photo Colorization
+            </Badge>
+            <h1 className="text-4xl sm:text-6xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              Bring Your Old Photos to Life
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Transform your black & white memories into vibrant, colorized images using cutting-edge AI technology. 
+              No technical skills required.
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" className="text-base px-8" asChild>
+                <Link href="/signup">
+                  Get Started Free
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="text-base px-8" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </div>
+            
+            <div className="flex items-center justify-center space-x-6 text-sm text-muted-foreground">
+              <div className="flex items-center">
+                <Star className="w-4 h-4 text-yellow-500 mr-1" />
+                <span>No credit card required</span>
+              </div>
+              <div className="flex items-center">
+                <Zap className="w-4 h-4 text-green-500 mr-1" />
+                <span>10 free images</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* Features Section */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-3xl font-bold">How It Works</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Transform your memories in three simple steps with our AI-powered colorization technology
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <Card className="text-center border-0 shadow-md hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-4">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Upload className="w-8 h-8 text-white" />
+              </div>
+              <CardTitle className="text-xl">Upload Your Photo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-base">
+                Simply drag and drop or select your black and white photo. We support all common image formats.
+              </CardDescription>
+            </CardContent>
+          </Card>
+          
+          <Card className="text-center border-0 shadow-md hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-4">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <CardTitle className="text-xl">AI Processing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-base">
+                Our advanced AI analyzes your image and intelligently applies realistic colors based on context.
+              </CardDescription>
+            </CardContent>
+          </Card>
+          
+          <Card className="text-center border-0 shadow-md hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-4">
+              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-teal-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Download className="w-8 h-8 text-white" />
+              </div>
+              <CardTitle className="text-xl">Download Result</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-base">
+                Get your beautifully colorized photo in high resolution, ready for sharing or printing.
+              </CardDescription>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="container mx-auto px-4 py-16">
+        <Card className="bg-gradient-to-r from-primary/10 to-blue-600/10 border-0">
+          <CardContent className="p-12 text-center">
+            <h3 className="text-3xl font-bold mb-4">Ready to Colorize Your Memories?</h3>
+            <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
+              Join thousands of users who have already transformed their black & white photos into vibrant memories.
+            </p>
+            <Button size="lg" className="text-base px-8" asChild>
+              <Link href="/signup">
+                Start Colorizing Now
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
