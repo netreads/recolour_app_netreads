@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { getSession as getClientSession, signOut as clientSignOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -28,13 +29,16 @@ export function Navbar() {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch("/api/auth/session");
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
+      const session = await getClientSession();
+      const userData = (session && (session as any).user) || (session as any)?.data?.user || null;
+      if (userData) {
+        setUser({ id: userData.id, email: userData.email });
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.error("Error checking auth status:", error);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -42,9 +46,7 @@ export function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/sign-out", {
-        method: "POST",
-      });
+      await clientSignOut();
       setUser(null);
       window.location.href = "/";
     } catch (error) {

@@ -4,6 +4,9 @@ import { getDatabase } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { AwsClient } from "aws4fetch";
 
+// Force Node.js runtime since we're using better-sqlite3
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
@@ -11,7 +14,7 @@ export async function POST(request: NextRequest) {
       headers: request.headers,
     });
 
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Create job record in database
-    const db = getDatabase({ DB: env.DB });
+    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
     await db.createJob(jobId, session.user.id, originalUrl);
 
     return NextResponse.json({

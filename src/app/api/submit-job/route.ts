@@ -5,6 +5,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AwsClient } from "aws4fetch";
 import { v4 as uuidv4 } from "uuid";
 
+// Force Node.js runtime since we're using better-sqlite3
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
@@ -12,7 +15,7 @@ export async function POST(request: NextRequest) {
       headers: request.headers,
     });
 
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get job from database
-    const db = getDatabase({ DB: env.DB });
+    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
     const job = await db.getJobById(jobId);
 
     if (!job) {

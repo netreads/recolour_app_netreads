@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 
+// Force Node.js runtime since we're using better-sqlite3
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -9,7 +12,7 @@ export async function GET(request: NextRequest) {
       headers: request.headers,
     });
 
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -17,7 +20,7 @@ export async function GET(request: NextRequest) {
     const env = process.env as any;
     
     // Get jobs from database
-    const db = getDatabase({ DB: env.DB });
+    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
     const jobs = await db.getJobsByUserId(session.user.id);
 
     return NextResponse.json({ jobs });

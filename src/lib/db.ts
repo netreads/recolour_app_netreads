@@ -1,4 +1,5 @@
 import { z } from "zod";
+import BetterSqlite3 from "better-sqlite3";
 
 // Simple D1 interface for TypeScript
 interface D1PreparedStatement {
@@ -11,6 +12,60 @@ interface D1PreparedStatement {
 interface D1Database {
   prepare(query: string): D1PreparedStatement;
   exec(query: string): Promise<{ success: boolean; meta?: unknown }>;
+}
+
+// Better-sqlite3 interface wrapper to match D1 interface
+class BetterSQLiteWrapper {
+  private db: BetterSqlite3.Database;
+
+  constructor(db: BetterSqlite3.Database) {
+    this.db = db;
+  }
+
+  prepare(query: string) {
+    const stmt = this.db.prepare(query);
+    return {
+      bind: (...values: unknown[]) => ({
+        first: async <T = unknown>(): Promise<T | null> => {
+          try {
+            const result = stmt.get(...values) as T;
+            return result || null;
+          } catch (error) {
+            console.error('Database query error:', error);
+            return null;
+          }
+        },
+        all: async <T = unknown>(): Promise<{ results: T[] }> => {
+          try {
+            const results = stmt.all(...values) as T[];
+            return { results };
+          } catch (error) {
+            console.error('Database query error:', error);
+            return { results: [] };
+          }
+        },
+        run: async (): Promise<{ success: boolean; meta?: unknown }> => {
+          try {
+            const result = stmt.run(...values);
+            return { success: true, meta: result };
+          } catch (error) {
+            console.error('Database query error:', error);
+            return { success: false };
+          }
+        },
+      }),
+    };
+  }
+
+  async exec(query: string): Promise<{ success: boolean; meta?: unknown }> {
+    try {
+      const result = this.db.exec(query);
+      return { success: true, meta: result };
+    } catch (error) {
+      console.error('Database exec error:', error);
+      return { success: false };
+    }
+  }
 }
 
 // Types for our database entities (updated for better-auth)
@@ -37,7 +92,7 @@ export type User = z.infer<typeof UserSchema>;
 export type Job = z.infer<typeof JobSchema>;
 
 // Database helper functions for Cloudflare D1
-export class Database {
+export class DatabaseHelper {
   private db: D1Database;
 
   constructor(db: D1Database) {
@@ -119,7 +174,16 @@ export class Database {
   }
 }
 
-// Helper to get database instance from Cloudflare binding
-export function getDatabase(env: { DB: D1Database }): Database {
-  return new Database(env.DB);
+// Helper to get database instance - works for both development and production
+export function getDatabase(env?: { DB?: D1Database }): DatabaseHelper {
+  // In production (Cloudflare), use the D1 database
+  if (env?.DB) {
+    return new DatabaseHelper(env.DB);
+  }
+  
+  // In development, use better-sqlite3 with the same database as auth
+  const dbPath = process.env.DATABASE_URL?.replace('file:', '') || "./dev.db";
+  const betterDb = new BetterSqlite3(dbPath);
+  const wrappedDb = new BetterSQLiteWrapper(betterDb);
+  return new DatabaseHelper(wrappedDb as any);
 }

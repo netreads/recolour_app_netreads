@@ -1,9 +1,11 @@
 import { auth } from "@/lib/auth";
 
-export async function GET(request: Request) {
-  return auth.handler(request);
-}
+// Force Node.js runtime since we're using better-sqlite3
+export const runtime = 'nodejs';
 
-export async function POST(request: Request) {
-  return auth.handler(request);
-}
+export const GET = auth.handler;
+export const POST = auth.handler;
+
+// Explicitly export head/options for Next.js routing and CORS preflight
+export const HEAD = auth.handler as unknown as typeof GET;
+export const OPTIONS = auth.handler as unknown as typeof GET;

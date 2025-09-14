@@ -31,7 +31,7 @@ interface Job {
 
 export default function RecolorPage() {
   const searchParams = useSearchParams();
-  const jobId = searchParams.get('jobId');
+  const jobId = searchParams?.get('jobId');
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

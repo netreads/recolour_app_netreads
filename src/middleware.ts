@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 
 export async function middleware(request: NextRequest) {
+  // Skip middleware for auth routes, static files, and public routes
+  const publicPaths = [
+    "/", "/login", "/signup", "/pricing", "/privacy", "/tos", 
+    "/api/auth", "/_next", "/favicon.ico", "/public"
+  ];
+  
+  const isPublicPath = publicPaths.some(path => 
+    request.nextUrl.pathname.startsWith(path)
+  );
+
+  if (isPublicPath) {
+    return NextResponse.next();
+  }
+
   // Check if the request is for a protected route
   const protectedPaths = ["/dashboard", "/api/get-upload-url", "/api/submit-job", "/api/jobs"];
   const isProtectedPath = protectedPaths.some(path => 
@@ -12,26 +25,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check authentication for protected routes
-  try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
-
-    if (!session) {
-      // Redirect to login for page routes
-      if (request.nextUrl.pathname.startsWith("/dashboard")) {
-        return NextResponse.redirect(new URL("/login", request.url));
-      }
-      
-      // Return unauthorized for API routes
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    return NextResponse.next();
-  } catch (error) {
-    console.error("Middleware auth error:", error);
-    
+  // For protected routes, check if user has a session cookie
+  // Better Auth uses 'better-auth.session_token' cookie
+  const sessionCookie = request.cookies.get('better-auth.session_token');
+  
+  if (!sessionCookie || !sessionCookie.value) {
     // Redirect to login for page routes
     if (request.nextUrl.pathname.startsWith("/dashboard")) {
       return NextResponse.redirect(new URL("/login", request.url));
@@ -40,6 +38,10 @@ export async function middleware(request: NextRequest) {
     // Return unauthorized for API routes
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // If session cookie exists, let the request through
+  // The actual session validation will happen in the API routes
+  return NextResponse.next();
 }
 
 export const config = {
@@ -47,6 +49,6 @@ export const config = {
     "/dashboard/:path*",
     "/api/get-upload-url",
     "/api/submit-job", 
-    "/api/jobs"
+    "/api/jobs/:path*"
   ],
 };
