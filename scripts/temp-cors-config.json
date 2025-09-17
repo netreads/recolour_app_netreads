@@ -1,0 +1,27 @@
+{
+  "cors": [
+    {
+      "allowedOrigins": [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://*.pages.dev",
+        "https://saas-recolor.pages.dev",
+        "https://your-domain.com"
+      ],
+      "allowedMethods": [
+        "GET",
+        "PUT",
+        "POST",
+        "DELETE",
+        "HEAD"
+      ],
+      "allowedHeaders": [
+        "*"
+      ],
+      "exposeHeaders": [
+        "ETag"
+      ],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

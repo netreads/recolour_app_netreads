@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Image, Clock, CheckCircle, XCircle, Download, RefreshCw } from "lucide-react";
+import { getSession } from "@/lib/auth-client";
 
 interface Job {
   id: string;
@@ -19,16 +20,39 @@ interface Job {
   created_at: string;
 }
 
+
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    fetchJobs();
+    checkAuthAndFetchJobs();
   }, []);
+
+  const checkAuthAndFetchJobs = async () => {
+    try {
+      const session = await getSession();
+      if (session?.data?.user) {
+        setIsAuthenticated(true);
+        fetchJobs();
+      } else {
+        setIsAuthenticated(false);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      setIsAuthenticated(false);
+      setIsLoading(false);
+    }
+  };
+
+  const getImageUrl = (jobId: string, type: 'original' | 'output'): string => {
+    return `/api/image-proxy?jobId=${jobId}&type=${type}`;
+  };
 
   const fetchJobs = async () => {
     try {
@@ -51,35 +75,24 @@ export default function DashboardPage() {
     setIsUploading(true);
 
     try {
-      // Get upload URL
-      const uploadResponse = await fetch("/api/get-upload-url", {
+      // Try server-side upload first (bypasses SSL issues)
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+
+      const uploadResponse = await fetch("/api/upload-via-presigned", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileName: uploadFile.name,
-        }),
+        body: formData,
       });
 
       if (!uploadResponse.ok) {
-        throw new Error("Failed to get upload URL");
-      }
-
-      const { uploadUrl, jobId } = await uploadResponse.json();
-
-      // Upload file to R2
-      const fileUploadResponse = await fetch(uploadUrl, {
-        method: "PUT",
-        body: uploadFile,
-        headers: {
-          "Content-Type": uploadFile.type,
-        },
-      });
-
-      if (!fileUploadResponse.ok) {
+        if (uploadResponse.status === 401) {
+          throw new Error("Please log in to upload files");
+        }
         throw new Error("Failed to upload file");
       }
+
+      const { jobId } = await uploadResponse.json();
+      console.log("Upload successful via server-side API, jobId:", jobId);
 
       // Submit job for processing
       const submitResponse = await fetch("/api/submit-job", {
@@ -93,7 +106,13 @@ export default function DashboardPage() {
       });
 
       if (!submitResponse.ok) {
-        throw new Error("Failed to submit job");
+        const errorData = await submitResponse.json();
+        
+        if (submitResponse.status === 429) {
+          throw new Error(`Quota Exceeded: ${errorData.error || "API quota limits reached"}. ${errorData.retryAfter || "Please try again later."}`);
+        }
+        
+        throw new Error(errorData.error || "Failed to submit job");
       }
 
       // Reset form and refresh jobs
@@ -101,7 +120,13 @@ export default function DashboardPage() {
       fetchJobs();
     } catch (error) {
       console.error("Error uploading file:", error);
-      alert("Failed to upload file. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
+      alert(errorMessage);
+      
+      // If authentication error, redirect to login
+      if (errorMessage.includes("log in")) {
+        router.push('/login');
+      }
     } finally {
       setIsUploading(false);
     }
@@ -121,6 +146,46 @@ export default function DashboardPage() {
         return <Badge variant="outline">Unknown</Badge>;
     }
   };
+
+  // Show loading state while checking authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        <div className="flex items-center justify-center py-8">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (isAuthenticated === false) {
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Transform your black & white photos with AI colorization
+          </p>
+        </div>
+
+        <Card className="max-w-md mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle>Authentication Required</CardTitle>
+            <CardDescription>
+              Please log in to access your dashboard and upload photos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button onClick={() => router.push('/login')} className="w-full">
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -238,9 +303,13 @@ export default function DashboardPage() {
                             Original
                           </Label>
                           <img
-                            src={job.original_url}
+                            src={getImageUrl(job.id, 'original')}
                             alt="Original"
                             className="w-full h-32 object-cover rounded-md border"
+                            onError={(e) => {
+                              console.error("Failed to load original image");
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         </div>
                         
@@ -250,9 +319,13 @@ export default function DashboardPage() {
                               Colorized
                             </Label>
                             <img
-                              src={job.output_url}
+                              src={getImageUrl(job.id, 'output')}
                               alt="Colorized"
                               className="w-full h-32 object-cover rounded-md border"
+                              onError={(e) => {
+                                console.error("Failed to load colorized image");
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
                           </div>
                         )}
@@ -271,7 +344,14 @@ export default function DashboardPage() {
                             size="sm"
                             variant="outline"
                             className="w-full"
-                            onClick={() => window.open(job.output_url!, '_blank')}
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = getImageUrl(job.id, 'output');
+                              link.download = `colorized-${job.id}.jpg`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
                           >
                             <Download className="mr-2 h-4 w-4" />
                             Download

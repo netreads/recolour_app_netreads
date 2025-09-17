@@ -16,7 +16,9 @@
     "cf:r2:create": "wrangler r2 bucket create recolor-images"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@aws-sdk/client-s3": "^3.890.0",
+    "@aws-sdk/s3-request-presigner": "^3.890.0",
+    "@google/genai": "^1.19.0",
     "@hookform/resolvers": "^5.2.1",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -31,6 +33,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.544.0",
+    "mime": "^4.1.0",
     "next": "15.5.3",
     "next-themes": "^0.4.6",
     "react": "19.1.0",
@@ -45,7 +48,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20",
+    "@types/node": "^20.19.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",

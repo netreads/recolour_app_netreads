@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { fileName } = await request.json();
+    const { fileName, contentType } = await request.json();
     
     if (!fileName) {
       return NextResponse.json({ error: "File name is required" }, { status: 400 });
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Generate unique job ID and file key
     const jobId = uuidv4();
     const fileKey = `uploads/${jobId}-${fileName}`;
-    const originalUrl = `${env.R2_PUBLIC_URL}/${fileKey}`;
+    const originalUrl = `${env.R2_PUBLIC_URL}/${env.R2_BUCKET}/${fileKey}`;
 
     // Create AWS client for R2
     const r2Client = new AwsClient({
@@ -44,16 +44,31 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate presigned PUT URL
+    // Extract account ID from R2_PUBLIC_URL and use account-specific endpoint
+    const accountId = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/)?.[1];
+    
+    if (!accountId) {
+      throw new Error("Could not extract account ID from R2_PUBLIC_URL");
+    }
+    
+    // Use account-specific endpoint format: https://{account-id}.r2.cloudflarestorage.com/{bucket}/{key}
+    const bucketUrl = `https://${accountId}.r2.cloudflarestorage.com/${env.R2_BUCKET}/${fileKey}`;
+    
+    console.log("Generating presigned URL for:", bucketUrl);
+    console.log("Account ID:", accountId);
+    console.log("Bucket:", env.R2_BUCKET);
+    console.log("File key:", fileKey);
+    console.log("Content-Type:", contentType || "image/*");
+    
     const presignedUrl = await r2Client.sign(
-      `https://${env.R2_BUCKET}.r2.cloudflarestorage.com/${fileKey}`,
+      bucketUrl,
       {
         method: "PUT",
-        headers: {
-          "Content-Type": "image/*",
-        },
         aws: { signQuery: true },
       }
     );
+
+    console.log("Generated presigned URL:", presignedUrl.url);
 
     // Create job record in database
     const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
