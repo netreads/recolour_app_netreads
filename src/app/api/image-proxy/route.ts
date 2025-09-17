@@ -43,19 +43,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (job.user_id !== session.user.id) {
+    if (job.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Determine which URL to fetch
     let urlToFetch: string;
     if (type === 'original') {
-      urlToFetch = job.original_url;
+      urlToFetch = job.originalUrl;
     } else {
-      if (!job.output_url) {
+      if (!job.outputUrl) {
         return NextResponse.json({ error: "Output image not available" }, { status: 404 });
       }
-      urlToFetch = job.output_url;
+      urlToFetch = job.outputUrl;
     }
 
     // Extract account ID from R2_PUBLIC_URL

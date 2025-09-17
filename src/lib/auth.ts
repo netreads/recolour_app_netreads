@@ -1,9 +1,7 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import Database from "better-sqlite3";
-
-const dbPath = process.env.DATABASE_URL?.replace('file:', '') || "./dev.db";
-const db = new Database(dbPath);
+import { prisma } from "./db";
+import { prismaAdapter } from "better-auth/adapters/prisma";
 
 // Resolve a single canonical base URL across envs to avoid redirect mismatches
 const resolvedBaseURL =
@@ -13,7 +11,9 @@ const resolvedBaseURL =
   "http://localhost:3000";
 
 export const auth = betterAuth({
-  database: db,
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
   baseURL: resolvedBaseURL,
   socialProviders: {
     google: {

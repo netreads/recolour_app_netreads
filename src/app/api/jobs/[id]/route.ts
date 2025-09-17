@@ -26,11 +26,8 @@ export async function GET(
       return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
     }
 
-    // Get environment variables
-    const env = process.env as any;
-    
     // Get job from database
-    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
+    const db = getDatabase();
     const job = await db.getJobById(jobId);
 
     if (!job) {

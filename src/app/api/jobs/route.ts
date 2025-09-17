@@ -16,14 +16,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get environment variables
-    const env = process.env as any;
-    
     // Get jobs from database
-    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
+    const db = getDatabase();
     const jobs = await db.getJobsByUserId(session.user.id);
 
-    return NextResponse.json({ jobs });
+    // Transform field names to match frontend expectations
+    const transformedJobs = jobs.map(job => ({
+      id: job.id,
+      original_url: job.originalUrl,
+      output_url: job.outputUrl,
+      status: job.status.toLowerCase(),
+      created_at: job.createdAt.toISOString(),
+    }));
+
+    return NextResponse.json({ jobs: transformedJobs });
   } catch (error) {
     console.error("Error fetching jobs:", error);
     return NextResponse.json(

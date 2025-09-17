@@ -43,23 +43,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Get job from database
-    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
+    const db = getDatabase();
     const job = await db.getJobById(jobId);
 
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (job.user_id !== session.user.id) {
+    if (job.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (job.status !== "pending") {
+    if (job.status !== "PENDING") {
       return NextResponse.json({ error: "Job already processed" }, { status: 400 });
     }
 
     // Update job status to processing
-    await db.updateJob(jobId, { status: "processing" });
+    await db.updateJob(jobId, { status: "PROCESSING" });
 
     // We'll use direct fetch API calls instead of the SDK for better header control
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Extract file key from the original URL
-      const fileKey = job.original_url.split('/').slice(-2).join('/'); // Get last two parts: uploads/filename
+      const fileKey = job.originalUrl.split('/').slice(-2).join('/'); // Get last two parts: uploads/filename
       console.log("File key:", fileKey);
       
       // Create signed URL for fetching the uploaded image
@@ -229,8 +229,8 @@ export async function POST(request: NextRequest) {
 
       // Update job with output URL and status
       await db.updateJob(jobId, {
-        output_url: outputUrl,
-        status: "done",
+        outputUrl: outputUrl,
+        status: "DONE",
       });
 
       return NextResponse.json({
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
       console.error("Error processing image:", processingError);
       
       // Update job status to failed
-      await db.updateJob(jobId, { status: "failed" });
+      await db.updateJob(jobId, { status: "FAILED" });
       
       // Provide more specific error messages
       let errorMessage = "Failed to process image";

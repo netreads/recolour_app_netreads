@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     console.log("Generated presigned URL:", presignedUrl.url);
 
     // Create job record in database
-    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
+    const db = getDatabase();
     await db.createJob(jobId, session.user.id, originalUrl);
 
     return NextResponse.json({

@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Image, Clock, CheckCircle, XCircle, Download, RefreshCw } from "lucide-react";
 import { getSession } from "@/lib/auth-client";
+import { ImageCard } from "@/components/features/ImageCard";
 
 interface Job {
   id: string;
@@ -132,20 +133,6 @@ export default function DashboardPage() {
     }
   };
 
-  const getStatusBadge = (status: Job["status"]) => {
-    switch (status) {
-      case "pending":
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
-      case "processing":
-        return <Badge variant="default"><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Processing</Badge>;
-      case "done":
-        return <Badge variant="default" className="bg-green-600"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
-      case "failed":
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
 
   // Show loading state while checking authentication
   if (isAuthenticated === null) {
@@ -228,12 +215,17 @@ export default function DashboardPage() {
             {uploadFile && (
               <div className="space-y-2">
                 <Label>Preview</Label>
-                <div className="relative w-full max-w-xs">
-                  <img
-                    src={URL.createObjectURL(uploadFile)}
-                    alt="Preview"
-                    className="w-full h-32 object-cover rounded-md border"
-                  />
+                <div className="relative w-full max-w-md">
+                  <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+                    <img
+                      src={URL.createObjectURL(uploadFile)}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    File: {uploadFile.name} ({(uploadFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
                 </div>
               </div>
             )}
@@ -285,82 +277,13 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
               {jobs.map((job) => (
-                <Card key={job.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="space-y-4 p-4">
-                      <div className="flex items-center justify-between">
-                        {getStatusBadge(job.status)}
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(job.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <Label className="text-xs text-muted-foreground mb-1 block">
-                            Original
-                          </Label>
-                          <img
-                            src={getImageUrl(job.id, 'original')}
-                            alt="Original"
-                            className="w-full h-32 object-cover rounded-md border"
-                            onError={(e) => {
-                              console.error("Failed to load original image");
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                        
-                        {job.output_url && (
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1 block">
-                              Colorized
-                            </Label>
-                            <img
-                              src={getImageUrl(job.id, 'output')}
-                              alt="Colorized"
-                              className="w-full h-32 object-cover rounded-md border"
-                              onError={(e) => {
-                                console.error("Failed to load colorized image");
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        )}
-                        
-                        {job.status === "processing" && (
-                          <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">
-                              Processing...
-                            </Label>
-                            <Progress value={65} className="h-2" />
-                          </div>
-                        )}
-                        
-                        {job.output_url && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = getImageUrl(job.id, 'output');
-                              link.download = `colorized-${job.id}.jpg`;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }}
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            Download
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ImageCard
+                  key={job.id}
+                  job={job}
+                  getImageUrl={getImageUrl}
+                />
               ))}
             </div>
           )}
