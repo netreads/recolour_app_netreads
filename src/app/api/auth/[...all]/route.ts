@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 
-// Force Node.js runtime since we're using better-sqlite3
+// Force Node.js runtime
 export const runtime = 'nodejs';
 
 export const GET = auth.handler;

@@ -2,11 +2,6 @@ name = "saas-recolor"
 compatibility_date = "2024-09-13"
 pages_build_output_dir = ".next"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "recolor_db_netreads"
-database_id = "recolor_db-database-id"
-migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "R2_BUCKET"

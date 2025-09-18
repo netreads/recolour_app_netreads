@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 
-// Force Node.js runtime since we're using better-sqlite3
+// Force Node.js runtime
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {

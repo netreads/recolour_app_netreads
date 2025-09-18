@@ -1,6 +1,6 @@
 # ReColor AI - SaaS Photo Colorization Platform
 
-A full-stack SaaS application that uses AI to colorize black and white photos. Built with Next.js 14, deployed on Cloudflare Pages with D1 database, R2 storage, and powered by Google Gemini AI.
+A full-stack SaaS application that uses AI to colorize black and white photos. Built with Next.js 14, deployed on Cloudflare Pages with PostgreSQL database, R2 storage, and powered by Google Gemini AI.
 
 ## 🌟 Features
 
@@ -21,7 +21,7 @@ A full-stack SaaS application that uses AI to colorize black and white photos. B
 ### Backend
 - **Cloudflare Pages Functions** for serverless API routes
 - **BetterAuth** for authentication and session management
-- **Cloudflare D1** (SQLite) for database
+- **PostgreSQL** for database (via Prisma)
 - **Cloudflare R2** for image storage
 
 ### AI & External Services
@@ -139,8 +139,8 @@ wrangler pages deploy .next --project-name saas-recolor
 # Authentication
 BETTERAUTH_SECRET=your_secret_key
 
-# Database (local development)
-DATABASE_URL=file:./dev.db
+# Database (PostgreSQL)
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
 
 # Cloudflare R2
 R2_BUCKET=your-bucket-name
@@ -186,7 +186,7 @@ npm run type-check   # TypeScript type checking
 ## 📊 Monitoring
 
 - **Cloudflare Analytics**: Traffic and performance metrics
-- **D1 Analytics**: Database usage and performance
+- **Database Analytics**: Database usage and performance
 - **R2 Analytics**: Storage usage and bandwidth
 - **Pages Functions**: Execution logs and errors
 

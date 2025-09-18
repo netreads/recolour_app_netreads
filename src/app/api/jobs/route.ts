@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 
-// Force Node.js runtime since we're using better-sqlite3
+// Force Node.js runtime
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {

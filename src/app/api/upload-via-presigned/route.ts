@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { AwsClient } from "aws4fetch";
 
-// Force Node.js runtime since we're using better-sqlite3
+// Force Node.js runtime
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {

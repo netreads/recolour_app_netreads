@@ -1,7 +1,6 @@
-// Cloudflare D1 Database types
+// Cloudflare environment types
 declare global {
   interface CloudflareEnv {
-    DB: D1Database;
     R2_BUCKET: R2Bucket;
     BETTERAUTH_SECRET: string;
     R2_ACCESS_KEY_ID: string;
@@ -9,39 +8,6 @@ declare global {
     R2_PUBLIC_URL: string;
     GEMINI_API_KEY: string;
   }
-}
-
-// D1 Database interface
-interface D1Database {
-  prepare(query: string): D1PreparedStatement;
-  dump(): Promise<ArrayBuffer>;
-  batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
-  exec(query: string): Promise<D1ExecResult>;
-}
-
-interface D1PreparedStatement {
-  bind(...values: any[]): D1PreparedStatement;
-  first<T = unknown>(colName?: string): Promise<T | null>;
-  run(): Promise<D1Result>;
-  all<T = unknown>(): Promise<D1Result<T>>;
-  raw<T = unknown>(): Promise<T[]>;
-}
-
-interface D1Result<T = Record<string, unknown>> {
-  results?: T[];
-  success: boolean;
-  error?: string;
-  meta: {
-    duration: number;
-    size_after: number;
-    rows_read: number;
-    rows_written: number;
-  };
-}
-
-interface D1ExecResult {
-  count: number;
-  duration: number;
 }
 
 // R2 Bucket interface

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AwsClient } from "aws4fetch";
 
-// Force Node.js runtime since we're using better-sqlite3
+// Force Node.js runtime
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {

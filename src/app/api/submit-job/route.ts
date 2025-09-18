@@ -5,7 +5,7 @@ import { AwsClient } from "aws4fetch";
 import { v4 as uuidv4 } from "uuid";
 import mime from "mime";
 
-// Force Node.js runtime since we're using better-sqlite3
+// Force Node.js runtime
 export const runtime = 'nodejs';
 
 // Fallback image processing function when API quota is exceeded
