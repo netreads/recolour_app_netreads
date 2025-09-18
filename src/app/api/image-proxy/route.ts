@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get job from database
-    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
+    const db = getDatabase();
     const job = await db.getJobById(jobId);
 
     if (!job) {

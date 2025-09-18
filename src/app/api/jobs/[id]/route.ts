@@ -35,7 +35,7 @@ export async function GET(
     }
 
     // Check if user owns this job
-    if (job.user_id !== session.user.id) {
+    if (job.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

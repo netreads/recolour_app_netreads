@@ -1,17 +1,14 @@
 name = "saas-recolor"
 compatibility_date = "2024-09-13"
-pages_build_output_dir = ".next"
 
-
+# R2 bucket for image storage
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "recolor-images"
 
+# Environment variables for different environments
 [env.production.vars]
 NODE_ENV = "production"
 
 [env.preview.vars]
 NODE_ENV = "preview"
-
-[env.development.vars]
-NODE_ENV = "development"

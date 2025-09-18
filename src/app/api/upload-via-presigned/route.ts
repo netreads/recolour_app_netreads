@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     console.log("Upload successful!");
 
     // Create job record in database
-    const db = getDatabase(env.DB ? { DB: env.DB } : undefined);
+    const db = getDatabase();
     await db.createJob(jobId, session.user.id, originalUrl);
 
     return NextResponse.json({

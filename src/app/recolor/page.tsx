@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ interface Job {
   created_at: string;
 }
 
-export default function RecolorPage() {
+function RecolorPageContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams?.get('jobId');
   const [job, setJob] = useState<Job | null>(null);
@@ -267,6 +267,21 @@ export default function RecolorPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+export default function RecolorPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-16">
+        <div className="flex items-center justify-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Loading...</span>
+        </div>
+      </div>
+    }>
+      <RecolorPageContent />
+    </Suspense>
   );
 }
 
