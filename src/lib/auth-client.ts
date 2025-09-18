@@ -61,4 +61,17 @@ export const getSession = async () => {
   }
 };
 
+export const refreshSession = async () => {
+  try {
+    return await authClient.getSession({
+      fetchOptions: {
+        cache: "no-store", // Force fresh session fetch
+      },
+    });
+  } catch (error) {
+    console.error("Refresh session error:", error);
+    return null;
+  }
+};
+
 // Email authentication methods removed - only Google OAuth is supported

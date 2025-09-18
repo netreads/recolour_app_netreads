@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Image, Clock, CheckCircle, XCircle, Download, RefreshCw, Plus, Filter, SortAsc, Sparkles, Zap, TrendingUp, Users } from "lucide-react";
-import { getSession } from "@/lib/auth-client";
+import { getSession, refreshSession } from "@/lib/auth-client";
 import { ImageCard } from "@/components/features/ImageCard";
 
 interface Job {
@@ -86,10 +86,25 @@ export default function DashboardPage() {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch("/api/user");
+      // Use the refresh endpoint that bypasses session caching
+      const response = await fetch("/api/refresh-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        console.log("User data refreshed:", userData);
+      } else {
+        // Fallback to regular user endpoint
+        const fallbackResponse = await fetch("/api/user");
+        if (fallbackResponse.ok) {
+          const userData = await fallbackResponse.json();
+          setUser(userData);
+        }
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -319,10 +334,18 @@ export default function DashboardPage() {
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <Sparkles className="h-5 w-5 text-purple-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground">Credits</p>
                   <p className="text-2xl font-bold">{user?.credits || 0}</p>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchUserData}
+                  className="ml-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>

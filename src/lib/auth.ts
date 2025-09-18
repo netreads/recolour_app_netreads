@@ -26,9 +26,9 @@ export const auth = betterAuth({
   secret: process.env.BETTERAUTH_SECRET!,
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
+    updateAge: 60 * 5, // 5 minutes (reduced for development)
     cookieCache: {
-      enabled: true,
+      enabled: process.env.NODE_ENV === 'production', // Disable in development
       maxAge: 60 * 60 * 24 * 7, // 7 days
     },
   },
@@ -36,7 +36,6 @@ export const auth = betterAuth({
     database: {
       generateId: () => crypto.randomUUID(),
     },
-  },
-});
+  },});
 
 export type Session = typeof auth.$Infer.Session;

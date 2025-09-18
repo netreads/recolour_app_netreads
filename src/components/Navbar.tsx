@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getSession as getClientSession, signOut as clientSignOut } from "@/lib/auth-client";
+import { getSession as getClientSession, signOut as clientSignOut, refreshSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, CreditCard } from "lucide-react";
+import { User, LogOut, Settings, CreditCard, RefreshCw } from "lucide-react";
 
 interface UserType {
   id: string;
@@ -30,7 +30,8 @@ export function Navbar() {
 
   const checkAuthStatus = async () => {
     try {
-      const session = await getClientSession();
+      // Use refreshSession to get latest data
+      const session = await refreshSession();
       const userData = (session && (session as any).user) || (session as any)?.data?.user || null;
       if (userData) {
         setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
@@ -42,6 +43,25 @@ export function Navbar() {
       setUser(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const refreshUserCredits = async () => {
+    try {
+      const response = await fetch("/api/refresh-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
+        console.log("Credits refreshed:", userData.credits);
+      }
+    } catch (error) {
+      console.error("Error refreshing credits:", error);
     }
   };
 
@@ -89,6 +109,14 @@ export function Navbar() {
                 <span className="text-sm font-medium text-purple-700">
                   {user.credits} Credits
                 </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={refreshUserCredits}
+                  className="h-6 w-6 p-0 hover:bg-purple-200"
+                >
+                  <RefreshCw className="h-3 w-3 text-purple-600" />
+                </Button>
               </div>
               
               <DropdownMenu>
