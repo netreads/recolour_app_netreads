@@ -48,6 +48,11 @@ AWS_SECRET_ACCESS_KEY="your-r2-secret-key"
 AWS_REGION="auto"
 AWS_ENDPOINT="https://your-account-id.r2.cloudflarestorage.com"
 
+# Cashfree Payment Gateway
+CASHFREE_APP_ID="your-cashfree-app-id"
+CASHFREE_SECRET_KEY="your-cashfree-secret-key"
+CASHFREE_ENVIRONMENT="sandbox"  # Use "production" for live environment
+
 # Environment
 NODE_ENV="production"
 ```
@@ -86,14 +91,36 @@ npm run pages:deploy
    - `https://your-domain.pages.dev/api/auth/callback/google`
 6. Update your environment variables with the new credentials
 
-## Step 5: Set up Cloudflare R2
+## Step 5: Set up Cashfree Payment Gateway
+
+1. **Create Cashfree Account**:
+   - Sign up at [Cashfree](https://www.cashfree.com/)
+   - Complete merchant verification process
+
+2. **Get API Credentials**:
+   - Go to [Cashfree Dashboard](https://merchant.cashfree.com/)
+   - Navigate to "Developers" → "API Keys"
+   - Copy your App ID and Secret Key
+   - Add them to your environment variables
+
+3. **Configure Webhooks**:
+   - In Cashfree Dashboard, go to "Developers" → "Webhooks"
+   - Add webhook URL: `https://your-domain.pages.dev/api/payments/webhook`
+   - Enable events: `PAYMENT_SUCCESS_WEBHOOK`, `PAYMENT_FAILED_WEBHOOK`, `PAYMENT_USER_DROPPED_WEBHOOK`
+
+4. **Test Payments**:
+   - Use sandbox environment for testing
+   - Test cards: 4111 1111 1111 1111 (success), 4000 0000 0000 0002 (failure)
+   - Switch to production when ready to go live
+
+## Step 6: Set up Cloudflare R2
 
 1. Go to [Cloudflare R2](https://dash.cloudflare.com/r2)
 2. Create a new bucket named `recolor-images`
 3. Generate API tokens with R2 permissions
 4. Update environment variables with R2 credentials
 
-## Step 6: Database Setup
+## Step 7: Database Setup
 
 1. Set up a PostgreSQL database (recommended providers):
    - [Neon](https://neon.tech) - Free tier available

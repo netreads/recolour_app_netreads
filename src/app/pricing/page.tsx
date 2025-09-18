@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Check, Star, Zap, Crown, ArrowRight } from "lucide-react";
+import { Check, Star, Zap, Crown, ArrowRight, CreditCard } from "lucide-react";
+import { PricingCard } from "@/components/PricingCard";
 
 export default function PricingPage() {
   const creditPackages = [
@@ -96,68 +97,19 @@ export default function PricingPage() {
       {/* Pricing Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
         {creditPackages.map((package_) => (
-          <Card
+          <PricingCard
             key={package_.name}
-            className={`relative transition-all duration-200 ${
-              package_.popular
-                ? "border-primary shadow-lg scale-105"
-                : "hover:shadow-md"
-            }`}
-          >
-            {package_.popular && (
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-gradient-to-r from-primary to-blue-600 text-primary-foreground px-3 py-1">
-                  Best Value
-                </Badge>
-              </div>
-            )}
-            
-            <CardHeader className="text-center pb-6">
-              <div className="mx-auto w-12 h-12 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-lg flex items-center justify-center mb-4">
-                {package_.icon}
-              </div>
-              <CardTitle className="text-xl font-bold">{package_.name}</CardTitle>
-              <CardDescription className="text-sm">
-                {package_.description}
-              </CardDescription>
-              <div className="space-y-1 pt-4">
-                <div className="text-3xl font-bold">{package_.price}</div>
-                <div className="text-sm text-muted-foreground">
-                  {package_.credits} HD Credits
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              <Button
-                size="lg"
-                variant={package_.buttonVariant}
-                className="w-full"
-                asChild
-              >
-                <Link href={package_.href}>
-                  {package_.buttonText}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              
-              <Separator />
-              
-              <div className="space-y-3">
-                <p className="font-medium text-sm">What's included:</p>
-                <ul className="space-y-2">
-                  {package_.features.map((feature) => (
-                    <li key={feature} className="flex items-start">
-                      <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-muted-foreground">
-                        {feature}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+            name={package_.name}
+            credits={package_.credits}
+            price={package_.price}
+            description={package_.description}
+            features={package_.features}
+            buttonText={package_.buttonText}
+            buttonVariant={package_.buttonVariant}
+            href={package_.href}
+            popular={package_.popular}
+            icon={package_.icon}
+          />
         ))}
       </div>
 

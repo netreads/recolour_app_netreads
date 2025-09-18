@@ -4,7 +4,7 @@ export async function middleware(request: NextRequest) {
   // Skip middleware for auth routes, static files, and public routes
   const publicPaths = [
     "/", "/login", "/signup", "/pricing", "/privacy", "/tos", 
-    "/api/auth", "/_next", "/favicon.ico", "/public"
+    "/api/auth", "/api/payments/webhook", "/_next", "/favicon.ico", "/public"
   ];
   
   const isPublicPath = publicPaths.some(path => 
@@ -16,7 +16,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if the request is for a protected route
-  const protectedPaths = ["/dashboard", "/api/get-upload-url", "/api/submit-job", "/api/jobs"];
+  const protectedPaths = ["/dashboard", "/api/get-upload-url", "/api/submit-job", "/api/jobs", "/api/payments/create-order", "/api/payments/status"];
   const isProtectedPath = protectedPaths.some(path => 
     request.nextUrl.pathname.startsWith(path)
   );
