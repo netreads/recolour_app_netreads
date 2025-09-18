@@ -17,6 +17,7 @@ import { User, LogOut, Settings, CreditCard } from "lucide-react";
 interface UserType {
   id: string;
   email: string;
+  credits: number;
 }
 
 export function Navbar() {
@@ -32,7 +33,7 @@ export function Navbar() {
       const session = await getClientSession();
       const userData = (session && (session as any).user) || (session as any)?.data?.user || null;
       if (userData) {
-        setUser({ id: userData.id, email: userData.email });
+        setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
       } else {
         setUser(null);
       }
@@ -81,7 +82,16 @@ export function Navbar() {
 
         <div className="flex items-center space-x-4">
           {user ? (
-            <DropdownMenu>
+            <>
+              {/* Credits Display */}
+              <div className="hidden sm:flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-sm font-medium text-purple-700">
+                  {user.credits} Credits
+                </span>
+              </div>
+              
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
@@ -120,6 +130,7 @@ export function Navbar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </>
           ) : (
             !isLoading && (
               <div className="flex items-center space-x-2">

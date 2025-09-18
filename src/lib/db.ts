@@ -65,6 +65,29 @@ export class DatabaseHelper {
       orderBy: { createdAt: 'desc' }
     });
   }
+
+  // Credit operations
+  async deductCredits(userId: string, amount: number): Promise<User> {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: {
+        credits: {
+          decrement: amount
+        }
+      }
+    });
+  }
+
+  async addCredits(userId: string, amount: number): Promise<User> {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: {
+        credits: {
+          increment: amount
+        }
+      }
+    });
+  }
 }
 
 // Helper to get database instance

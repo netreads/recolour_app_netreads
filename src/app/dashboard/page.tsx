@@ -21,9 +21,16 @@ interface Job {
   created_at: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  credits: number;
+}
+
 
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -43,7 +50,11 @@ export default function DashboardPage() {
       const session = await getSession();
       if (session?.data?.user) {
         setIsAuthenticated(true);
+        // Set user with credits from session (will be updated by fetchUserData)
+        setUser({ ...session.data.user, credits: 0 });
         fetchJobs();
+        fetchUserData(); // Fetch fresh user data including credits
+        giveWelcomeCredits(); // Give welcome credits if eligible
       } else {
         setIsAuthenticated(false);
         setIsLoading(false);
@@ -70,6 +81,36 @@ export default function DashboardPage() {
       console.error("Error fetching jobs:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch("/api/user");
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  const giveWelcomeCredits = async () => {
+    try {
+      const response = await fetch("/api/give-welcome-credits", {
+        method: "POST",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log(data.message);
+          // Refresh user data to show updated credits
+          fetchUserData();
+        }
+      }
+    } catch (error) {
+      console.error("Error giving welcome credits:", error);
     }
   };
 
@@ -113,6 +154,11 @@ export default function DashboardPage() {
       if (!submitResponse.ok) {
         const errorData = await submitResponse.json();
         
+        if (submitResponse.status === 402) {
+          // Insufficient credits
+          throw new Error(`Insufficient Credits: ${errorData.error || "You need more credits to process images."}. Please purchase credits to continue.`);
+        }
+        
         if (submitResponse.status === 429) {
           throw new Error(`Quota Exceeded: ${errorData.error || "API quota limits reached"}. ${errorData.retryAfter || "Please try again later."}`);
         }
@@ -120,9 +166,10 @@ export default function DashboardPage() {
         throw new Error(errorData.error || "Failed to submit job");
       }
 
-      // Reset form and refresh jobs
+      // Reset form and refresh jobs and user data
       setUploadFile(null);
       fetchJobs();
+      fetchUserData(); // Refresh credits after successful processing
     } catch (error) {
       console.error("Error uploading file:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
@@ -265,7 +312,21 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Credits</p>
+                  <p className="text-2xl font-bold">{user?.credits || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
           <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
@@ -411,24 +472,42 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              <Button
-                type="submit"
-                disabled={!uploadFile || isUploading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3"
-                size="lg"
-              >
-                {isUploading ? (
-                  <>
-                    <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-                    Processing Your Image...
-                  </>
-                ) : (
-                  <>
+              {user && user.credits < 1 ? (
+                <div className="space-y-4">
+                  <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800 font-medium">No credits remaining</p>
+                    <p className="text-yellow-600 text-sm">Purchase credits to continue colorizing images</p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium py-3"
+                    size="lg"
+                    onClick={() => router.push('/pricing')}
+                  >
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Colorize with AI
-                  </>
-                )}
-              </Button>
+                    Buy Credits
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={!uploadFile || isUploading}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3"
+                  size="lg"
+                >
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+                      Processing Your Image...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Colorize with AI
+                    </>
+                  )}
+                </Button>
+              )}
             </form>
           </CardContent>
         </Card>

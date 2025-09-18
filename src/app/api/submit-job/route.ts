@@ -30,6 +30,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Check if user has sufficient credits
+    const db = getDatabase();
+    const user = await db.getUserById(session.user.id);
+    
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if ((user as any).credits < 1) {
+      return NextResponse.json({ 
+        error: "Insufficient credits. Please purchase credits to continue.",
+        credits: (user as any).credits 
+      }, { status: 402 }); // 402 Payment Required
+    }
+
     const { jobId } = await request.json();
     
     if (!jobId) {
@@ -43,7 +58,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Get job from database
-    const db = getDatabase();
     const job = await db.getJobById(jobId);
 
     if (!job) {
@@ -233,10 +247,15 @@ export async function POST(request: NextRequest) {
         status: "DONE",
       });
 
+      // Deduct 1 credit for successful processing
+      const updatedUser = await db.deductCredits(session.user.id, 1);
+      console.log(`Deducted 1 credit from user ${session.user.email}. Remaining credits: ${(updatedUser as any).credits}`);
+
       return NextResponse.json({
         success: true,
         jobId,
         outputUrl,
+        creditsRemaining: (updatedUser as any).credits,
       });
     } catch (processingError: any) {
       console.error("Error processing image:", processingError);
