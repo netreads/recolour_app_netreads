@@ -8,19 +8,20 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  image         String?
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  credits       Int       @default(0)
-  accounts      Account[]
-  jobs          Job[]
-  sessions      Session[]
-  orders        Order[]
-  transactions  Transaction[]
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  name                 String?
+  image                String?
+  emailVerified        Boolean   @default(false)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  credits              Int       @default(0)
+  welcomeCreditsGiven  Boolean   @default(false) @map("welcome_credits_given")
+  accounts             Account[]
+  jobs                 Job[]
+  sessions             Session[]
+  orders               Order[]
+  transactions         Transaction[]
 
   @@map("user")
 }

@@ -88,6 +88,15 @@ export class DatabaseHelper {
       }
     });
   }
+
+  async markWelcomeCreditsGiven(userId: string): Promise<User> {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: {
+        welcomeCreditsGiven: true
+      }
+    });
+  }
 }
 
 // Helper to get database instance

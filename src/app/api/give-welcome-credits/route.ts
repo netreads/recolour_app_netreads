@@ -21,9 +21,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Only give credits if user has 0 credits (first time)
-    if ((user as any).credits === 0) {
+    // Only give credits if user hasn't received welcome credits yet (fresh signup)
+    if (!(user as any).welcomeCreditsGiven) {
       const updatedUser = await db.addCredits(session.user.id, 1);
+      // Mark that welcome credits have been given
+      await db.markWelcomeCreditsGiven(session.user.id);
       console.log(`Gave 1 free HD credit to new user: ${session.user.email}`);
       
       return NextResponse.json({
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         credits: (user as any).credits,
-        message: "You already have credits."
+        message: "Welcome credits already given."
       });
     }
   } catch (error) {
