@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, CreditCard, RefreshCw } from "lucide-react";
+import { User, LogOut, Settings, CreditCard, RefreshCw, Menu, X } from "lucide-react";
 
 interface UserType {
   id: string;
@@ -23,6 +23,7 @@ interface UserType {
 export function Navbar() {
   const [user, setUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isFetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
 
@@ -164,6 +165,7 @@ export function Navbar() {
           </Link>
         </div>
 
+        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
           <Link href="/pricing" className="transition-colors hover:text-foreground/80 text-foreground/60">
             Pricing
@@ -175,11 +177,12 @@ export function Navbar() {
           )}
         </nav>
 
-        <div className="flex items-center space-x-4">
+        {/* Desktop User Actions */}
+        <div className="hidden md:flex items-center space-x-4">
           {user ? (
             <>
               {/* Credits Display */}
-              <div className="hidden sm:flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full">
+              <div className="flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full">
                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                 <span className="text-sm font-medium text-purple-700">
                   {user.credits} Credits
@@ -247,7 +250,127 @@ export function Navbar() {
             )
           )}
         </div>
+
+        {/* Mobile Menu Button */}
+        <div className="md:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="h-8 w-8 p-0"
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 py-4 space-y-4">
+            {/* Mobile Navigation Links */}
+            <nav className="space-y-3">
+              <Link 
+                href="/pricing" 
+                className="block text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Pricing
+              </Link>
+              {user && (
+                <Link 
+                  href="/dashboard" 
+                  className="block text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              )}
+            </nav>
+
+            {/* Mobile User Section */}
+            {user ? (
+              <div className="space-y-4 pt-4 border-t">
+                {/* Mobile Credits Display */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-purple-700">
+                      {user.credits} Credits
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refreshUserCredits}
+                    className="h-8 w-8 p-0"
+                  >
+                    <RefreshCw className="h-4 w-4 text-purple-600" />
+                  </Button>
+                </div>
+
+                {/* Mobile User Info */}
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                      {user.email.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{user.email}</p>
+                  </div>
+                </div>
+
+                {/* Mobile User Actions */}
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" asChild>
+                    <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                      <User className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start" asChild>
+                    <Link href="/pricing" onClick={() => setIsMobileMenuOpen(false)}>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Billing
+                    </Link>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-red-600 hover:text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      handleLogout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              !isLoading && (
+                <div className="space-y-3 pt-4 border-t">
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      Sign In
+                    </Link>
+                  </Button>
+                  <Button className="w-full" asChild>
+                    <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                      Get Started
+                    </Link>
+                  </Button>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

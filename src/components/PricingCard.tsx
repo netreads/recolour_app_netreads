@@ -105,65 +105,65 @@ export function PricingCard({
     <Card
       className={`relative transition-all duration-200 ${
         popular
-          ? "border-primary shadow-lg scale-105"
+          ? "border-primary shadow-lg sm:scale-105"
           : "hover:shadow-md"
       }`}
     >
       {popular && (
-        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-          <Badge className="bg-gradient-to-r from-primary to-blue-600 text-primary-foreground px-3 py-1">
+        <div className="absolute -top-2 sm:-top-3 left-1/2 transform -translate-x-1/2">
+          <Badge className="bg-gradient-to-r from-primary to-blue-600 text-primary-foreground px-2 sm:px-3 py-1 text-xs sm:text-sm">
             Best Value
           </Badge>
         </div>
       )}
       
-      <CardHeader className="text-center pb-6">
-        <div className="mx-auto w-12 h-12 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-lg flex items-center justify-center mb-4">
+      <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
+        <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-lg flex items-center justify-center mb-3 sm:mb-4">
           {icon}
         </div>
-        <CardTitle className="text-xl font-bold">{name}</CardTitle>
-        <CardDescription className="text-sm">
+        <CardTitle className="text-lg sm:text-xl font-bold">{name}</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">
           {description}
         </CardDescription>
-        <div className="space-y-1 pt-4">
-          <div className="text-3xl font-bold">{price}</div>
-          <div className="text-sm text-muted-foreground">
+        <div className="space-y-1 pt-3 sm:pt-4">
+          <div className="text-2xl sm:text-3xl font-bold">{price}</div>
+          <div className="text-xs sm:text-sm text-muted-foreground">
             {credits} HD Credits
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
         <Button
           size="lg"
           variant={buttonVariant}
-          className="w-full"
+          className="w-full text-sm sm:text-base py-2 sm:py-3"
           onClick={handlePurchase}
           disabled={loading}
         >
           {loading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
               Processing...
             </>
           ) : (
             <>
-              <CreditCard className="mr-2 h-4 w-4" />
+              <CreditCard className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
               {buttonText}
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
             </>
           )}
         </Button>
         
         <Separator />
         
-        <div className="space-y-3">
-          <p className="font-medium text-sm">What's included:</p>
-          <ul className="space-y-2">
+        <div className="space-y-2 sm:space-y-3">
+          <p className="font-medium text-xs sm:text-sm">What's included:</p>
+          <ul className="space-y-1.5 sm:space-y-2">
             {features.map((feature) => (
               <li key={feature} className="flex items-start">
-                <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-muted-foreground">
+                <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
+                <span className="text-xs sm:text-sm text-muted-foreground">
                   {feature}
                 </span>
               </li>

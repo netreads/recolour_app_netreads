@@ -317,101 +317,101 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Enhanced Header */}
-        <div className="text-center space-y-6 max-w-5xl mx-auto">
-          <div className="space-y-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-orange-500 to-green-600 rounded-xl mb-4">
-              <Sparkles className="h-8 w-8 text-white" />
+        <div className="text-center space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-orange-500 to-green-600 rounded-xl mb-2 sm:mb-4">
+              <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
-            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-gray-900">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 leading-tight">
               Welcome to
               <br />
               <span className="bg-gradient-to-r from-orange-500 to-green-600 bg-clip-text text-transparent">
                 ReColor AI
               </span>
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
               Transform your black & white photos into vibrant, colorized masterpieces using advanced AI technology.
-              <br />
-              Perfect for preserving your family's precious memories.
+              <br className="hidden sm:block" />
+              <span className="sm:hidden"> </span>Perfect for preserving your family's precious memories.
             </p>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Sparkles className="h-5 w-5 text-purple-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
+                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">Credits</p>
-                  <p className="text-2xl font-bold">{user?.credits || 0}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Credits</p>
+                  <p className="text-lg sm:text-2xl font-bold">{user?.credits || 0}</p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={fetchUserData}
-                  className="ml-2"
+                  className="ml-1 sm:ml-2 h-6 w-6 sm:h-8 sm:w-8 p-0"
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Image className="h-5 w-5 text-blue-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                  <Image className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Images</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold">{stats.completed}</p>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Images</p>
+                  <p className="text-lg sm:text-2xl font-bold">{stats.total}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <RefreshCw className="h-5 w-5 text-yellow-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg">
+                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Processing</p>
-                  <p className="text-2xl font-bold">{stats.processing}</p>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Completed</p>
+                  <p className="text-lg sm:text-2xl font-bold">{stats.completed}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <XCircle className="h-5 w-5 text-red-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="p-1.5 sm:p-2 bg-yellow-100 rounded-lg">
+                  <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Failed</p>
-                  <p className="text-2xl font-bold">{stats.failed}</p>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Processing</p>
+                  <p className="text-lg sm:text-2xl font-bold">{stats.processing}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
+                  <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Failed</p>
+                  <p className="text-lg sm:text-2xl font-bold">{stats.failed}</p>
                 </div>
               </div>
             </CardContent>
@@ -420,20 +420,20 @@ export default function DashboardPage() {
 
         {/* Enhanced Upload Section */}
         <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl flex items-center justify-center">
-              <Zap className="mr-3 h-6 w-6 text-blue-600" />
+          <CardHeader className="text-center pb-4 px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl flex items-center justify-center">
+              <Zap className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               Upload New Photo
             </CardTitle>
-            <CardDescription className="text-base">
+            <CardDescription className="text-sm sm:text-base px-4">
               Drag & drop or click to select a black & white image for AI colorization
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleFileUpload} className="space-y-6">
+          <CardContent className="px-4 sm:px-6">
+            <form onSubmit={handleFileUpload} className="space-y-4 sm:space-y-6">
               {/* Drag & Drop Area */}
               <div
-                className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+                className={`relative border-2 border-dashed rounded-xl p-4 sm:p-8 text-center transition-all duration-200 ${
                   dragActive
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
                     : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
@@ -452,8 +452,8 @@ export default function DashboardPage() {
                 />
                 
                 {uploadFile ? (
-                  <div className="space-y-4">
-                    <div className="relative w-full max-w-sm mx-auto">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="relative w-full max-w-xs sm:max-w-sm mx-auto">
                       <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden shadow-lg">
                         <img
                           src={URL.createObjectURL(uploadFile)}
@@ -462,9 +462,9 @@ export default function DashboardPage() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="font-medium text-foreground">{uploadFile.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="space-y-1 sm:space-y-2">
+                      <p className="font-medium text-foreground text-sm sm:text-base truncate">{uploadFile.name}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
@@ -475,19 +475,19 @@ export default function DashboardPage() {
                         setUploadFile(null);
                         if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
-                      className="text-sm"
+                      className="text-xs sm:text-sm"
                     >
                       Choose Different File
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                      <Upload className="h-8 w-8 text-blue-600" />
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                      <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-medium">Drop your image here</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="space-y-1 sm:space-y-2">
+                      <p className="text-base sm:text-lg font-medium">Drop your image here</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         or click to browse files
                       </p>
                     </div>
@@ -495,8 +495,9 @@ export default function DashboardPage() {
                       type="button"
                       variant="outline"
                       onClick={() => fileInputRef.current?.click()}
+                      className="text-sm sm:text-base"
                     >
-                      <Plus className="mr-2 h-4 w-4" />
+                      <Plus className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       Select Image
                     </Button>
                     <p className="text-xs text-muted-foreground">
@@ -507,18 +508,18 @@ export default function DashboardPage() {
               </div>
 
               {user && user.credits < 1 ? (
-                <div className="space-y-4">
-                  <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-yellow-800 font-medium">No credits remaining</p>
-                    <p className="text-yellow-600 text-sm">Purchase credits to continue colorizing images</p>
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="text-center p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800 font-medium text-sm sm:text-base">No credits remaining</p>
+                    <p className="text-yellow-600 text-xs sm:text-sm">Purchase credits to continue colorizing images</p>
                   </div>
                   <Button
                     type="button"
-                    className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-3 rounded-xl"
+                    className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-2.5 sm:py-3 rounded-xl text-sm sm:text-base"
                     size="lg"
                     onClick={() => router.push('/pricing')}
                   >
-                    <Sparkles className="mr-2 h-5 w-5" />
+                    <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                     Buy Credits
                   </Button>
                 </div>
@@ -526,17 +527,17 @@ export default function DashboardPage() {
                 <Button
                   type="submit"
                   disabled={!uploadFile || isUploading}
-                  className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-3 rounded-xl"
+                  className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-2.5 sm:py-3 rounded-xl text-sm sm:text-base"
                   size="lg"
                 >
                   {isUploading ? (
                     <>
-                      <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+                      <RefreshCw className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                       Processing Your Image...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-2 h-5 w-5" />
+                      <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                       Colorize with AI
                     </>
                   )}
@@ -548,14 +549,14 @@ export default function DashboardPage() {
 
         {/* Gallery - Only completed recolored images */}
         <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <CardHeader className="px-4 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
-                <CardTitle className="text-2xl flex items-center">
-                  <TrendingUp className="mr-3 h-6 w-6 text-green-600" />
+                <CardTitle className="text-xl sm:text-2xl flex items-center">
+                  <TrendingUp className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                   Your Gallery (Recolored)
                 </CardTitle>
-                <CardDescription className="text-base">
+                <CardDescription className="text-sm sm:text-base">
                   Only completed AI recolors are shown here for a clean, focused view
                 </CardDescription>
               </div>
@@ -565,35 +566,36 @@ export default function DashboardPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setSortBy(sortBy === 'newest' ? 'oldest' : 'newest')}
+                    className="text-xs sm:text-sm"
                   >
-                    <SortAsc className="mr-2 h-4 w-4" />
+                    <SortAsc className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                     {sortBy === 'newest' ? 'Newest First' : 'Oldest First'}
                   </Button>
                 </div>
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center space-y-4">
-                  <RefreshCw className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-                  <p className="text-muted-foreground">Loading your gallery...</p>
+              <div className="flex items-center justify-center py-8 sm:py-12">
+                <div className="text-center space-y-3 sm:space-y-4">
+                  <RefreshCw className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-blue-600 mx-auto" />
+                  <p className="text-muted-foreground text-sm sm:text-base">Loading your gallery...</p>
                 </div>
               </div>
             ) : completedJobs.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="mx-auto w-24 h-24 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
-                  <Image className="h-12 w-12 text-blue-600" />
+              <div className="text-center py-12 sm:py-16">
+                <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-4 sm:mb-6">
+                  <Image className="h-8 w-8 sm:h-12 sm:w-12 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No recolored images yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                <h3 className="text-lg sm:text-xl font-semibold mb-2">No recolored images yet</h3>
+                <p className="text-muted-foreground mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base px-4">
                   Upload a black & white image to generate your first AI recolor.
                 </p>
                
               </div>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                 {completedJobs.map((job) => {
                   const active = thumbViewByJob[job.id] || 'colorized';
                   const thumbUrl = getImageUrl(job.id, active === 'colorized' ? 'output' : 'original');
@@ -606,11 +608,12 @@ export default function DashboardPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={thumbUrl} alt="Recolored preview" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.01]" />
                       </div>
-                      <div className="absolute top-3 left-3 flex gap-2">
+                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex gap-1 sm:gap-2">
                         <Button
                           size="sm"
                           variant={active === 'original' ? 'default' : 'outline'}
                           onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'original' })); }}
+                          className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
                         >
                           Original
                         </Button>
@@ -618,12 +621,13 @@ export default function DashboardPage() {
                           size="sm"
                           variant={active === 'colorized' ? 'default' : 'outline'}
                           onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'colorized' })); }}
+                          className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
                         >
                           Colorized
                         </Button>
                       </div>
-                      <div className="flex items-center justify-between px-4 py-3">
-                        <div className="text-sm text-muted-foreground">
+                      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3">
+                        <div className="text-xs sm:text-sm text-muted-foreground">
                           {new Date(job.created_at).toLocaleString()}
                         </div>
                         <Button
@@ -639,8 +643,9 @@ export default function DashboardPage() {
                             link.click();
                             document.body.removeChild(link);
                           }}
+                          className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
                         >
-                          <Download className="mr-2 h-4 w-4" />
+                          <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                           Download
                         </Button>
                       </div>

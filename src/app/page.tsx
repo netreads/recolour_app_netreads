@@ -67,46 +67,46 @@ export default function HomePage() {
       />
       <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="container mx-auto px-4 pt-20 pb-16">
-        <div className="text-center space-y-8 max-w-5xl mx-auto">
-          <div className="space-y-6">
-            <Badge variant="secondary" className="mx-auto bg-saffron-50 text-saffron-700 border-saffron-200 animate-pulse">
+      <section className="container mx-auto px-4 pt-16 sm:pt-20 pb-12 sm:pb-16">
+        <div className="text-center space-y-6 sm:space-y-8 max-w-5xl mx-auto">
+          <div className="space-y-4 sm:space-y-6">
+            <Badge variant="secondary" className="mx-auto bg-saffron-50 text-saffron-700 border-saffron-200 animate-pulse text-xs sm:text-sm">
               <Sparkles className="w-3 h-3 mr-1 animate-spin" />
               Trusted by 50,000+ Indian families 🇮🇳
             </Badge>
-            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-gray-900">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 leading-tight">
               Bring your family's
               <br />
               <span className="bg-gradient-to-r from-orange-500 to-green-600 bg-clip-text text-transparent">
                 heritage to life
               </span>
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
               Transform your grandparents' black & white photos into vibrant memories. 
-              <br />
-              Perfect for weddings, festivals, and preserving your family's rich history.
+              <br className="hidden sm:block" />
+              <span className="sm:hidden"> </span>Perfect for weddings, festivals, and preserving your family's rich history.
             </p>
           </div>
           
           <div className="space-y-6">
             {!isLoading && (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
                 {user ? (
-                  <Button size="lg" className="text-lg px-10 py-4 bg-black text-white hover:bg-gray-800 rounded-xl font-semibold" asChild>
+                  <Button size="lg" className="text-base sm:text-lg px-8 sm:px-10 py-3 sm:py-4 bg-black text-white hover:bg-gray-800 rounded-xl font-semibold" asChild>
                     <Link href="/dashboard">
                       Start Colorizing Now
-                      <ArrowRight className="ml-2 h-5 w-5" />
+                      <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 ) : (
                   <>
-                    <Button size="lg" className="text-lg px-10 py-4 bg-gradient-to-r from-orange-500 to-green-600 text-white hover:from-orange-600 hover:to-green-700 rounded-xl font-semibold" asChild>
+                    <Button size="lg" className="text-base sm:text-lg px-8 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-green-600 text-white hover:from-orange-600 hover:to-green-700 rounded-xl font-semibold" asChild>
                       <Link href="/signup">
                         Colorize Photos Free
-                        <ArrowRight className="ml-2 h-5 w-5" />
+                        <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                       </Link>
                     </Button>
-                    <Button size="lg" variant="outline" className="text-lg px-10 py-4 border-gray-300 rounded-xl font-semibold" asChild>
+                    <Button size="lg" variant="outline" className="text-base sm:text-lg px-8 sm:px-10 py-3 sm:py-4 border-gray-300 rounded-xl font-semibold" asChild>
                       <Link href="/login">Sign In</Link>
                     </Button>
                   </>
@@ -114,7 +114,7 @@ export default function HomePage() {
               </div>
             )}
             
-            <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-sm text-gray-500 px-4">
               <div className="flex items-center">
                 <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
                 <span>No UPI/Paytm required</span>
@@ -133,16 +133,16 @@ export default function HomePage() {
       </section>
 
       {/* Before/After Images Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">See the magic in action</h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">See the magic in action</h2>
+            <p className="text-gray-600 text-base sm:text-lg max-w-2xl mx-auto px-4">
               Watch your family's precious memories transform into vibrant, lifelike images
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             {/* Before/After Card 1 */}
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white overflow-hidden animate-fade-in-up" style={{animationDelay: '0.1s'}}>
               <div className="relative">
@@ -234,17 +234,17 @@ export default function HomePage() {
       </section>
 
       {/* Video Demo Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">See ReColor AI in action</h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">See ReColor AI in action</h2>
+            <p className="text-gray-600 text-base sm:text-lg max-w-2xl mx-auto px-4">
               Watch how our AI brings your family's heritage photos to life in real-time
             </p>
           </div>
           
           <div className="max-w-4xl mx-auto">
-            <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300 animate-float">
+            <div className="relative aspect-video rounded-xl sm:rounded-2xl overflow-hidden shadow-xl sm:shadow-2xl hover:shadow-2xl sm:hover:shadow-3xl transition-all duration-300 animate-float">
               <iframe
                 src="https://drive.google.com/file/d/1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu/preview"
                 title="ReColor AI Demo Video - Watch how our AI transforms black and white photos into vibrant memories"
@@ -265,33 +265,33 @@ export default function HomePage() {
       </section>
 
       {/* Trust Section - Company Logos */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-12 sm:py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 sm:mb-12">
             <p className="text-gray-600 text-sm font-medium">Trusted by Indian families and professionals</p>
           </div>
-          <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-            <div className="text-gray-400 font-semibold text-lg">Wedding Photographers</div>
-            <div className="text-gray-400 font-semibold text-lg">Family Studios</div>
-            <div className="text-gray-400 font-semibold text-lg">Heritage Museums</div>
-            <div className="text-gray-400 font-semibold text-lg">Event Planners</div>
-            <div className="text-gray-400 font-semibold text-lg">Photo Studios</div>
-            <div className="text-gray-400 font-semibold text-lg">Archives</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap justify-center items-center gap-4 sm:gap-6 lg:gap-8 opacity-60">
+            <div className="text-gray-400 font-semibold text-sm sm:text-base lg:text-lg text-center">Wedding Photographers</div>
+            <div className="text-gray-400 font-semibold text-sm sm:text-base lg:text-lg text-center">Family Studios</div>
+            <div className="text-gray-400 font-semibold text-sm sm:text-base lg:text-lg text-center">Heritage Museums</div>
+            <div className="text-gray-400 font-semibold text-sm sm:text-base lg:text-lg text-center">Event Planners</div>
+            <div className="text-gray-400 font-semibold text-sm sm:text-base lg:text-lg text-center">Photo Studios</div>
+            <div className="text-gray-400 font-semibold text-sm sm:text-base lg:text-lg text-center">Archives</div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Perfect for Indian families</h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Perfect for Indian families</h2>
+            <p className="text-gray-600 text-base sm:text-lg max-w-2xl mx-auto px-4">
               Your complete toolkit for preserving family heritage – everything you need in one place.
           </p>
         </div>
         
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
             <CardHeader className="pb-4">
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -338,16 +338,16 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">As easy as Figma. Or even simpler.</h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">As easy as Figma. Or even simpler.</h2>
+            <p className="text-gray-600 text-base sm:text-lg max-w-2xl mx-auto px-4">
               The simple magic behind those eye-catching colorized photos – finally revealed.
           </p>
         </div>
         
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto">
             <div className="text-center space-y-6">
               <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
                 <Upload className="w-10 h-10 text-white" />
@@ -388,16 +388,16 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Loved by Indian families across the country</h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Loved by Indian families across the country</h2>
+            <p className="text-gray-600 text-base sm:text-lg max-w-2xl mx-auto px-4">
               See what our Indian users are saying about ReColor AI
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             <Card className="border-0 shadow-lg bg-white">
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
@@ -671,9 +671,9 @@ export default function HomePage() {
       </section>*/}
 
       {/* Stats Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-12 sm:py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-4xl mx-auto text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 max-w-4xl mx-auto text-center">
             <div className="space-y-2">
               <div className="text-4xl font-bold text-gray-900">50K+</div>
               <div className="text-gray-600">Photos Colorized</div>
@@ -695,37 +695,37 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-4xl mx-auto">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">
               Preserve your family's heritage today
             </h2>
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-600 mb-6 sm:mb-8 leading-relaxed px-4">
               ReColor AI gives you a way to bring your family's memories to life – fast, accurate, and secure.
-              <br />
-              Because preserving your family's history matters more than perfect timing.
+              <br className="hidden sm:block" />
+              <span className="sm:hidden"> </span>Because preserving your family's history matters more than perfect timing.
             </p>
             
             <div className="space-y-6">
             {!isLoading && (
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
                   {user ? (
-                    <Button size="lg" className="text-lg px-10 py-4 bg-black text-white hover:bg-gray-800 rounded-xl font-semibold" asChild>
+                    <Button size="lg" className="text-base sm:text-lg px-8 sm:px-10 py-3 sm:py-4 bg-black text-white hover:bg-gray-800 rounded-xl font-semibold" asChild>
                       <Link href="/dashboard">
                         Continue Colorizing
-                        <ArrowRight className="ml-2 h-5 w-5" />
+                        <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                       </Link>
                     </Button>
                   ) : (
                     <>
-                      <Button size="lg" className="text-lg px-10 py-4 bg-gradient-to-r from-orange-500 to-green-600 text-white hover:from-orange-600 hover:to-green-700 rounded-xl font-semibold" asChild>
+                      <Button size="lg" className="text-base sm:text-lg px-8 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-green-600 text-white hover:from-orange-600 hover:to-green-700 rounded-xl font-semibold" asChild>
                         <Link href="/signup">
                           Colorize Photos Free
-                          <ArrowRight className="ml-2 h-5 w-5" />
+                          <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </Button>
-                      <Button size="lg" variant="outline" className="text-lg px-10 py-4 border-gray-300 rounded-xl font-semibold" asChild>
+                      <Button size="lg" variant="outline" className="text-base sm:text-lg px-8 sm:px-10 py-3 sm:py-4 border-gray-300 rounded-xl font-semibold" asChild>
                         <Link href="/pricing">View Pricing</Link>
                       </Button>
                     </>
@@ -733,7 +733,7 @@ export default function HomePage() {
                 </div>
               )}
               
-              <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-sm text-gray-500 px-4">
                 <div className="flex items-center">
                   <Award className="w-4 h-4 text-green-500 mr-2" />
                   <span>30-day money-back guarantee</span>
