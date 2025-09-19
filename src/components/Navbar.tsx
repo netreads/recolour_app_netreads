@@ -26,15 +26,59 @@ export function Navbar() {
 
   useEffect(() => {
     checkAuthStatus();
+
+    // Listen for explicit credit update events from anywhere in the app
+    const handleCreditsUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { credits?: number } | undefined;
+      if (typeof detail?.credits === "number") {
+        setUser((prev) => prev ? { ...prev, credits: detail.credits as number } : prev);
+      } else {
+        void fetchAndSetUser();
+      }
+    };
+    window.addEventListener("credits:update", handleCreditsUpdate as EventListener);
+
+    // Poll for latest credits periodically
+    const intervalId = window.setInterval(() => {
+      void fetchAndSetUser();
+    }, 5000);
+
+    // Refresh when window/tab becomes active
+    const handleFocus = () => {
+      void fetchAndSetUser();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void fetchAndSetUser();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("credits:update", handleCreditsUpdate as EventListener);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      // Use refreshSession to get latest data
+      // Prefer fresh user data from API as source of truth
+      const response = await fetch("/api/user", { cache: "no-store" });
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData?.id) {
+          setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
+          return;
+        }
+      }
+      // Fallback to session
       const session = await refreshSession();
-      const userData = (session && (session as any).user) || (session as any)?.data?.user || null;
-      if (userData) {
-        setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
+      const userFromSession = (session && (session as any).user) || (session as any)?.data?.user || null;
+      if (userFromSession) {
+        setUser({ id: userFromSession.id, email: userFromSession.email, credits: userFromSession.credits || 0 });
       } else {
         setUser(null);
       }
@@ -46,20 +90,38 @@ export function Navbar() {
     }
   };
 
+  // Fetch fresh user data from API and update state if changed
+  const fetchAndSetUser = async () => {
+    try {
+      if (!user) return;
+      const response = await fetch("/api/user", { cache: "no-store" });
+      if (!response.ok) return;
+      const latest = await response.json();
+      if (!latest) return;
+      setUser((prev) => {
+        if (!prev) return { id: latest.id, email: latest.email, credits: latest.credits || 0 };
+        if (
+          prev.id !== latest.id ||
+          prev.email !== latest.email ||
+          prev.credits !== (latest.credits || 0)
+        ) {
+          return { id: latest.id, email: latest.email, credits: latest.credits || 0 };
+        }
+        return prev;
+      });
+    } catch (error) {
+      // Silently ignore to keep UI snappy
+    }
+  };
+
   const refreshUserCredits = async () => {
     try {
-      const response = await fetch("/api/refresh-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
-        console.log("Credits refreshed:", userData.credits);
-      }
+      // Prefer a simple GET that bypasses cache
+      const response = await fetch("/api/user", { cache: "no-store" });
+      if (!response.ok) return;
+      const userData = await response.json();
+      setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
+      console.log("Credits refreshed:", userData.credits);
     } catch (error) {
       console.error("Error refreshing credits:", error);
     }

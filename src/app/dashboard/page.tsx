@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Image, Clock, CheckCircle, XCircle, Download, RefreshCw, Plus, Filter, SortAsc, Sparkles, Zap, TrendingUp, Users } from "lucide-react";
 import { getSession, refreshSession } from "@/lib/auth-client";
-import { ImageCard } from "@/components/features/ImageCard";
+import { ImageViewer } from "@/components/features/ImageViewer";
 
 interface Job {
   id: string;
@@ -37,7 +37,10 @@ export default function DashboardPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'processing' | 'done' | 'failed'>('all');
+  // Only show completed recolor jobs in gallery for a simpler UX
+  const [thumbViewByJob, setThumbViewByJob] = useState<Record<string, 'original' | 'colorized'>>({});
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerJob, setViewerJob] = useState<Job | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -250,8 +253,8 @@ export default function DashboardPage() {
     return true;
   };
 
-  const filteredAndSortedJobs = jobs
-    .filter(job => filterStatus === 'all' || job.status === filterStatus)
+  const completedJobs = jobs
+    .filter(job => job.status === 'done' && job.output_url)
     .sort((a, b) => {
       const dateA = new Date(a.created_at).getTime();
       const dateB = new Date(b.created_at).getTime();
@@ -535,20 +538,19 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Enhanced Jobs Section */}
+        {/* Gallery - Only completed recolored images */}
         <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle className="text-2xl flex items-center">
                   <TrendingUp className="mr-3 h-6 w-6 text-green-600" />
-                  Your Gallery
+                  Your Gallery (Recolored)
                 </CardTitle>
                 <CardDescription className="text-base">
-                  View and manage your colorized images
+                  Only completed AI recolors are shown here for a clean, focused view
                 </CardDescription>
               </div>
-              
               {jobs.length > 0 && (
                 <div className="flex gap-2">
                   <Button
@@ -558,14 +560,6 @@ export default function DashboardPage() {
                   >
                     <SortAsc className="mr-2 h-4 w-4" />
                     {sortBy === 'newest' ? 'Newest First' : 'Oldest First'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setFilterStatus(filterStatus === 'all' ? 'done' : 'all')}
-                  >
-                    <Filter className="mr-2 h-4 w-4" />
-                    {filterStatus === 'all' ? 'Show Completed' : 'Show All'}
                   </Button>
                 </div>
               )}
@@ -579,14 +573,14 @@ export default function DashboardPage() {
                   <p className="text-muted-foreground">Loading your gallery...</p>
                 </div>
               </div>
-            ) : jobs.length === 0 ? (
+            ) : completedJobs.length === 0 ? (
               <div className="text-center py-16">
                 <div className="mx-auto w-24 h-24 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
                   <Image className="h-12 w-12 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No photos yet</h3>
+                <h3 className="text-xl font-semibold mb-2">No recolored images yet</h3>
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Upload your first black & white image to see the magic of AI colorization!
+                  Upload a black & white image to generate your first AI recolor.
                 </p>
                 <Button
                   onClick={() => fileInputRef.current?.click()}
@@ -597,18 +591,77 @@ export default function DashboardPage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-                {filteredAndSortedJobs.map((job) => (
-                  <ImageCard
-                    key={job.id}
-                    job={job}
-                    getImageUrl={getImageUrl}
-                  />
-                ))}
+              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                {completedJobs.map((job) => {
+                  const active = thumbViewByJob[job.id] || 'colorized';
+                  const thumbUrl = getImageUrl(job.id, active === 'colorized' ? 'output' : 'original');
+                  return (
+                    <div key={job.id} className="group relative rounded-xl overflow-hidden border bg-white shadow-sm">
+                      <div
+                        className="aspect-[4/3] w-full cursor-zoom-in bg-muted"
+                        onClick={() => { setViewerJob(job); setViewerOpen(true); }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={thumbUrl} alt="Recolored preview" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.01]" />
+                      </div>
+                      <div className="absolute top-3 left-3 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={active === 'original' ? 'default' : 'outline'}
+                          onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'original' })); }}
+                        >
+                          Original
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={active === 'colorized' ? 'default' : 'outline'}
+                          onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'colorized' })); }}
+                        >
+                          Colorized
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3">
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(job.created_at).toLocaleString()}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const url = active === 'colorized' ? getImageUrl(job.id, 'output') : getImageUrl(job.id, 'original');
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `${active}-${job.id}.jpg`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Modal Viewer */}
+        {viewerJob && (
+          <ImageViewer
+            isOpen={viewerOpen}
+            onClose={() => setViewerOpen(false)}
+            originalImageUrl={getImageUrl(viewerJob.id, 'original')}
+            colorizedImageUrl={viewerJob.output_url ? getImageUrl(viewerJob.id, 'output') : undefined}
+            jobId={viewerJob.id}
+            status={viewerJob.status}
+            createdAt={viewerJob.created_at}
+          />
+        )}
       </div>
     </div>
   );

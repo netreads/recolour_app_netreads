@@ -39,6 +39,14 @@ export default function PaymentSuccessPage() {
       const data = await response.json();
       
       setPaymentStatus(data);
+
+      // If credits were added, notify the app to refresh user credits in navbar
+      if (data?.success && typeof data?.credits === 'number') {
+        try {
+          const event = new CustomEvent('credits:update', { detail: { credits: undefined } });
+          window.dispatchEvent(event);
+        } catch {}
+      }
     } catch (error) {
       console.error('Error checking payment status:', error);
       setPaymentStatus({

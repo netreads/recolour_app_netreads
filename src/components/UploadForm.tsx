@@ -70,9 +70,15 @@ export default function UploadForm() {
         console.error(await r2.text());
         throw new Error("Failed to submit job");
       }
-      const { jobId } = await r2.json();
+      const { jobId, creditsRemaining } = await r2.json();
       
       setProgress(100);
+
+      // Emit credits update to refresh navbar immediately
+      try {
+        const event = new CustomEvent("credits:update", { detail: { credits: creditsRemaining } });
+        window.dispatchEvent(event);
+      } catch {}
       
       // Redirect to result page
       setTimeout(() => {
