@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getSession as getClientSession, signOut as clientSignOut, refreshSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -23,6 +23,8 @@ interface UserType {
 export function Navbar() {
   const [user, setUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isFetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
 
   useEffect(() => {
     checkAuthStatus();
@@ -33,30 +35,24 @@ export function Navbar() {
       if (typeof detail?.credits === "number") {
         setUser((prev) => prev ? { ...prev, credits: detail.credits as number } : prev);
       } else {
-        void fetchAndSetUser();
+        void fetchAndSetUserThrottled();
       }
     };
     window.addEventListener("credits:update", handleCreditsUpdate as EventListener);
 
-    // Poll for latest credits periodically
-    const intervalId = window.setInterval(() => {
-      void fetchAndSetUser();
-    }, 5000);
-
     // Refresh when window/tab becomes active
     const handleFocus = () => {
-      void fetchAndSetUser();
+      void fetchAndSetUserThrottled();
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void fetchAndSetUser();
+        void fetchAndSetUserThrottled();
       }
     };
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener("credits:update", handleCreditsUpdate as EventListener);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -93,8 +89,11 @@ export function Navbar() {
   // Fetch fresh user data from API and update state if changed
   const fetchAndSetUser = async () => {
     try {
-      if (!user) return;
       const response = await fetch("/api/user", { cache: "no-store" });
+      if (response.status === 401) {
+        setUser(null);
+        return;
+      }
       if (!response.ok) return;
       const latest = await response.json();
       if (!latest) return;
@@ -111,6 +110,20 @@ export function Navbar() {
       });
     } catch (error) {
       // Silently ignore to keep UI snappy
+    }
+  };
+
+  // Throttle fetches to avoid bursts from multiple events
+  const fetchAndSetUserThrottled = async () => {
+    const now = Date.now();
+    if (isFetchingRef.current) return;
+    if (now - lastFetchRef.current < 1000) return; // 1s throttle
+    isFetchingRef.current = true;
+    try {
+      await fetchAndSetUser();
+      lastFetchRef.current = Date.now();
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
