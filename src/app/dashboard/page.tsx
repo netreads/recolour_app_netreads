@@ -314,24 +314,32 @@ export default function DashboardPage() {
   const stats = getStats();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Enhanced Header */}
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4">
-            <Sparkles className="h-8 w-8 text-white" />
+        <div className="text-center space-y-6 max-w-5xl mx-auto">
+          <div className="space-y-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-orange-500 to-green-600 rounded-xl mb-4">
+              <Sparkles className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-gray-900">
+              Welcome to
+              <br />
+              <span className="bg-gradient-to-r from-orange-500 to-green-600 bg-clip-text text-transparent">
+                ReColor AI
+              </span>
+            </h1>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Transform your black & white photos into vibrant, colorized masterpieces using advanced AI technology.
+              <br />
+              Perfect for preserving your family's precious memories.
+            </p>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Welcome to ReColor AI
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Transform your black & white photos into vibrant, colorized masterpieces using advanced AI technology
-          </p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-purple-100 rounded-lg">
@@ -353,7 +361,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
@@ -367,7 +375,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-green-100 rounded-lg">
@@ -381,7 +389,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-yellow-100 rounded-lg">
@@ -395,7 +403,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-red-100 rounded-lg">
@@ -411,7 +419,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Enhanced Upload Section */}
-        <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl flex items-center justify-center">
               <Zap className="mr-3 h-6 w-6 text-blue-600" />
@@ -506,7 +514,7 @@ export default function DashboardPage() {
                   </div>
                   <Button
                     type="button"
-                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium py-3"
+                    className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-3 rounded-xl"
                     size="lg"
                     onClick={() => router.push('/pricing')}
                   >
@@ -518,7 +526,7 @@ export default function DashboardPage() {
                 <Button
                   type="submit"
                   disabled={!uploadFile || isUploading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3"
+                  className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-3 rounded-xl"
                   size="lg"
                 >
                   {isUploading ? (
@@ -539,7 +547,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Gallery - Only completed recolored images */}
-        <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
@@ -584,7 +592,7 @@ export default function DashboardPage() {
                 </p>
                 <Button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 rounded-xl font-semibold"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Upload Your First Image
