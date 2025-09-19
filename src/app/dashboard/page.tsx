@@ -590,13 +590,7 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   Upload a black & white image to generate your first AI recolor.
                 </p>
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 rounded-xl font-semibold"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Upload Your First Image
-                </Button>
+               
               </div>
             ) : (
               <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">

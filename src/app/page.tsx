@@ -39,7 +39,33 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <>
+      {/* SEO Structured Data for Video */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "VideoObject",
+            "name": "ReColor AI Demo Video",
+            "description": "Watch how our AI transforms black and white photos into vibrant memories",
+            "thumbnailUrl": "https://drive.google.com/thumbnail?id=1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu",
+            "uploadDate": "2024-01-01",
+            "duration": "PT30S",
+            "contentUrl": "https://drive.google.com/file/d/1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu/view",
+            "embedUrl": "https://drive.google.com/file/d/1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu/preview",
+            "publisher": {
+              "@type": "Organization",
+              "name": "ReColor AI",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "/next.svg"
+              }
+            }
+          })
+        }}
+      />
+      <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="container mx-auto px-4 pt-20 pb-16">
         <div className="text-center space-y-8 max-w-5xl mx-auto">
@@ -207,7 +233,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Video Placeholder Section */}
+      {/* Video Demo Section */}
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
@@ -218,19 +244,18 @@ export default function HomePage() {
           </div>
           
           <div className="max-w-4xl mx-auto">
-            <div className="relative aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300 group cursor-pointer animate-float">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <Play className="w-8 h-8 text-gray-700 ml-1" />
-                </div>
-              </div>
-              <div className="absolute bottom-6 left-6 right-6">
-                <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-1">ReColor AI Demo</h3>
-                  <p className="text-sm text-gray-600">Watch how we transform a vintage Indian family photo in under 30 seconds</p>
-                </div>
-              </div>
+            <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300 animate-float">
+              <iframe
+                src="https://drive.google.com/file/d/1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu/preview"
+                title="ReColor AI Demo Video - Watch how our AI transforms black and white photos into vibrant memories"
+                className="w-full h-full"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                data-video-id="1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu"
+                data-video-title="ReColor AI Demo Video"
+                data-video-description="Watch how our AI transforms black and white photos into vibrant memories"
+              />
               <div className="absolute top-4 right-4">
                 <Badge className="bg-red-500 text-white">Live Demo</Badge>
               </div>
@@ -452,7 +477,7 @@ export default function HomePage() {
       </section>
 
       {/* Made with ReColor AI Section */}
-      <section className="py-20 bg-gray-50">
+      {/* <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Made with ReColor AI</h2>
@@ -462,7 +487,7 @@ export default function HomePage() {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {/* Gallery Item 1 */}
+            //  Gallery Item 1 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white overflow-hidden group animate-fade-in-up" style={{animationDelay: '0.1s'}}>
               <div className="relative aspect-square bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20"></div>
@@ -492,7 +517,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            {/* Gallery Item 2 */}
+            //  Gallery Item 2 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white overflow-hidden group animate-fade-in-up" style={{animationDelay: '0.2s'}}>
               <div className="relative aspect-square bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-blue-500/20"></div>
@@ -522,7 +547,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            {/* Gallery Item 3 */}
+            //  Gallery Item 3 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white overflow-hidden group animate-fade-in-up" style={{animationDelay: '0.3s'}}>
               <div className="relative aspect-square bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20"></div>
@@ -552,7 +577,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            {/* Gallery Item 4 */}
+            //  Gallery Item 4 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white overflow-hidden group animate-fade-in-up" style={{animationDelay: '0.4s'}}>
               <div className="relative aspect-square bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-red-500/20"></div>
@@ -582,7 +607,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            {/* Gallery Item 5 */}
+            //  Gallery Item 5 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white overflow-hidden group animate-fade-in-up" style={{animationDelay: '0.5s'}}>
               <div className="relative aspect-square bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 to-cyan-500/20"></div>
@@ -612,7 +637,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            {/* Gallery Item 6 */}
+            //  Gallery Item 6 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white overflow-hidden group animate-fade-in-up" style={{animationDelay: '0.6s'}}>
               <div className="relative aspect-square bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20"></div>
@@ -643,7 +668,7 @@ export default function HomePage() {
             </Card>
           </div>
         </div>
-      </section>
+      </section>*/}
 
       {/* Stats Section */}
       <section className="py-16 bg-gray-50">
@@ -722,6 +747,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }
