@@ -47,8 +47,8 @@ export function Footer() {
               <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Contact Us
               </Link>
-              <Link href="/api-docs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                API Docs
+              <Link href="/faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                FAQs
               </Link>
             </nav>
           </div>

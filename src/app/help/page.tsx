@@ -1,9 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { HelpCircle, Search, Mail, MessageCircle, BookOpen, Zap, Shield, CreditCard } from "lucide-react";
+import { HelpCircle, Mail, MessageCircle, Zap, Shield, CreditCard } from "lucide-react";
 
 export default function HelpPage() {
   const faqCategories = [
@@ -86,64 +83,7 @@ export default function HelpPage() {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input 
-              placeholder="Search for help articles..." 
-              className="pl-10"
-            />
-          </div>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader className="text-center">
-              <Mail className="h-8 w-8 text-primary mx-auto mb-2" />
-              <CardTitle className="text-lg">Email Support</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Get help via email within 24 hours
-              </p>
-              <Button variant="outline" className="w-full">
-                Send Email
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader className="text-center">
-              <MessageCircle className="h-8 w-8 text-primary mx-auto mb-2" />
-              <CardTitle className="text-lg">Live Chat</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Chat with our support team in real-time
-              </p>
-              <Button variant="outline" className="w-full">
-                Start Chat
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader className="text-center">
-              <BookOpen className="h-8 w-8 text-primary mx-auto mb-2" />
-              <CardTitle className="text-lg">Documentation</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Browse our comprehensive guides
-              </p>
-              <Button variant="outline" className="w-full">
-                View Docs
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* FAQ Categories */}
         <div className="space-y-8">
@@ -176,46 +116,6 @@ export default function HelpPage() {
           ))}
         </div>
 
-        {/* Contact Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Still Need Help?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Can't find the answer you're looking for? Send us a message and we'll get back to you as soon as possible.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" placeholder="Your name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="your@email.com" />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input id="subject" placeholder="What can we help you with?" />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="message">Message</Label>
-              <textarea 
-                id="message" 
-                className="w-full min-h-[120px] px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                placeholder="Describe your issue or question in detail..."
-              />
-            </div>
-            
-            <Button className="w-full">
-              Send Message
-            </Button>
-          </CardContent>
-        </Card>
 
         {/* Contact Information */}
         <div className="text-center space-y-4">
@@ -223,7 +123,7 @@ export default function HelpPage() {
           <div className="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-8">
             <div className="flex items-center space-x-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">support@recolorai.com</span>
+              <span className="text-sm">azcontent101@gmail.com</span>
             </div>
             <div className="flex items-center space-x-2">
               <MessageCircle className="h-4 w-4 text-muted-foreground" />
