@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { cashfree, CREDIT_PACKAGES, CreditPackageType, generateOrderId } from '@/lib/cashfree';
+import { createCashfreeOrder, CREDIT_PACKAGES, CreditPackageType, generateOrderId } from '@/lib/cashfree';
 
 export const runtime = 'nodejs';
 
@@ -25,8 +25,14 @@ export async function POST(request: NextRequest) {
     const packageConfig = CREDIT_PACKAGES[packageType as CreditPackageType];
     const orderId = generateOrderId();
 
+    // Derive base URL from env or request (for return/notify)
+    const origin = process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin') || '';
+    if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
+      return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 500 });
+    }
+
     // Create order in database
-    const order = await prisma.order.create({
+    const order = await (prisma as any).order.create({
       data: {
         id: orderId,
         userId: session.user.id,
@@ -38,30 +44,25 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create Cashfree order
-    const cashfreeOrder = await cashfree.orders.createOrder({
-      orderId: orderId,
-      orderAmount: packageConfig.amount,
-      orderCurrency: 'INR',
+    // Create Cashfree order via REST helper (amount in rupees)
+    const cashfreeOrder = await createCashfreeOrder({
+      orderId,
+      orderAmountRupees: packageConfig.amount / 100,
       orderNote: `Purchase ${packageConfig.credits} credits - ${packageConfig.name}`,
       customerDetails: {
         customerId: session.user.id,
         customerName: session.user.name || session.user.email,
         customerEmail: session.user.email,
-        customerPhone: '9999999999', // Default phone number
+        customerPhone: '9999999999',
       },
-      orderMeta: {
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?order_id=${orderId}`,
-        notifyUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
-      },
+      returnUrl: `${origin}/payment/success?order_id=${orderId}`,
+      notifyUrl: `${origin}/api/payments/webhook`,
     });
 
     // Update order with Cashfree order ID
-    await prisma.order.update({
+    await (prisma as any).order.update({
       where: { id: orderId },
-      data: {
-        cashfreeOrderId: cashfreeOrder.cfOrderId,
-      },
+      data: { cashfreeOrderId: String(cashfreeOrder.cfOrderId) },
     });
 
     return NextResponse.json({
@@ -72,11 +73,14 @@ export async function POST(request: NextRequest) {
       customerDetails: cashfreeOrder.customerDetails,
     });
 
-  } catch (error) {
-    console.error('Error creating order:', error);
-    return NextResponse.json(
-      { error: 'Failed to create order' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    const status = error?.status && Number.isInteger(error.status) ? error.status : 500;
+    const message = error?.message || 'Failed to create order';
+    console.error('Error creating order:', {
+      status,
+      message,
+      details: error?.details,
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }

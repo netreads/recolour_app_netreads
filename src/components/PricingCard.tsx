@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { load } from '@cashfreepayments/cashfree-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,18 +53,39 @@ export function PricingCard({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create order');
+        let message = 'Failed to create order';
+        try {
+          const err = await response.json();
+          if (err?.error) message = err.error;
+        } catch (_e) {
+          // ignore
+        }
+        throw new Error(message);
       }
 
       const orderData = await response.json();
+
+      // Try Cashfree JS SDK checkout first
+      try {
+        const cashfree = await load({ mode: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox' });
+        const result = await cashfree.checkout({
+          paymentSessionId: orderData.paymentSessionId,
+        } as any);
+        if (result && (result as any).error) {
+          throw new Error((result as any).error?.message || 'Checkout failed');
+        }
+        return;
+      } catch (_sdkErr) {
+        // Fallback to hosted redirect
+        const env = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT;
+        const host = env === 'production' ? 'https://payments.cashfree.com' : 'https://sandbox.cashfree.com';
+        const cashfreeUrl = `${host}/pg/view/sessions/${orderData.paymentSessionId}`;
+        window.location.href = cashfreeUrl;
+      }
       
-      // Redirect to Cashfree payment page
-      const cashfreeUrl = `https://sandbox.cashfree.com/pg/web/${orderData.paymentSessionId}`;
-      window.location.href = cashfreeUrl;
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating order:', error);
-      alert('Failed to initiate payment. Please try again.');
+      alert(error?.message || 'Failed to initiate payment. Please try again.');
     } finally {
       setLoading(false);
     }

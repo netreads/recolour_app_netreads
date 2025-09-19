@@ -1,41 +1,181 @@
-import { Cashfree } from 'cashfree-pg-sdk-javascript';
-
-// Cashfree configuration
+// Cashfree configuration (server-side REST)
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID!;
 const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY!;
-const CASHFREE_ENVIRONMENT = process.env.CASHFREE_ENVIRONMENT || 'sandbox'; // 'sandbox' or 'production'
+const CASHFREE_ENVIRONMENT = process.env.CASHFREE_ENVIRONMENT || 'sandbox'; // 'sandbox' | 'production'
 
-// Initialize Cashfree client
-export const cashfree = new Cashfree({
-  appId: CASHFREE_APP_ID,
-  secretKey: CASHFREE_SECRET_KEY,
-  environment: CASHFREE_ENVIRONMENT as 'sandbox' | 'production',
-});
+const CASHFREE_BASE_URL =
+  CASHFREE_ENVIRONMENT === 'production'
+    ? 'https://api.cashfree.com'
+    : 'https://sandbox.cashfree.com';
+
+type CreateOrderParams = {
+  orderId: string;
+  orderAmountRupees: number; // amount in rupees
+  orderNote: string;
+  customerDetails: {
+    customerId: string;
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+  };
+  returnUrl?: string; // optional per docs
+  notifyUrl?: string; // optional per docs
+};
+
+type CreateOrderResponse = {
+  cfOrderId: string;
+  paymentSessionId: string;
+  customerDetails?: unknown;
+};
+
+export async function createCashfreeOrder(params: CreateOrderParams): Promise<CreateOrderResponse> {
+  const payload: any = {
+    order_id: params.orderId,
+    order_amount: Number(params.orderAmountRupees.toFixed(2)),
+    order_currency: 'INR',
+    customer_details: {
+      customer_id: params.customerDetails.customerId,
+      customer_phone: params.customerDetails.customerPhone,
+    },
+  };
+  // Optional fields if available (kept minimal to match docs)
+  if (params.customerDetails.customerName) payload.customer_details.customer_name = params.customerDetails.customerName;
+  if (params.customerDetails.customerEmail) payload.customer_details.customer_email = params.customerDetails.customerEmail;
+  if (params.orderNote) payload.order_note = params.orderNote;
+  if (params.returnUrl || params.notifyUrl) {
+    payload.order_meta = {} as any;
+    if (params.returnUrl) payload.order_meta.return_url = params.returnUrl;
+    if (params.notifyUrl) payload.order_meta.notify_url = params.notifyUrl;
+  }
+
+  type VersionType = '2025-01-01' | '2023-08-01' | '2022-01-01';
+  async function attempt(version: VersionType) {
+    const res = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'x-client-id': CASHFREE_APP_ID,
+        'x-client-secret': CASHFREE_SECRET_KEY,
+        'x-api-version': version,
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    let data: any = undefined;
+    try { data = text ? JSON.parse(text) : undefined; } catch {}
+    return { res, data, text };
+  }
+
+  const versions: VersionType[] = ['2025-01-01', '2023-08-01', '2022-01-01'];
+  let attemptResult = await attempt(versions[0]);
+  let response = attemptResult.res;
+  let data = attemptResult.data;
+  let text = attemptResult.text;
+  let vIndex = 1;
+  while ((response.status === 404 || (data && data.code === 'request_failed')) && vIndex < versions.length) {
+    attemptResult = await attempt(versions[vIndex]);
+    response = attemptResult.res;
+    data = attemptResult.data;
+    text = attemptResult.text;
+    vIndex++;
+  }
+
+  // data/text already set from the last attempt
+
+  if (!response.ok) {
+    const errMessage = data?.message || data?.error || response.statusText || 'Cashfree order creation failed';
+    console.error('Cashfree create order failed', {
+      status: response.status,
+      statusText: response.statusText,
+      body: data ?? text,
+      requestId: response.headers.get('x-request-id') || undefined,
+    });
+    const error: any = new Error(errMessage);
+    error.status = response.status;
+    error.details = data ?? text;
+    throw error;
+  }
+
+  return {
+    cfOrderId: data?.cf_order_id != null ? String(data.cf_order_id) : '',
+    paymentSessionId: data?.payment_session_id != null ? String(data.payment_session_id) : '',
+    customerDetails: data?.customer_details,
+  };
+}
+
+export async function getCashfreeOrder(orderId: string): Promise<any> {
+  type VersionType = '2025-01-01' | '2023-08-01' | '2022-01-01';
+  async function attempt(version: VersionType) {
+    const res = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${encodeURIComponent(orderId)}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'x-client-id': CASHFREE_APP_ID,
+        'x-client-secret': CASHFREE_SECRET_KEY,
+        'x-api-version': version,
+      },
+    });
+    const text = await res.text();
+    let data: any = undefined;
+    try { data = text ? JSON.parse(text) : undefined; } catch {}
+    return { res, data, text };
+  }
+
+  const versions: VersionType[] = ['2025-01-01', '2023-08-01', '2022-01-01'];
+  let attemptResult = await attempt(versions[0]);
+  let response = attemptResult.res;
+  let data = attemptResult.data;
+  let text = attemptResult.text;
+  let vIndex = 1;
+  while ((response.status === 404 || (data && data.code === 'request_failed')) && vIndex < versions.length) {
+    attemptResult = await attempt(versions[vIndex]);
+    response = attemptResult.res;
+    data = attemptResult.data;
+    text = attemptResult.text;
+    vIndex++;
+  }
+
+  if (!response.ok) {
+    console.error('Cashfree get order failed', {
+      status: response.status,
+      statusText: response.statusText,
+      body: data ?? text,
+      requestId: response.headers.get('x-request-id') || undefined,
+    });
+    const error: any = new Error(data?.message || data?.error || response.statusText || 'Cashfree get order failed');
+    error.status = response.status;
+    error.details = data ?? text;
+    throw error;
+  }
+
+  return data;
+}
 
 // Credit packages configuration
 export const CREDIT_PACKAGES = {
   'starter': {
     name: 'Starter Pack',
     credits: 1,
-    amount: 4900, // ₹49 in paise
+    amount: 4900, // stored in paise
     description: 'Perfect for trying out our service'
   },
   'value': {
     name: 'Value Pack',
     credits: 5,
-    amount: 19900, // ₹199 in paise
+    amount: 19900, // stored in paise
     description: 'Best value for regular users'
   },
   'pro': {
     name: 'Pro Pack',
     credits: 12,
-    amount: 39900, // ₹399 in paise
+    amount: 39900, // stored in paise
     description: 'For power users and professionals'
   },
   'business': {
     name: 'Business Pack',
     credits: 35,
-    amount: 99900, // ₹999 in paise
+    amount: 99900, // stored in paise
     description: 'For teams and businesses'
   }
 } as const;
