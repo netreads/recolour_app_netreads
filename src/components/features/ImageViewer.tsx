@@ -150,7 +150,7 @@ export function ImageViewer({
   };
 
   // Touch handlers for mobile
-  const getDistance = (touches: TouchList) => {
+  const getDistance = (touches: React.TouchList) => {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);

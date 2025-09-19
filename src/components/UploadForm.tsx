@@ -82,7 +82,7 @@ export default function UploadForm() {
       
       // Redirect to result page
       setTimeout(() => {
-        window.location.href = `/recolor?jobId=${jobId}`;
+        window.location.href = `/dashboard?jobId=${jobId}`;
       }, 500);
     } catch (error) {
       console.error("Error:", error);

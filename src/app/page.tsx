@@ -93,7 +93,7 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 {user ? (
                   <Button size="lg" className="text-lg px-10 py-4 bg-black text-white hover:bg-gray-800 rounded-xl font-semibold" asChild>
-                    <Link href="/recolor">
+                    <Link href="/dashboard">
                       Start Colorizing Now
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
@@ -712,7 +712,7 @@ export default function HomePage() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   {user ? (
                     <Button size="lg" className="text-lg px-10 py-4 bg-black text-white hover:bg-gray-800 rounded-xl font-semibold" asChild>
-                      <Link href="/recolor">
+                      <Link href="/dashboard">
                         Continue Colorizing
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Link>

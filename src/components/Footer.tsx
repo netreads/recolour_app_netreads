@@ -31,8 +31,8 @@ export function Footer() {
               <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Dashboard
               </Link>
-              <Link href="/recolor" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Try Demo
+              <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Dashboard
               </Link>
             </nav>
           </div>
