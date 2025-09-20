@@ -85,7 +85,7 @@ export default function PricingPage() {
       {/* Header */}
       <div className="text-center space-y-3 sm:space-y-4 max-w-3xl mx-auto">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
-          🚀 Optimized Pricing (India)
+          🚀 Optimized Pricing
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground px-4">
           Pay only for what you use. Purchase credits and colorize your photos with AI. 

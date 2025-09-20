@@ -38,6 +38,8 @@ export function ImageViewer({
   const [imageError, setImageError] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number; distance: number } | null>(null);
+  const [sliderPosition, setSliderPosition] = useState(50); // 0-100 percentage
+  const [isSliderDragging, setIsSliderDragging] = useState(false);
   
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,6 +49,8 @@ export function ImageViewer({
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
     setIsDragging(false);
+    setSliderPosition(50);
+    setIsSliderDragging(false);
   };
 
   const handleZoomIn = () => {
@@ -74,14 +78,14 @@ export function ImageViewer({
 
   // Mouse drag for panning
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom > 1) {
+    if (zoom > 1 && !showComparison) {
       setIsDragging(true);
       setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y });
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && zoom > 1) {
+    if (isDragging && zoom > 1 && !showComparison) {
       setImagePosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
@@ -102,12 +106,16 @@ export function ImageViewer({
         onClose();
         break;
       case 'ArrowLeft':
-        if (colorizedImageUrl) {
+        if (showComparison && colorizedImageUrl) {
+          setSliderPosition(prev => Math.max(0, prev - 5));
+        } else if (colorizedImageUrl) {
           setActiveImage(activeImage === 'original' ? 'colorized' : 'original');
         }
         break;
       case 'ArrowRight':
-        if (colorizedImageUrl) {
+        if (showComparison && colorizedImageUrl) {
+          setSliderPosition(prev => Math.min(100, prev + 5));
+        } else if (colorizedImageUrl) {
           setActiveImage(activeImage === 'original' ? 'colorized' : 'original');
         }
         break;
@@ -159,7 +167,7 @@ export function ImageViewer({
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       // Single touch - start panning
-      if (zoom > 1) {
+      if (zoom > 1 && !showComparison) {
         setIsDragging(true);
         setDragStart({ x: e.touches[0].clientX - imagePosition.x, y: e.touches[0].clientY - imagePosition.y });
       }
@@ -177,7 +185,7 @@ export function ImageViewer({
   const handleTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
     
-    if (e.touches.length === 1 && isDragging && zoom > 1) {
+    if (e.touches.length === 1 && isDragging && zoom > 1 && !showComparison) {
       // Single touch panning
       setImagePosition({
         x: e.touches[0].clientX - dragStart.x,
@@ -201,6 +209,47 @@ export function ImageViewer({
   const handleTouchEnd = () => {
     setIsDragging(false);
     setTouchStart(null);
+  };
+
+  // Slider handlers
+  const handleSliderMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault(); // Prevent text selection
+    setIsSliderDragging(true);
+  };
+
+  const handleSliderMouseMove = (e: React.MouseEvent) => {
+    if (isSliderDragging && showComparison) {
+      e.preventDefault(); // Prevent text selection
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      setSliderPosition(percentage);
+    }
+  };
+
+  const handleSliderMouseUp = () => {
+    setIsSliderDragging(false);
+  };
+
+  const handleSliderTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    e.preventDefault(); // Prevent text selection
+    setIsSliderDragging(true);
+  };
+
+  const handleSliderTouchMove = (e: React.TouchEvent) => {
+    if (isSliderDragging && showComparison && e.touches.length === 1) {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.touches[0].clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      setSliderPosition(percentage);
+    }
+  };
+
+  const handleSliderTouchEnd = () => {
+    setIsSliderDragging(false);
   };
 
   const handleDownload = () => {
@@ -353,10 +402,10 @@ export function ImageViewer({
                 )}
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
-                Use arrow keys to switch between images • Space for comparison • Mouse wheel to zoom
+                {showComparison ? 'Drag slider or use arrow keys to compare • Space to exit comparison' : 'Use arrow keys to switch between images • Space for comparison • Mouse wheel to zoom'}
               </div>
               <div className="text-xs text-muted-foreground sm:hidden">
-                Touch to pan • Pinch to zoom • Tap buttons to switch
+                {showComparison ? 'Drag slider to compare • Tap buttons to switch' : 'Touch to pan • Pinch to zoom • Tap buttons to switch'}
               </div>
             </div>
           </div>
@@ -379,7 +428,15 @@ export function ImageViewer({
                 {showComparison && colorizedImageUrl ? (
                   // Comparison Slider
                   <div className="relative w-full h-full max-w-4xl max-h-full">
-                    <div className="relative w-full h-full rounded-lg overflow-hidden shadow-2xl">
+                    <div 
+                      className="relative w-full h-full rounded-lg overflow-hidden shadow-2xl cursor-ew-resize select-none"
+                      onMouseMove={handleSliderMouseMove}
+                      onMouseUp={handleSliderMouseUp}
+                      onMouseLeave={handleSliderMouseUp}
+                      onTouchMove={handleSliderTouchMove}
+                      onTouchEnd={handleSliderTouchEnd}
+                      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+                    >
                       {/* Original Image */}
                       <div className="absolute inset-0">
                         <img
@@ -393,9 +450,9 @@ export function ImageViewer({
                       </div>
                       {/* Colorized Image with clip-path */}
                       <div 
-                        className="absolute inset-0 transition-all duration-300"
+                        className="absolute inset-0 transition-all duration-200"
                         style={{
-                          clipPath: `inset(0 ${100 - 50}% 0 0)`,
+                          clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
                         }}
                       >
                         <img
@@ -405,8 +462,16 @@ export function ImageViewer({
                         />
                       </div>
                       {/* Slider Line */}
-                      <div className="absolute top-0 bottom-0 w-1 bg-white shadow-lg left-1/2 transform -translate-x-1/2 z-10">
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
+                      <div 
+                        className="absolute top-0 bottom-0 w-1 bg-white shadow-lg z-10"
+                        style={{ left: `${sliderPosition}%` }}
+                      >
+                        <div 
+                          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center cursor-ew-resize hover:bg-gray-50 transition-colors select-none"
+                          onMouseDown={handleSliderMouseDown}
+                          onTouchStart={handleSliderTouchStart}
+                          style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+                        >
                           <Move className="h-4 w-4 text-gray-600" />
                         </div>
                       </div>
@@ -540,13 +605,14 @@ export function ImageViewer({
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex flex-wrap gap-2 sm:gap-4 text-xs text-muted-foreground">
                 <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Esc</kbd> Close</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">←→</kbd> Switch</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Space</kbd> Compare</span>
+                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">←→</kbd> {showComparison ? 'Slider' : 'Switch'}</span>
+                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Space</kbd> {showComparison ? 'Exit Compare' : 'Compare'}</span>
                 <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">R</kbd> Rotate</span>
                 <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">F</kbd> Fullscreen</span>
                 <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">+/-</kbd> Zoom</span>
                 <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">0</kbd> Reset</span>
                 <span className="hidden sm:inline"><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Wheel</kbd> Zoom</span>
+                {showComparison && <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Drag</kbd> Slider</span>}
               </div>
             </div>
           </div>
