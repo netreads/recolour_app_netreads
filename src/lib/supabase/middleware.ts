@@ -47,6 +47,8 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/faq') &&
     !request.nextUrl.pathname.startsWith('/help') &&
     !request.nextUrl.pathname.startsWith('/cookies') &&
+    !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/api/auth') &&
     !request.nextUrl.pathname.startsWith('/api/payments/webhook') &&
     !request.nextUrl.pathname.startsWith('/_next') &&
     !request.nextUrl.pathname.startsWith('/favicon.ico')

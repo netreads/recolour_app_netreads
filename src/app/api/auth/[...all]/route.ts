@@ -11,23 +11,36 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error && data.session) {
-      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
+      // Determine the correct redirect URL for production
       const isLocalEnv = process.env.NODE_ENV === 'development'
+      let redirectUrl: string
+      
       if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
+        // Development: use the request origin
+        redirectUrl = `${origin}${next}`
       } else {
-        return NextResponse.redirect(`${origin}${next}`)
+        // Production: prefer NEXT_PUBLIC_APP_URL, then x-forwarded-host, then origin
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL
+        const forwardedHost = request.headers.get('x-forwarded-host')
+        
+        if (appUrl) {
+          redirectUrl = `${appUrl}${next}`
+        } else if (forwardedHost) {
+          redirectUrl = `https://${forwardedHost}${next}`
+        } else {
+          redirectUrl = `${origin}${next}`
+        }
       }
+      
+      return NextResponse.redirect(redirectUrl)
     } else {
       console.error('Auth callback error:', error)
     }
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  const errorRedirectUrl = process.env.NEXT_PUBLIC_APP_URL || origin
+  return NextResponse.redirect(`${errorRedirectUrl}/auth/auth-code-error`)
 }
 
 export async function POST(request: NextRequest) {

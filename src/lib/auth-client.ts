@@ -4,10 +4,13 @@ const supabase = createClient()
 
 export const signInWithGoogle = async () => {
   try {
+    // Use NEXT_PUBLIC_APP_URL for production, fallback to window.location.origin for development
+    const redirectUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${redirectUrl}/api/auth/callback`,
       },
     })
     
