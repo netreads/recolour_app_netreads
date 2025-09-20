@@ -2,6 +2,8 @@ import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "./db";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import "./fix-bundle";
+
 
 // Resolve a single canonical base URL across envs to avoid redirect mismatches
 const resolvedBaseURL =

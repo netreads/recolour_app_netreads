@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import "@noble/hashes/sha3.js";
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
