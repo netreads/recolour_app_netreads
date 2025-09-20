@@ -1,8 +1,21 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Star, Zap, Crown } from "lucide-react";
 import { PricingCard } from "@/components/PricingCard";
+import { useEffect, useState } from "react";
+import { getUser } from "@/lib/auth-client";
 
 export default function PricingPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const user = await getUser();
+      setIsAuthenticated(!!user);
+    };
+    checkAuth();
+  }, []);
   const creditPackages = [
     {
       name: "Starter Pack",
@@ -104,6 +117,7 @@ export default function PricingPage() {
             href={package_.href}
             popular={package_.popular}
             icon={package_.icon}
+            isAuthenticated={isAuthenticated}
           />
         ))}
       </div>

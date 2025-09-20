@@ -20,6 +20,7 @@ interface PricingCardProps {
   href: string;
   popular?: boolean;
   icon: React.ReactNode;
+  isAuthenticated?: boolean | null;
 }
 
 export function PricingCard({
@@ -33,11 +34,23 @@ export function PricingCard({
   href,
   popular,
   icon,
+  isAuthenticated,
 }: PricingCardProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handlePurchase = async () => {
+    // If user is not authenticated, redirect to signup
+    if (isAuthenticated === false) {
+      router.push('/signup');
+      return;
+    }
+
+    // If authentication status is still loading, wait
+    if (isAuthenticated === null) {
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -139,12 +152,18 @@ export function PricingCard({
           variant={buttonVariant}
           className="w-full text-sm sm:text-base py-2 sm:py-3"
           onClick={handlePurchase}
-          disabled={loading}
+          disabled={loading || isAuthenticated === null}
         >
           {loading ? (
             <>
               <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
               Processing...
+            </>
+          ) : isAuthenticated === false ? (
+            <>
+              <CreditCard className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              Sign Up to Purchase
+              <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
             </>
           ) : (
             <>
