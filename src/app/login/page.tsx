@@ -5,7 +5,6 @@ import Link from "next/link";
 import { signInWithGoogle } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Chrome, ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {

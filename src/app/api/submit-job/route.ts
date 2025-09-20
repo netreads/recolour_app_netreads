@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { AwsClient } from "aws4fetch";
-import { v4 as uuidv4 } from "uuid";
-import mime from "mime";
 
 // Force Node.js runtime
 export const runtime = 'nodejs';

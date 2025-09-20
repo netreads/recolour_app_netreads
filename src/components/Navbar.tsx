@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { getSession as getClientSession, signOut as clientSignOut, refreshSession } from "@/lib/auth-client";
+import { signOut as clientSignOut, refreshSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, CreditCard, RefreshCw, Menu, X } from "lucide-react";
+import { User, LogOut, CreditCard, RefreshCw, Menu, X } from "lucide-react";
 
 interface UserType {
   id: string;

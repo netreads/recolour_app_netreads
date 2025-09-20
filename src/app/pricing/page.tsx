@@ -1,9 +1,5 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Check, Star, Zap, Crown, ArrowRight, CreditCard } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Star, Zap, Crown } from "lucide-react";
 import { PricingCard } from "@/components/PricingCard";
 
 export default function PricingPage() {
