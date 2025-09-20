@@ -3,6 +3,8 @@ import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
   title: "ReColor AI - Bring Old Photos to Life",
@@ -46,6 +48,8 @@ export default function RootLayout({
           <Footer />
         </div>
         <Toaster />
+        <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
