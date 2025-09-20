@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerUserWithSync } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { AwsClient } from "aws4fetch";
 
@@ -19,27 +19,27 @@ async function applyFallbackColorization(imageBuffer: Buffer): Promise<Buffer> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    // Verify authentication and sync user to database
+    const userData = await getServerUserWithSync();
 
-    if (!session || !session.user) {
+    if (!userData?.neonUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const user = userData.neonUser;
+
     // Check if user has sufficient credits
     const db = getDatabase();
-    const user = await db.getUserById(session.user.id);
+    const dbUserData = await db.getUserById(user.id);
     
-    if (!user) {
+    if (!dbUserData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if ((user as any).credits < 1) {
+    if ((dbUserData as any).credits < 1) {
       return NextResponse.json({ 
         error: "Insufficient credits. Please purchase credits to continue.",
-        credits: (user as any).credits 
+        credits: (dbUserData as any).credits 
       }, { status: 402 }); // 402 Payment Required
     }
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (job.userId !== session.user.id) {
+    if (job.userId !== user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -246,8 +246,8 @@ export async function POST(request: NextRequest) {
       });
 
       // Deduct 1 credit for successful processing
-      const updatedUser = await db.deductCredits(session.user.id, 1);
-      console.log(`Deducted 1 credit from user ${session.user.email}. Remaining credits: ${(updatedUser as any).credits}`);
+      const updatedUser = await db.deductCredits(user.id, 1);
+      console.log(`Deducted 1 credit from user ${user.email}. Remaining credits: ${(updatedUser as any).credits}`);
 
       return NextResponse.json({
         success: true,

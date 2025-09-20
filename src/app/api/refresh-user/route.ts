@@ -1,30 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerUser } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await getServerUser();
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Force refresh user data from database
     const db = getDatabase();
-    const user = await db.getUserById(session.user.id);
+    const userData = await db.getUserById(user.id);
     
-    if (!user) {
+    if (!userData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
-      id: user.id,
-      email: user.email,
-      credits: user.credits,
+      id: userData.id,
+      email: userData.email,
+      credits: userData.credits,
       refreshed: true,
     });
   } catch (error) {

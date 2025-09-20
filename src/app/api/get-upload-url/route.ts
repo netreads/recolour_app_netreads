@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerUserWithSync } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { AwsClient } from "aws4fetch";
@@ -9,14 +9,14 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    // Verify authentication and sync user to database
+    const userData = await getServerUserWithSync();
 
-    if (!session || !session.user) {
+    if (!userData?.neonUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const user = userData.neonUser;
 
     const { fileName, contentType } = await request.json();
     
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     // Create job record in database
     const db = getDatabase();
-    await db.createJob(jobId, session.user.id, originalUrl);
+    await db.createJob(jobId, user.id, originalUrl);
 
     return NextResponse.json({
       uploadUrl: presignedUrl.url,

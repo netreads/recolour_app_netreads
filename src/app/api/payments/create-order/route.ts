@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getServerUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createCashfreeOrder, CREDIT_PACKAGES, CreditPackageType, generateOrderId } from '@/lib/cashfree';
 
@@ -8,11 +8,9 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await getServerUser();
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -35,7 +33,7 @@ export async function POST(request: NextRequest) {
     const order = await (prisma as any).order.create({
       data: {
         id: orderId,
-        userId: session.user.id,
+        userId: user.id,
         packageName: packageConfig.name,
         credits: packageConfig.credits,
         amount: packageConfig.amount,
@@ -50,9 +48,9 @@ export async function POST(request: NextRequest) {
       orderAmountRupees: packageConfig.amount / 100,
       orderNote: `Purchase ${packageConfig.credits} credits - ${packageConfig.name}`,
       customerDetails: {
-        customerId: session.user.id,
-        customerName: session.user.name || session.user.email,
-        customerEmail: session.user.email,
+        customerId: user.id,
+        customerName: user.user_metadata?.name || user.email || 'User',
+        customerEmail: user.email || '',
         customerPhone: '9999999999',
       },
       returnUrl: `${origin}/payment/success?order_id=${orderId}`,

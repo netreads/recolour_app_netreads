@@ -1,77 +1,107 @@
-import { createAuthClient } from "better-auth/client";
+import { createClient } from '@/lib/supabase/client'
 
-// Keep client base URL resolution in sync with server
-const resolvedBaseURL =
-  process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (typeof window === "undefined"
-    ? undefined
-    : window.location?.origin) ||
-  "http://localhost:3000";
-
-export const authClient = createAuthClient({
-  baseURL: resolvedBaseURL,
-});
+const supabase = createClient()
 
 export const signInWithGoogle = async () => {
   try {
-    const result = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: "/dashboard",
-    });
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    })
     
-    if (result.error) {
-      throw new Error(result.error.message || "Failed to sign in with Google");
+    if (error) {
+      throw new Error(error.message || "Failed to sign in with Google")
     }
     
-    return result;
+    return data
   } catch (error) {
-    console.error("Google sign-in error:", error);
-    throw error;
+    console.error("Google sign-in error:", error)
+    throw error
   }
-};
+}
 
 export const signOut = async () => {
   try {
-    const result = await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          window.location.href = "/";
-        },
-      },
-    });
+    const { error } = await supabase.auth.signOut()
     
-    if (result.error) {
-      throw new Error(result.error.message || "Failed to sign out");
+    if (error) {
+      throw new Error(error.message || "Failed to sign out")
     }
     
-    return result;
+    // Redirect to home page after sign out
+    window.location.href = "/"
+    
+    return { success: true }
   } catch (error) {
-    console.error("Sign out error:", error);
-    throw error;
+    console.error("Sign out error:", error)
+    throw error
   }
-};
+}
 
 export const getSession = async () => {
   try {
-    return await authClient.getSession();
-  } catch (error) {
-    console.error("Get session error:", error);
-    return null;
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error) {
+      // Don't log AuthSessionMissingError as it's expected when user is not logged in
+      if (error.message !== 'Auth session missing!') {
+        console.error("Get session error:", error)
+      }
+      return null
+    }
+    
+    return session
+  } catch (error: any) {
+    // Don't log AuthSessionMissingError as it's expected when user is not logged in
+    if (error?.message !== 'Auth session missing!' && error?.name !== 'AuthSessionMissingError') {
+      console.error("Get session error:", error)
+    }
+    return null
   }
-};
+}
 
 export const refreshSession = async () => {
   try {
-    return await authClient.getSession({
-      fetchOptions: {
-        cache: "no-store", // Force fresh session fetch
-      },
-    });
-  } catch (error) {
-    console.error("Refresh session error:", error);
-    return null;
+    const { data: { session }, error } = await supabase.auth.refreshSession()
+    
+    if (error) {
+      // Don't log AuthSessionMissingError as it's expected when user is not logged in
+      if (error.message !== 'Auth session missing!') {
+        console.error("Refresh session error:", error)
+      }
+      return null
+    }
+    
+    return session
+  } catch (error: any) {
+    // Don't log AuthSessionMissingError as it's expected when user is not logged in
+    if (error?.message !== 'Auth session missing!' && error?.name !== 'AuthSessionMissingError') {
+      console.error("Refresh session error:", error)
+    }
+    return null
   }
-};
+}
 
-// Email authentication methods removed - only Google OAuth is supported
+export const getUser = async () => {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error) {
+      // Don't log AuthSessionMissingError as it's expected when user is not logged in
+      if (error.message !== 'Auth session missing!') {
+        console.error("Get user error:", error)
+      }
+      return null
+    }
+    
+    return user
+  } catch (error: any) {
+    // Don't log AuthSessionMissingError as it's expected when user is not logged in
+    if (error?.message !== 'Auth session missing!' && error?.name !== 'AuthSessionMissingError') {
+      console.error("Get user error:", error)
+    }
+    return null
+  }
+}

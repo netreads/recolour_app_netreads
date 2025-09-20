@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { signOut as clientSignOut, refreshSession } from "@/lib/auth-client";
+import { signOut as clientSignOut, getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -26,6 +26,11 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isFetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
+
+  // Debug user state changes
+  useEffect(() => {
+    console.log("Navbar - User state changed:", user);
+  }, [user]);
 
   useEffect(() => {
     checkAuthStatus();
@@ -62,21 +67,34 @@ export function Navbar() {
 
   const checkAuthStatus = async () => {
     try {
-      // Prefer fresh user data from API as source of truth
-      const response = await fetch("/api/user", { cache: "no-store" });
-      if (response.ok) {
-        const userData = await response.json();
-        if (userData?.id) {
-          setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
-          return;
+      // First check session to see if user is authenticated
+      const session = await getSession();
+      console.log("Navbar - Session:", session);
+      
+      if (session?.user) {
+        console.log("Navbar - User from session:", session.user);
+        // User is authenticated, fetch fresh data from API
+        const response = await fetch("/api/user", { cache: "no-store" });
+        console.log("Navbar - API response status:", response.status);
+        
+        if (response.ok) {
+          const userData = await response.json();
+          console.log("Navbar - User data from API:", userData);
+          if (userData?.id) {
+            setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
+            return;
+          }
         }
-      }
-      // Fallback to session
-      const session = await refreshSession();
-      const userFromSession = (session && (session as any).user) || (session as any)?.data?.user || null;
-      if (userFromSession) {
-        setUser({ id: userFromSession.id, email: userFromSession.email, credits: userFromSession.credits || 0 });
+        // If API call failed but user is authenticated, use session data
+        console.log("Navbar - Using session data as fallback");
+        setUser({ 
+          id: session.user.id, 
+          email: session.user.email || '', 
+          credits: 0 // Will be updated by API calls
+        });
       } else {
+        // No session, user is not authenticated
+        console.log("Navbar - No session found");
         setUser(null);
       }
     } catch (error) {
@@ -90,6 +108,13 @@ export function Navbar() {
   // Fetch fresh user data from API and update state if changed
   const fetchAndSetUser = async () => {
     try {
+      // First check if user is still authenticated
+      const session = await getSession();
+      if (!session?.user) {
+        setUser(null);
+        return;
+      }
+
       const response = await fetch("/api/user", { cache: "no-store" });
       if (response.status === 401) {
         setUser(null);
@@ -130,9 +155,21 @@ export function Navbar() {
 
   const refreshUserCredits = async () => {
     try {
+      // Check if user is still authenticated first
+      const session = await getSession();
+      if (!session?.user) {
+        setUser(null);
+        return;
+      }
+
       // Prefer a simple GET that bypasses cache
       const response = await fetch("/api/user", { cache: "no-store" });
-      if (!response.ok) return;
+      if (!response.ok) {
+        if (response.status === 401) {
+          setUser(null);
+        }
+        return;
+      }
       const userData = await response.json();
       setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
       console.log("Credits refreshed:", userData.credits);
@@ -202,7 +239,7 @@ export function Navbar() {
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                      {user.email.charAt(0).toUpperCase()}
+                      {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -317,7 +354,7 @@ export function Navbar() {
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                      {user.email.charAt(0).toUpperCase()}
+                      {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">

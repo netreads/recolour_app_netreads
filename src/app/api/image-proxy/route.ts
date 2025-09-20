@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerUser } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 
@@ -9,11 +9,9 @@ export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await getServerUser();
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -43,7 +41,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (job.userId !== session.user.id) {
+    if (job.userId !== user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

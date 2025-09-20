@@ -46,10 +46,11 @@ export default function DashboardPage() {
   const checkAuthAndFetchJobs = async () => {
     try {
       const session = await getSession();
-      if (session?.data?.user) {
+      
+      if (session?.user) {
         setIsAuthenticated(true);
         // Set user with credits from session (will be updated by fetchUserData)
-        setUser({ ...session.data.user, credits: 0 });
+        setUser({ ...session.user, credits: 0 });
         fetchJobs();
         fetchUserData(); // Fetch fresh user data including credits
         giveWelcomeCredits(); // Give welcome credits if eligible

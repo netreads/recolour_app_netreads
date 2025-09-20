@@ -1,12 +1,35 @@
-import { auth } from "@/lib/auth";
-import "@noble/hashes/sha3.js";
+import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-// Force Node.js runtime
-export const runtime = 'nodejs';
+export async function GET(request: NextRequest) {
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+  const next = searchParams.get('next') ?? '/dashboard'
 
-export const GET = auth.handler;
-export const POST = auth.handler;
+  if (code) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (!error && data.session) {
+      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
+      const isLocalEnv = process.env.NODE_ENV === 'development'
+      if (isLocalEnv) {
+        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
+        return NextResponse.redirect(`${origin}${next}`)
+      } else if (forwardedHost) {
+        return NextResponse.redirect(`https://${forwardedHost}${next}`)
+      } else {
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+    } else {
+      console.error('Auth callback error:', error)
+    }
+  }
 
-// Explicitly export head/options for Next.js routing and CORS preflight
-export const HEAD = auth.handler as unknown as typeof GET;
-export const OPTIONS = auth.handler as unknown as typeof GET;
+  // return the user to an error page with instructions
+  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+}
+
+export async function POST(request: NextRequest) {
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
+}

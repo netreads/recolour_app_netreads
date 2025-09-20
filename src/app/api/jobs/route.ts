@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerUserWithSync } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 
 // Force Node.js runtime
@@ -7,18 +7,18 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    // Verify authentication and sync user to database
+    const userData = await getServerUserWithSync();
 
-    if (!session || !session.user) {
+    if (!userData?.neonUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const user = userData.neonUser;
+
     // Get jobs from database
     const db = getDatabase();
-    const jobs = await db.getJobsByUserId(session.user.id);
+    const jobs = await db.getJobsByUserId(user.id);
 
     // Transform field names to match frontend expectations
     const transformedJobs = jobs.map(job => ({

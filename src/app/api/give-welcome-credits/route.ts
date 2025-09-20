@@ -1,32 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerUser } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await getServerUser();
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get user data
     const db = getDatabase();
-    const user = await db.getUserById(session.user.id);
+    const userData = await db.getUserById(user.id);
     
-    if (!user) {
+    if (!userData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Only give credits if user hasn't received welcome credits yet (fresh signup)
-    if (!(user as any).welcomeCreditsGiven) {
-      const updatedUser = await db.addCredits(session.user.id, 1);
+    if (!(userData as any).welcomeCreditsGiven) {
+      const updatedUser = await db.addCredits(user.id, 1);
       // Mark that welcome credits have been given
-      await db.markWelcomeCreditsGiven(session.user.id);
-      console.log(`Gave 1 free HD credit to new user: ${session.user.email}`);
+      await db.markWelcomeCreditsGiven(user.id);
+      console.log(`Gave 1 free HD credit to new user: ${user.email}`);
       
       return NextResponse.json({
         success: true,
@@ -36,7 +34,7 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json({
         success: false,
-        credits: (user as any).credits,
+        credits: (userData as any).credits,
         message: "Welcome credits already given."
       });
     }

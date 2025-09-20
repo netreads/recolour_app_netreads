@@ -1,4 +1,4 @@
-import { PrismaClient, User, Job, JobStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 // Initialize Prisma client
 const globalForPrisma = globalThis as unknown as {
@@ -12,12 +12,34 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // Test database connection
-prisma.$connect().catch((error) => {
+prisma.$connect().catch((error: any) => {
   console.error('Failed to connect to database:', error);
 });
 
 // Types for our database entities
-export type { User, Job, JobStatus };
+export type JobStatus = 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+
+// Define types based on Prisma schema
+export type User = {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  emailVerified: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  credits: number;
+  welcomeCreditsGiven: boolean;
+};
+
+export type Job = {
+  id: string;
+  userId: string;
+  originalUrl: string;
+  outputUrl: string | null;
+  status: JobStatus;
+  createdAt: Date;
+};
 
 // Database helper functions using Prisma
 export class DatabaseHelper {
@@ -63,6 +85,33 @@ export class DatabaseHelper {
     return await prisma.job.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  // User creation and synchronization
+  async createOrUpdateUser(userData: {
+    id: string;
+    email: string;
+    name?: string;
+    image?: string;
+    emailVerified?: boolean;
+  }): Promise<User> {
+    return await prisma.user.upsert({
+      where: { id: userData.id },
+      update: {
+        email: userData.email,
+        name: userData.name,
+        image: userData.image,
+        emailVerified: userData.emailVerified ?? false,
+      },
+      create: {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        image: userData.image,
+        emailVerified: userData.emailVerified ?? false,
+        credits: 0, // Will be set to 1 by welcome credits logic
+      },
     });
   }
 

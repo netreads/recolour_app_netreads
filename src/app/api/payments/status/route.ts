@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getServerUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getCashfreeOrder } from '@/lib/cashfree';
 
@@ -8,11 +8,9 @@ export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await getServerUser();
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -27,7 +25,7 @@ export async function GET(request: NextRequest) {
     let order = await prisma.order.findFirst({
       where: {
         id: orderId,
-        userId: session.user.id,
+        userId: user.id,
       },
       include: {
         transactions: true,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerUser } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { AwsClient } from "aws4fetch";
@@ -12,13 +12,11 @@ export async function POST(request: NextRequest) {
     console.log("Upload API called");
     
     // Verify authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await getServerUser();
 
-    console.log("Session check:", session ? "authenticated" : "not authenticated");
+    console.log("Session check:", user ? "authenticated" : "not authenticated");
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -88,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Create job record in database
     const db = getDatabase();
-    await db.createJob(jobId, session.user.id, originalUrl);
+    await db.createJob(jobId, user.id, originalUrl);
 
     return NextResponse.json({
       success: true,
