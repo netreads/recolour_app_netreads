@@ -50,7 +50,14 @@ export default function DashboardPage() {
       if (session?.user) {
         setIsAuthenticated(true);
         // Set user with credits from session (will be updated by fetchUserData)
-        setUser({ ...session.user, credits: 0 });
+        // Ensure email is defined before setting user
+        if (session.user.email) {
+          setUser({ 
+            id: session.user.id, 
+            email: session.user.email, 
+            credits: 0 
+          });
+        }
         fetchJobs();
         fetchUserData(); // Fetch fresh user data including credits
         giveWelcomeCredits(); // Give welcome credits if eligible
