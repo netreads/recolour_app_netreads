@@ -156,25 +156,25 @@ export async function getCashfreeOrder(orderId: string): Promise<any> {
 export const CREDIT_PACKAGES = {
   'starter': {
     name: 'Starter Pack',
-    credits: 1,
-    amount: 4900, // stored in paise
+    credits: 3,
+    amount: 9900, // stored in paise
     description: 'Perfect for trying out our service'
   },
   'value': {
     name: 'Value Pack',
-    credits: 5,
-    amount: 19900, // stored in paise
+    credits: 10,
+    amount: 24900, // stored in paise
     description: 'Best value for regular users'
   },
   'pro': {
     name: 'Pro Pack',
-    credits: 12,
-    amount: 39900, // stored in paise
+    credits: 25,
+    amount: 49900, // stored in paise
     description: 'For power users and professionals'
   },
   'business': {
     name: 'Business Pack',
-    credits: 35,
+    credits: 60,
     amount: 99900, // stored in paise
     description: 'For teams and businesses'
   }
