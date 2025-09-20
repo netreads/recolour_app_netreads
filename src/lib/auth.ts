@@ -17,9 +17,9 @@ export const auth = betterAuth({
   baseURL: resolvedBaseURL,
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirectURI: `${resolvedBaseURL}/api/auth/callback/google`,
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      // redirectURI: `${resolvedBaseURL}/api/auth/callback/google`,
     },
   },
   plugins: [nextCookies()],
