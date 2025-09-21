@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, Award, CheckCircle, Quote } from "lucide-react";
 import { getSession } from "@/lib/auth-client";
+import { trackPageView } from "@/components/FacebookPixel";
 
 interface UserType {
   id: string;
@@ -19,6 +20,8 @@ export default function HomePage() {
 
   useEffect(() => {
     checkAuthStatus();
+    // Track pageview for Facebook Pixel
+    trackPageView();
   }, []);
 
   const checkAuthStatus = async () => {

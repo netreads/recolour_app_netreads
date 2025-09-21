@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
+import { FacebookPixel } from "@/components/FacebookPixel";
 
 export const metadata: Metadata = {
   title: "ReColor AI - Bring Old Photos to Life",
@@ -39,9 +40,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
+
   return (
     <html lang="en">
       <body className="min-h-screen bg-background font-sans antialiased">
+        {pixelId && <FacebookPixel pixelId={pixelId} />}
         <div className="relative flex min-h-screen flex-col">
           <Navbar />
           <main className="flex-1">{children}</main>

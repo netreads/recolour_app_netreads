@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { trackPurchase } from '@/components/FacebookPixel';
 
 interface PaymentStatus {
   success: boolean;
@@ -46,6 +47,11 @@ function PaymentSuccessContent() {
           const event = new CustomEvent('credits:update', { detail: { credits: undefined } });
           window.dispatchEvent(event);
         } catch {}
+
+        // Track purchase event for Facebook Pixel
+        if (data?.amount) {
+          trackPurchase(data.amount / 100, 'INR', [data.orderId || 'unknown']);
+        }
       }
     } catch (error) {
       console.error('Error checking payment status:', error);

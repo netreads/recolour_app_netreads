@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Check, ArrowRight, CreditCard, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { trackInitiateCheckout } from '@/components/FacebookPixel';
 
 interface PricingCardProps {
   name: string;
@@ -54,6 +55,11 @@ export function PricingCard({
     setLoading(true);
     
     try {
+      // Track initiate checkout event
+      const packageType = getPackageType(name);
+      const priceValue = getPriceValue(price);
+      trackInitiateCheckout(priceValue, 'INR', [packageType]);
+
       // Create order
       const response = await fetch('/api/payments/create-order', {
         method: 'POST',
@@ -61,7 +67,7 @@ export function PricingCard({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          packageType: getPackageType(name),
+          packageType: packageType,
         }),
       });
 
@@ -112,6 +118,12 @@ export function PricingCard({
       'Business Pack': 'business',
     };
     return typeMap[packageName] || 'single';
+  };
+
+  const getPriceValue = (priceString: string): number => {
+    // Extract numeric value from price string like "₹149" or "₹2,499"
+    const numericValue = priceString.replace(/[₹,]/g, '');
+    return parseFloat(numericValue) || 0;
   };
 
   return (
