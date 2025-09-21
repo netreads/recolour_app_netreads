@@ -4,8 +4,18 @@ const supabase = createClient()
 
 export const signInWithGoogle = async () => {
   try {
-    // Use NEXT_PUBLIC_APP_URL for production, fallback to window.location.origin for development
-    const redirectUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    // Determine the correct redirect URL
+    let redirectUrl: string;
+    
+    // In production/preview environments, use NEXT_PUBLIC_APP_URL if available
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      redirectUrl = process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      // For development or when NEXT_PUBLIC_APP_URL is not set, use window.location.origin
+      redirectUrl = window.location.origin;
+    }
+    
+    console.log('Auth redirect URL:', redirectUrl);
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

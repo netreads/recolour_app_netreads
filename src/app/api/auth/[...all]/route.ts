@@ -6,6 +6,14 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
 
+  console.log('Auth callback received:', { 
+    origin, 
+    code: code ? 'present' : 'missing', 
+    next,
+    appUrl: process.env.NEXT_PUBLIC_APP_URL,
+    forwardedHost: request.headers.get('x-forwarded-host')
+  });
+
   if (code) {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
@@ -32,6 +40,7 @@ export async function GET(request: NextRequest) {
         }
       }
       
+      console.log('Redirecting to:', redirectUrl);
       return NextResponse.redirect(redirectUrl)
     } else {
       console.error('Auth callback error:', error)
@@ -40,6 +49,7 @@ export async function GET(request: NextRequest) {
 
   // return the user to an error page with instructions
   const errorRedirectUrl = process.env.NEXT_PUBLIC_APP_URL || origin
+  console.log('Auth error, redirecting to:', `${errorRedirectUrl}/auth/auth-code-error`);
   return NextResponse.redirect(`${errorRedirectUrl}/auth/auth-code-error`)
 }
 
