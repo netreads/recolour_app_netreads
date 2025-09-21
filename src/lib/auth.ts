@@ -1,31 +1,40 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDatabase } from '@/lib/db'
 import { NextRequest } from 'next/server'
+import { AuthError, AuthSessionError, AuthUserError, AuthSyncError, handleAuthError, logAuthError } from '@/lib/auth-errors'
 
 export async function getServerSession(request?: NextRequest) {
-  const supabase = await createClient()
-  
-  const { data: { session }, error } = await supabase.auth.getSession()
-  
-  if (error) {
-    console.error('Error getting session:', error)
+  try {
+    const supabase = await createClient()
+    
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error) {
+      throw new AuthSessionError(error.message || 'Failed to get session')
+    }
+    
+    return session
+  } catch (error) {
+    logAuthError(error, 'getServerSession')
     return null
   }
-  
-  return session
 }
 
 export async function getServerUser(request?: NextRequest) {
-  const supabase = await createClient()
-  
-  const { data: { user }, error } = await supabase.auth.getUser()
-  
-  if (error) {
-    console.error('Error getting user:', error)
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error) {
+      throw new AuthUserError(error.message || 'Failed to get user')
+    }
+    
+    return user
+  } catch (error) {
+    logAuthError(error, 'getServerUser')
     return null
   }
-  
-  return user
 }
 
 // Sync user from Supabase to Neon database
@@ -46,14 +55,18 @@ export async function syncUserToDatabase(supabaseUser: any) {
     
     // Give welcome credits if this is a new user and they haven't received them yet
     if (!neonUser.welcomeCreditsGiven && neonUser.credits === 0) {
-      await db.addCredits(neonUser.id, 1);
-      await db.markWelcomeCreditsGiven(neonUser.id);
-      console.log(`Gave welcome credits to new user: ${neonUser.email}`);
+      try {
+        await db.giveWelcomeCreditsAtomically(neonUser.id, 1);
+        // Welcome credits given successfully - no need to log sensitive data
+      } catch (error) {
+        logAuthError(error, 'syncUserToDatabase-welcomeCredits');
+        // Don't fail the sync if welcome credits fail
+      }
     }
     
     return neonUser;
   } catch (error) {
-    console.error('Error syncing user to database:', error);
+    logAuthError(error, 'syncUserToDatabase');
     return null;
   }
 }

@@ -18,15 +18,14 @@ export default function PricingPage() {
   }, []);
   const creditPackages = [
     {
-      name: "Starter Pack",
-      credits: 3,
-      price: "₹99",
-      description: "Perfect for first-time users",
+      name: "Single Edit",
+      credits: 1,
+      price: "₹149",
+      description: "For one-time users",
       features: [
-        "3 HD Credits",
-        "₹33/credit",
-        "Standard processing",
-        "Basic email support",
+        "1 image",
+        "Full-resolution download",
+        "Email support",
       ],
       buttonText: "Buy Now",
       buttonVariant: "outline" as const,
@@ -34,53 +33,52 @@ export default function PricingPage() {
       icon: <Star className="h-5 w-5" />,
     },
     {
-      name: "Value Pack",
-      credits: 10,
-      price: "₹249",
-      description: "Best for regular users",
+      name: "Saver Pack",
+      credits: 4,
+      price: "₹499",
+      description: "Best for casual users",
       features: [
-        "10 HD Credits",
-        "₹24.9/credit",
-        "Priority processing (faster turnaround)",
-        "Standard email support",
-        "Access to before/after preview gallery",
+        "4 images",
+        "₹124/image",
+        "⭐ Save 17% vs Single",
+        "Priority processing",
+        "Full-resolution downloads",
+      ],
+      buttonText: "Buy Now",
+      buttonVariant: "outline" as const,
+      href: "/signup",
+      icon: <Zap className="h-5 w-5" />,
+    },
+    {
+      name: "Pro Pack",
+      credits: 7,
+      price: "₹699",
+      description: "Best value for regulars",
+      features: [
+        "7 images",
+        "₹99/image",
+        "⭐ Save 34% vs Single",
+        "Faster priority processing",
+        "Priority email support",
+        "Unlimited re-downloads",
       ],
       buttonText: "Buy Now",
       buttonVariant: "default" as const,
       href: "/signup",
       popular: true,
-      icon: <Zap className="h-5 w-5" />,
-    },
-    {
-      name: "Pro Pack",
-      credits: 25,
-      price: "₹499",
-      description: "For power users & enthusiasts",
-      features: [
-        "25 HD Credits",
-        "₹19.9/credit",
-        "Faster priority processing",
-        "Priority email support",
-        "Unlimited re-downloads of past edits",
-        "Watermark-free results",
-      ],
-      buttonText: "Buy Now",
-      buttonVariant: "outline" as const,
-      href: "/signup",
       icon: <Crown className="h-5 w-5" />,
     },
     {
       name: "Business Pack",
-      credits: 60,
-      price: "₹999",
-      description: "For professionals & teams",
+      credits: 20,
+      price: "₹2,499",
+      description: "For professionals & studios",
       features: [
-        "60 HD Credits",
-        "₹16.6/credit",
-        "Top-tier processing queue (fastest delivery)",
-        "Priority email support",
-        "Dedicated support channel (WhatsApp/Telegram/email)",
-        "Enhanced preview quality before downloading",
+        "20 images",
+        "₹124/image",
+        "Fastest processing queue",
+        "Dedicated support",
+        "Enhanced previews",
       ],
       buttonText: "Buy Now",
       buttonVariant: "outline" as const,
@@ -97,8 +95,8 @@ export default function PricingPage() {
           🚀 Optimized Pricing
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground px-4">
-          Pay only for what you use. Purchase credits and colorize your photos with AI. 
-          Get 1 free HD credit when you sign up!
+          Pay only for what you use. Purchase image credits and colorize your photos with AI. 
+          Get 1 free image credit when you sign up!
         </p>
       </div>
 
@@ -136,7 +134,7 @@ export default function PricingPage() {
             <CardContent>
               <p className="text-muted-foreground">
                 Each credit allows you to colorize one image with our AI. Credits never expire, 
-                so you can use them whenever you want. Get 1 free HD credit when you sign up!
+                so you can use them whenever you want. Get 1 free image credit when you sign up!
               </p>
             </CardContent>
           </Card>

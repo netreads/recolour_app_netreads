@@ -106,12 +106,12 @@ export function PricingCard({
 
   const getPackageType = (packageName: string): string => {
     const typeMap: { [key: string]: string } = {
-      'Starter Pack': 'starter',
-      'Value Pack': 'value',
+      'Single Edit': 'single',
+      'Saver Pack': 'saver',
       'Pro Pack': 'pro',
       'Business Pack': 'business',
     };
-    return typeMap[packageName] || 'starter';
+    return typeMap[packageName] || 'single';
   };
 
   return (
@@ -141,7 +141,7 @@ export function PricingCard({
         <div className="space-y-1 pt-3 sm:pt-4">
           <div className="text-2xl sm:text-3xl font-bold">{price}</div>
           <div className="text-xs sm:text-sm text-muted-foreground">
-            {credits} HD Credits
+            {credits} {credits === 1 ? 'image' : 'images'}
           </div>
         </div>
       </CardHeader>

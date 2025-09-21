@@ -82,9 +82,9 @@ export default function HomePage() {
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
-              Transform your grandparents' black & white photos into vibrant memories. 
+            Restore and colorize old or faded photos in full HD with professional-grade AI
               <br className="hidden sm:block" />
-              <span className="sm:hidden"> </span>Perfect for weddings, festivals, and preserving your family's rich history.
+              <span className="sm:hidden"> </span>Perfect for weddings, festivals, and your family’s timeless moments.
             </p>
           </div>
           
@@ -117,7 +117,11 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-sm text-gray-500 px-4">
               <div className="flex items-center">
                 <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                <span>No UPI/Paytm required</span>
+                <span>Studio-quality AI colorization</span>
+              </div>
+              <div className="flex items-center">
+                <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                <span>Restore old & damaged photos</span>
               </div>
               <div className="flex items-center">
                 <CheckCircle className="w-4 h-4 text-green-500 mr-2" />

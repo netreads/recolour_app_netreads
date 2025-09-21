@@ -146,6 +146,40 @@ export class DatabaseHelper {
       }
     });
   }
+
+  // Atomic transaction for welcome credits
+  async giveWelcomeCreditsAtomically(userId: string, creditAmount: number = 1): Promise<User> {
+    return await prisma.$transaction(async (tx) => {
+      // First, check if user exists and hasn't received welcome credits
+      const user = await tx.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      if (user.welcomeCreditsGiven) {
+        throw new Error('Welcome credits already given');
+      }
+
+      // Atomically add credits and mark as given
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          credits: {
+            increment: creditAmount
+          },
+          welcomeCreditsGiven: true
+        }
+      });
+    });
+  }
+
+  // Generic transaction wrapper
+  async transaction<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+    return await prisma.$transaction(fn);
+  }
 }
 
 // Helper to get database instance

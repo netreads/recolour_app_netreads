@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { AuthError, AuthSessionError, handleAuthError, isAuthSessionMissingError } from '@/lib/auth-errors'
 
 const supabase = createClient()
 
@@ -15,8 +16,6 @@ export const signInWithGoogle = async () => {
       redirectUrl = window.location.origin;
     }
     
-    console.log('Auth redirect URL:', redirectUrl);
-    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -25,13 +24,12 @@ export const signInWithGoogle = async () => {
     })
     
     if (error) {
-      throw new Error(error.message || "Failed to sign in with Google")
+      throw new AuthError(error.message || "Failed to sign in with Google", 'GOOGLE_SIGNIN_FAILED', 400)
     }
     
     return data
   } catch (error) {
-    console.error("Google sign-in error:", error)
-    throw error
+    throw handleAuthError(error, 'signInWithGoogle')
   }
 }
 
@@ -40,7 +38,7 @@ export const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     
     if (error) {
-      throw new Error(error.message || "Failed to sign out")
+      throw new AuthError(error.message || "Failed to sign out", 'SIGNOUT_FAILED', 400)
     }
     
     // Redirect to home page after sign out
@@ -48,8 +46,7 @@ export const signOut = async () => {
     
     return { success: true }
   } catch (error) {
-    console.error("Sign out error:", error)
-    throw error
+    throw handleAuthError(error, 'signOut')
   }
 }
 
@@ -58,20 +55,18 @@ export const getSession = async () => {
     const { data: { session }, error } = await supabase.auth.getSession()
     
     if (error) {
-      // Don't log AuthSessionMissingError as it's expected when user is not logged in
-      if (error.message !== 'Auth session missing!') {
-        console.error("Get session error:", error)
+      if (isAuthSessionMissingError(error)) {
+        return null // Expected when user is not logged in
       }
-      return null
+      throw new AuthError(error.message || "Failed to get session", 'SESSION_ERROR', 500)
     }
     
     return session
   } catch (error: any) {
-    // Don't log AuthSessionMissingError as it's expected when user is not logged in
-    if (error?.message !== 'Auth session missing!' && error?.name !== 'AuthSessionMissingError') {
-      console.error("Get session error:", error)
+    if (isAuthSessionMissingError(error)) {
+      return null // Expected when user is not logged in
     }
-    return null
+    throw handleAuthError(error, 'getSession')
   }
 }
 
@@ -80,20 +75,18 @@ export const refreshSession = async () => {
     const { data: { session }, error } = await supabase.auth.refreshSession()
     
     if (error) {
-      // Don't log AuthSessionMissingError as it's expected when user is not logged in
-      if (error.message !== 'Auth session missing!') {
-        console.error("Refresh session error:", error)
+      if (isAuthSessionMissingError(error)) {
+        return null // Expected when user is not logged in
       }
-      return null
+      throw new AuthError(error.message || "Failed to refresh session", 'REFRESH_ERROR', 500)
     }
     
     return session
   } catch (error: any) {
-    // Don't log AuthSessionMissingError as it's expected when user is not logged in
-    if (error?.message !== 'Auth session missing!' && error?.name !== 'AuthSessionMissingError') {
-      console.error("Refresh session error:", error)
+    if (isAuthSessionMissingError(error)) {
+      return null // Expected when user is not logged in
     }
-    return null
+    throw handleAuthError(error, 'refreshSession')
   }
 }
 
@@ -102,19 +95,17 @@ export const getUser = async () => {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error) {
-      // Don't log AuthSessionMissingError as it's expected when user is not logged in
-      if (error.message !== 'Auth session missing!') {
-        console.error("Get user error:", error)
+      if (isAuthSessionMissingError(error)) {
+        return null // Expected when user is not logged in
       }
-      return null
+      throw new AuthError(error.message || "Failed to get user", 'USER_ERROR', 500)
     }
     
     return user
   } catch (error: any) {
-    // Don't log AuthSessionMissingError as it's expected when user is not logged in
-    if (error?.message !== 'Auth session missing!' && error?.name !== 'AuthSessionMissingError') {
-      console.error("Get user error:", error)
+    if (isAuthSessionMissingError(error)) {
+      return null // Expected when user is not logged in
     }
-    return null
+    throw handleAuthError(error, 'getUser')
   }
 }
