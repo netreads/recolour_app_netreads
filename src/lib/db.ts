@@ -149,7 +149,7 @@ export class DatabaseHelper {
 
   // Atomic transaction for welcome credits
   async giveWelcomeCreditsAtomically(userId: string, creditAmount: number = 1): Promise<User> {
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       // First, check if user exists and hasn't received welcome credits
       const user = await tx.user.findUnique({
         where: { id: userId }
@@ -177,7 +177,7 @@ export class DatabaseHelper {
   }
 
   // Generic transaction wrapper
-  async transaction<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+  async transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
     return await prisma.$transaction(fn);
   }
 }
