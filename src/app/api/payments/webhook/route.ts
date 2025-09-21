@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
     const webhookData = JSON.parse(body);
     const { type, data } = webhookData;
 
-    console.log('Received webhook:', { type, data });
 
     if (type === 'PAYMENT_SUCCESS_WEBHOOK') {
       await handlePaymentSuccess(data);
@@ -77,7 +76,6 @@ async function handlePaymentSuccess(data: any) {
       },
     });
 
-    console.log(`Payment successful for order ${orderId}, added ${order.credits} credits`);
 
   } catch (error) {
     console.error('Error handling payment success:', error);
@@ -113,7 +111,6 @@ async function handlePaymentFailed(data: any) {
       },
     });
 
-    console.log(`Payment failed for order ${orderId}`);
 
   } catch (error) {
     console.error('Error handling payment failure:', error);
@@ -133,7 +130,6 @@ async function handlePaymentDropped(data: any) {
       },
     });
 
-    console.log(`Payment dropped for order ${orderId}`);
 
   } catch (error) {
     console.error('Error handling payment dropped:', error);

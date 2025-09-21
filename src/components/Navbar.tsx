@@ -27,10 +27,6 @@ export function Navbar() {
   const isFetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
 
-  // Debug user state changes
-  useEffect(() => {
-    console.log("Navbar - User state changed:", user);
-  }, [user]);
 
   useEffect(() => {
     checkAuthStatus();
@@ -69,24 +65,19 @@ export function Navbar() {
     try {
       // First check session to see if user is authenticated
       const session = await getSession();
-      console.log("Navbar - Session:", session);
       
       if (session?.user) {
-        console.log("Navbar - User from session:", session.user);
         // User is authenticated, fetch fresh data from API
         const response = await fetch("/api/user", { cache: "no-store" });
-        console.log("Navbar - API response status:", response.status);
         
         if (response.ok) {
           const userData = await response.json();
-          console.log("Navbar - User data from API:", userData);
           if (userData?.id) {
             setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
             return;
           }
         }
         // If API call failed but user is authenticated, use session data
-        console.log("Navbar - Using session data as fallback");
         setUser({ 
           id: session.user.id, 
           email: session.user.email || '', 
@@ -94,7 +85,6 @@ export function Navbar() {
         });
       } else {
         // No session, user is not authenticated
-        console.log("Navbar - No session found");
         setUser(null);
       }
     } catch (error) {
@@ -172,7 +162,6 @@ export function Navbar() {
       }
       const userData = await response.json();
       setUser({ id: userData.id, email: userData.email, credits: userData.credits || 0 });
-      console.log("Credits refreshed:", userData.credits);
     } catch (error) {
       console.error("Error refreshing credits:", error);
     }

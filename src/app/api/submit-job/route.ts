@@ -13,7 +13,6 @@ async function applyFallbackColorization(imageBuffer: Buffer): Promise<Buffer> {
   // - Sepia tone
   // - Basic color mapping
   // - Use a lightweight image processing library like Sharp
-  console.log("Applying fallback colorization (returning original image)");
   return imageBuffer;
 }
 
@@ -86,7 +85,6 @@ export async function POST(request: NextRequest) {
 
       // Extract file key from the original URL
       const fileKey = job.originalUrl.split('/').slice(-2).join('/'); // Get last two parts: uploads/filename
-      console.log("File key:", fileKey);
       
       // Create signed URL for fetching the uploaded image
       const accountId = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/)?.[1];
@@ -97,9 +95,7 @@ export async function POST(request: NextRequest) {
         aws: { signQuery: true },
       });
 
-      console.log("Fetching image from signed URL:", signedFetchUrl.url);
       const imageResponse = await fetch(signedFetchUrl.url);
-      console.log("Image fetch response status:", imageResponse.status);
       
       if (!imageResponse.ok) {
         console.error("Failed to fetch image:", imageResponse.status, await imageResponse.text());
@@ -139,7 +135,6 @@ export async function POST(request: NextRequest) {
         },
       ];
 
-      console.log("Starting image generation with Gemini 2.5 Flash...");
       
       let processedImageBuffer: Buffer | null = null;
       let generatedText = "";
@@ -177,7 +172,6 @@ export async function POST(request: NextRequest) {
         }
 
         const result = await response.json();
-        console.log('Gemini API Response received');
 
         // Parse the response
         if (result.candidates?.[0]?.content?.parts) {
@@ -186,15 +180,12 @@ export async function POST(request: NextRequest) {
           for (const part of parts) {
             // Check for generated image
             if (part.inlineData) {
-              console.log("Generated image received with mime type:", part.inlineData.mimeType);
               processedImageBuffer = Buffer.from(part.inlineData.data || '', 'base64');
-              console.log("Processed image buffer size:", processedImageBuffer.length);
             }
             
             // Check for text response
             if (part.text) {
               generatedText += part.text;
-              console.log("Generated text:", part.text);
             }
           }
         }
@@ -207,7 +198,6 @@ export async function POST(request: NextRequest) {
         
         // Check if it's a quota/rate limit error
         if (geminiError?.code === 429 || geminiError?.status === "Too Many Requests") {
-          console.log("Gemini API quota exceeded. Using fallback processing...");
           
           // Fallback: Apply a simple image processing (e.g., sepia tone effect)
           // This simulates colorization until API quota resets
@@ -247,7 +237,6 @@ export async function POST(request: NextRequest) {
 
       // Deduct 1 credit for successful processing
       const updatedUser = await db.deductCredits(user.id, 1);
-      console.log(`Deducted 1 credit from user ${user.email}. Remaining credits: ${(updatedUser as any).credits}`);
 
       return NextResponse.json({
         success: true,

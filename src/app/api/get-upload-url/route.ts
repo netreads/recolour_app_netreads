@@ -54,11 +54,6 @@ export async function POST(request: NextRequest) {
     // Use account-specific endpoint format: https://{account-id}.r2.cloudflarestorage.com/{bucket}/{key}
     const bucketUrl = `https://${accountId}.r2.cloudflarestorage.com/${env.R2_BUCKET}/${fileKey}`;
     
-    console.log("Generating presigned URL for:", bucketUrl);
-    console.log("Account ID:", accountId);
-    console.log("Bucket:", env.R2_BUCKET);
-    console.log("File key:", fileKey);
-    console.log("Content-Type:", contentType || "image/*");
     
     const presignedUrl = await r2Client.sign(
       bucketUrl,
@@ -68,7 +63,6 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    console.log("Generated presigned URL:", presignedUrl.url);
 
     // Create job record in database
     const db = getDatabase();

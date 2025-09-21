@@ -103,7 +103,6 @@ export default function DashboardPage() {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
-        console.log("User data refreshed:", userData);
       } else {
         // Fallback to regular user endpoint
         const fallbackResponse = await fetch("/api/user");
@@ -125,7 +124,6 @@ export default function DashboardPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          console.log(data.message);
           // Refresh user data to show updated credits
           fetchUserData();
         }
@@ -159,7 +157,6 @@ export default function DashboardPage() {
       }
 
       const { jobId } = await uploadResponse.json();
-      console.log("Upload successful via server-side API, jobId:", jobId);
 
       // Submit job for processing
       const submitResponse = await fetch("/api/submit-job", {

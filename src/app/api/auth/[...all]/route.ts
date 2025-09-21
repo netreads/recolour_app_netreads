@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
   const vercelUrl = process.env.VERCEL_URL
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
   const errorRedirectUrl = appUrl || (vercelUrl ? `https://${vercelUrl}` : origin)
-  console.log('Auth error, redirecting to:', `${errorRedirectUrl}/auth/auth-code-error`);
   return NextResponse.redirect(`${errorRedirectUrl}/auth/auth-code-error`)
 }
 

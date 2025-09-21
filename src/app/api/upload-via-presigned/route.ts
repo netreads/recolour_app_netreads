@@ -9,22 +9,18 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Upload API called");
     
     // Verify authentication
     const user = await getServerUser();
 
-    console.log("Session check:", user ? "authenticated" : "not authenticated");
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log("Getting form data...");
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
-    console.log("File received:", file ? `${file.name} (${file.size} bytes)` : "no file");
     
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -49,9 +45,6 @@ export async function POST(request: NextRequest) {
       service: "s3",
     });
 
-    console.log("Uploading file directly via API:", fileKey);
-    console.log("File size:", file.size);
-    console.log("File type:", file.type);
 
     // Upload directly to R2 from the server (bypasses browser SSL issues)
     const accountId = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/)?.[1];
@@ -59,11 +52,8 @@ export async function POST(request: NextRequest) {
       ? `https://${accountId}.r2.cloudflarestorage.com/${env.R2_BUCKET}/${fileKey}`
       : `https://${env.R2_BUCKET}.r2.cloudflarestorage.com/${fileKey}`;
 
-    console.log("Upload URL:", uploadUrl);
-    console.log("Account ID:", accountId);
 
     const fileBuffer = await file.arrayBuffer();
-    console.log("File buffer size:", fileBuffer.byteLength);
     
     const uploadResponse = await r2Client.fetch(uploadUrl, {
       method: "PUT",
@@ -74,7 +64,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log("Upload response status:", uploadResponse.status);
 
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
@@ -82,7 +71,6 @@ export async function POST(request: NextRequest) {
       throw new Error(`Failed to upload file to R2: ${uploadResponse.status} ${errorText}`);
     }
 
-    console.log("Upload successful!");
 
     // Create job record in database
     const db = getDatabase();
