@@ -26,9 +26,11 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isFetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
+  const [mounted, setMounted] = useState(false);
 
 
   useEffect(() => {
+    setMounted(true);
     checkAuthStatus();
 
     // Listen for explicit credit update events from anywhere in the app
@@ -192,11 +194,11 @@ export function Navbar() {
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium" role="navigation" aria-label="Main navigation">
           <Link href="/pricing" className="transition-colors hover:text-foreground/80 text-foreground/60">
             Pricing
           </Link>
-          {user && (
+          {mounted && user && (
             <Link href="/dashboard" className="transition-colors hover:text-foreground/80 text-foreground/60">
               Dashboard
             </Link>
@@ -205,7 +207,7 @@ export function Navbar() {
 
         {/* Desktop User Actions */}
         <div className="hidden md:flex items-center space-x-4">
-          {user ? (
+          {mounted && user ? (
             <>
               {/* Credits Display */}
               <div className="flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full">
@@ -264,7 +266,7 @@ export function Navbar() {
             </DropdownMenu>
             </>
           ) : (
-            !isLoading && (
+            mounted && !isLoading && (
               <div className="flex items-center space-x-2">
                 <Button variant="ghost" asChild>
                   <Link href="/login">Sign In</Link>
@@ -295,11 +297,11 @@ export function Navbar() {
       </div>
 
       {/* Mobile Menu */}
-      {isMobileMenuOpen && (
+      {mounted && isMobileMenuOpen && (
         <div className="md:hidden border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container mx-auto px-4 py-4 space-y-4">
             {/* Mobile Navigation Links */}
-            <nav className="space-y-3">
+            <nav className="space-y-3" role="navigation" aria-label="Main navigation">
               <Link 
                 href="/pricing" 
                 className="block text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"
@@ -307,7 +309,7 @@ export function Navbar() {
               >
                 Pricing
               </Link>
-              {user && (
+              {mounted && user && (
                 <Link 
                   href="/dashboard" 
                   className="block text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"
@@ -319,7 +321,7 @@ export function Navbar() {
             </nav>
 
             {/* Mobile User Section */}
-            {user ? (
+            {mounted && user ? (
               <div className="space-y-4 pt-4 border-t">
                 {/* Mobile Credits Display */}
                 <div className="flex items-center justify-between">
@@ -379,7 +381,7 @@ export function Navbar() {
                 </div>
               </div>
             ) : (
-              !isLoading && (
+              mounted && !isLoading && (
                 <div className="space-y-3 pt-4 border-t">
                   <Button variant="outline" className="w-full" asChild>
                     <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>

@@ -107,7 +107,35 @@ export async function POST(request: NextRequest) {
       const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
       // Create prompt for colorization
-      const prompt = `Please colorize this black and white image. Add realistic colors that would be appropriate for the time period and subject matter. Make the colors look natural and historically accurate. Keep the same composition and details, just add appropriate colors.`;
+      const prompt = `You are tasked with colorizing a black-and-white photograph.
+
+Requirements:
+
+Realism & Accuracy
+
+Apply natural, lifelike colors that preserve shading, texture, and fine details.
+
+Use historically accurate palettes appropriate to the time period and subject matter.
+
+Subjects & Details
+
+Render skin tones realistically across different lighting conditions.
+
+Ensure clothing, fabrics, and objects reflect authentic materials and dyes.
+
+Maintain fidelity to original backgrounds, environments, and atmosphere.
+
+Preservation
+
+Do not alter composition, sharpness, or structure of the image.
+
+Only add color; avoid distortions, enhancements, or artistic reinterpretations.
+
+Output Style:
+
+High-resolution, photorealistic, historically authentic colorization.
+
+Balanced, natural tones without oversaturation. `;
 
       // Configure Gemini for image generation
       const config = {

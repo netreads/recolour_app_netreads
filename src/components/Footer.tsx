@@ -63,6 +63,9 @@ export function Footer() {
               <Link href="/cookies" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Cookie Policy
               </Link>
+              <Link href="/refund" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Refund & Cancellation
+              </Link>
             </nav>
           </div>
         </div>
