@@ -27,12 +27,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid callback' }, { status: 401 });
     }
 
-    const { type, payload } = callbackResponse;
+    const { type, payload, event } = callbackResponse;
 
-    if (type === 'CHECKOUT_ORDER_COMPLETED') {
+    console.log('Webhook payload received:', {
+      type: type, // deprecated - use event field instead
+      event: event, // use this field instead of type
+      payloadState: payload?.state, // rely only on payload.state field
+      orderId: payload?.originalMerchantOrderId
+    });
+
+    // Use event field instead of deprecated type parameter
+    // Rely only on payload.state field for payment status
+    const eventType = event || type; // fallback to type if event not available
+    const paymentState = payload?.state;
+
+    if (eventType === 'CHECKOUT_ORDER_COMPLETED' || paymentState === 'COMPLETED') {
       await handlePaymentSuccess(payload);
-    } else if (type === 'CHECKOUT_ORDER_FAILED') {
+    } else if (eventType === 'CHECKOUT_ORDER_FAILED' || paymentState === 'FAILED') {
       await handlePaymentFailed(payload);
+    } else if (paymentState === 'PENDING') {
+      await handlePaymentPending(payload);
+    } else {
+      console.log('Unhandled webhook event:', { eventType, paymentState });
     }
 
     return NextResponse.json({ status: 'success' });
@@ -47,9 +63,17 @@ export async function POST(request: NextRequest) {
 }
 
 async function handlePaymentSuccess(data: any) {
-  const { originalMerchantOrderId, amount, state, paymentDetails } = data;
+  const { originalMerchantOrderId, amount, state, paymentDetails, expireAt, timestamp } = data;
   const orderId = originalMerchantOrderId;
   const paymentId = paymentDetails?.[0]?.transactionId || '';
+
+  console.log('Handling payment success:', {
+    orderId,
+    state,
+    paymentId,
+    expireAt: expireAt ? new Date(expireAt) : null, // expireAt is epoch timestamp in milliseconds
+    timestamp: timestamp ? new Date(timestamp) : null // timestamp is epoch timestamp in milliseconds
+  });
 
   try {
     // Update order status
@@ -134,6 +158,48 @@ async function handlePaymentFailed(data: any) {
 
   } catch (error) {
     console.error('Error handling payment failure:', error);
+    throw error;
+  }
+}
+
+async function handlePaymentPending(data: any) {
+  const { originalMerchantOrderId, amount, state, expireAt, timestamp } = data;
+  const orderId = originalMerchantOrderId;
+
+  console.log('Handling payment pending:', {
+    orderId,
+    state,
+    expireAt: expireAt ? new Date(expireAt) : null, // expireAt is epoch timestamp in milliseconds
+    timestamp: timestamp ? new Date(timestamp) : null // timestamp is epoch timestamp in milliseconds
+  });
+
+  try {
+    // Get order to check current status
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      console.error('Order not found for pending payment:', orderId);
+      return;
+    }
+
+    // Update order status to reflect pending state
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'PENDING',
+        paymentStatus: 'PENDING',
+      },
+    });
+
+    // Note: For PENDING transactions, we should implement reconciliation
+    // This webhook indicates the transaction is still in progress
+    // The reconciliation schedule should be triggered here or via a background job
+    console.log(`Payment pending for order ${orderId} - reconciliation should be scheduled`);
+
+  } catch (error) {
+    console.error('Error handling payment pending:', error);
     throw error;
   }
 }

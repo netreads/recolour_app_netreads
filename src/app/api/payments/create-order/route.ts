@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
 
     // Create PhonePe order (amount in rupees)
     const phonePeOrder = await createPhonePeOrder({
-      orderId,
-      orderAmountRupees: packageConfig.amount / 100,
+      orderId, // Unique merchantOrderId
+      orderAmountRupees: packageConfig.amount / 100, // Amount will be converted to paise
       orderNote: `Purchase ${packageConfig.credits} credits - ${packageConfig.name}`,
       customerDetails: {
         customerId: user.id,
@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
         customerEmail: user.email || '',
         customerPhone: '9999999999',
       },
-      returnUrl: `${origin}/payment/success?order_id=${orderId}`,
+      returnUrl: `${origin}/payment/success?order_id=${orderId}`, // paymentFlow.redirectUrl
       notifyUrl: `${origin}/api/payments/webhook`,
+      expireAfter: 3600, // Order expiry in seconds (1 hour, within 300-3600 range for Standard Checkout)
     });
 
     // Update order with PhonePe order ID

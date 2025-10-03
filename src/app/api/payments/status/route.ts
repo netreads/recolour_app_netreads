@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getPhonePeOrderStatus } from '@/lib/phonepe';
+import { getPhonePeOrderStatus, reconcilePendingTransaction } from '@/lib/phonepe';
 
 export const runtime = 'nodejs';
 
@@ -44,7 +44,19 @@ export async function GET(request: NextRequest) {
     if (!success && finalOrder.phonePeOrderId) {
       try {
         const pp = await getPhonePeOrderStatus(finalOrder.id);
-        // state can be PENDING | COMPLETED | FAILED
+        console.log('Payment status check result:', {
+          orderId: finalOrder.id,
+          state: pp?.state,
+          isCompleted: pp?.isCompleted,
+          isFailed: pp?.isFailed,
+          isPending: pp?.isPending
+        });
+
+        // Use root-level state parameter to determine payment status
+        // COMPLETED → Payment Successful
+        // FAILED → Payment failed
+        // PENDING → Payment in progress
+        
         if (pp?.state === 'COMPLETED') {
           const updated = await prisma.order.update({
             where: { id: finalOrder.id },
@@ -82,8 +94,37 @@ export async function GET(request: NextRequest) {
           finalOrder = updated as any;
           success = true;
           transaction = updated.transactions.find(t => t.status === 'SUCCESS') || transaction;
+        } else if (pp?.state === 'FAILED') {
+          // Update order status to failed
+          await prisma.order.update({
+            where: { id: finalOrder.id },
+            data: {
+              status: 'FAILED',
+              paymentStatus: 'FAILED',
+            },
+          });
+          finalOrder.status = 'FAILED';
+        } else if (pp?.state === 'PENDING') {
+          // For PENDING transactions, we have two options:
+          // Option 1: Mark as Failed and reconcile in background
+          // Option 2: Mark as Pending and reconcile until terminal status
+          
+          // We'll implement Option 2: Mark as Pending
+          await prisma.order.update({
+            where: { id: finalOrder.id },
+            data: {
+              status: 'PENDING',
+              paymentStatus: 'PENDING',
+            },
+          });
+          finalOrder.status = 'PENDING';
+          
+          // Note: In a production environment, you should trigger background reconciliation here
+          // For now, we'll log that reconciliation should be scheduled
+          console.log(`PENDING transaction detected for order ${finalOrder.id} - reconciliation should be scheduled`);
         }
       } catch (e) {
+        console.error('Error checking payment status:', e);
         // ignore; surface DB status
       }
     }
