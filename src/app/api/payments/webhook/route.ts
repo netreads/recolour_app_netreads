@@ -1,30 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { validateWebhookSignature } from '@/lib/cashfree';
+import { validatePhonePeCallback } from '@/lib/phonepe';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
-    const signature = request.headers.get('x-webhook-signature') || '';
+    const authorization = request.headers.get('authorization') || '';
 
-    // Validate webhook signature
-    if (!validateWebhookSignature(body, signature)) {
-      console.error('Invalid webhook signature');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    // Get PhonePe webhook credentials from environment
+    const username = process.env.PHONEPE_WEBHOOK_USERNAME || '';
+    const password = process.env.PHONEPE_WEBHOOK_PASSWORD || '';
+
+    if (!username || !password) {
+      console.error('PhonePe webhook credentials not configured');
+      return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
     }
 
-    const webhookData = JSON.parse(body);
-    const { type, data } = webhookData;
+    // Validate PhonePe callback
+    let callbackResponse;
+    try {
+      callbackResponse = validatePhonePeCallback(username, password, authorization, body);
+    } catch (error) {
+      console.error('Invalid PhonePe callback:', error);
+      return NextResponse.json({ error: 'Invalid callback' }, { status: 401 });
+    }
 
+    const { type, payload } = callbackResponse;
 
-    if (type === 'PAYMENT_SUCCESS_WEBHOOK') {
-      await handlePaymentSuccess(data);
-    } else if (type === 'PAYMENT_FAILED_WEBHOOK') {
-      await handlePaymentFailed(data);
-    } else if (type === 'PAYMENT_USER_DROPPED_WEBHOOK') {
-      await handlePaymentDropped(data);
+    if (type === 'CHECKOUT_ORDER_COMPLETED') {
+      await handlePaymentSuccess(payload);
+    } else if (type === 'CHECKOUT_ORDER_FAILED') {
+      await handlePaymentFailed(payload);
     }
 
     return NextResponse.json({ status: 'success' });
@@ -39,7 +47,9 @@ export async function POST(request: NextRequest) {
 }
 
 async function handlePaymentSuccess(data: any) {
-  const { orderId, paymentId, paymentAmount, paymentStatus } = data;
+  const { originalMerchantOrderId, amount, state, paymentDetails } = data;
+  const orderId = originalMerchantOrderId;
+  const paymentId = paymentDetails?.[0]?.transactionId || '';
 
   try {
     // Update order status
@@ -48,7 +58,7 @@ async function handlePaymentSuccess(data: any) {
       data: {
         status: 'PAID',
         paymentId: paymentId,
-        paymentStatus: paymentStatus,
+        paymentStatus: 'SUCCESS',
       },
     });
 
@@ -61,7 +71,7 @@ async function handlePaymentSuccess(data: any) {
         amount: order.amount,
         type: 'CREDIT_PURCHASE',
         status: 'SUCCESS',
-        cashfreeOrderId: order.cashfreeOrderId,
+        phonePeOrderId: order.phonePeOrderId,
         paymentId: paymentId,
       },
     });
@@ -76,7 +86,6 @@ async function handlePaymentSuccess(data: any) {
       },
     });
 
-
   } catch (error) {
     console.error('Error handling payment success:', error);
     throw error;
@@ -84,16 +93,28 @@ async function handlePaymentSuccess(data: any) {
 }
 
 async function handlePaymentFailed(data: any) {
-  const { orderId, paymentId, paymentStatus } = data;
+  const { originalMerchantOrderId, paymentDetails, errorCode } = data;
+  const orderId = originalMerchantOrderId;
+  const paymentId = paymentDetails?.[0]?.transactionId || '';
 
   try {
+    // Get order to fetch userId
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      console.error('Order not found for failed payment:', orderId);
+      return;
+    }
+
     // Update order status
     await prisma.order.update({
       where: { id: orderId },
       data: {
         status: 'FAILED',
         paymentId: paymentId,
-        paymentStatus: paymentStatus,
+        paymentStatus: 'FAILED',
       },
     });
 
@@ -101,38 +122,18 @@ async function handlePaymentFailed(data: any) {
     await prisma.transaction.create({
       data: {
         orderId: orderId,
-        userId: data.userId || '', // This might need to be fetched from order
+        userId: order.userId,
         credits: 0,
         amount: 0,
         type: 'CREDIT_PURCHASE',
         status: 'FAILED',
-        cashfreeOrderId: data.cfOrderId,
+        phonePeOrderId: order.phonePeOrderId,
         paymentId: paymentId,
       },
     });
 
-
   } catch (error) {
     console.error('Error handling payment failure:', error);
-    throw error;
-  }
-}
-
-async function handlePaymentDropped(data: any) {
-  const { orderId } = data;
-
-  try {
-    // Update order status to cancelled
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: 'CANCELLED',
-      },
-    });
-
-
-  } catch (error) {
-    console.error('Error handling payment dropped:', error);
     throw error;
   }
 }

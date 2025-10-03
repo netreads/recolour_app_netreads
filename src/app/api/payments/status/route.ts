@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getCashfreeOrder } from '@/lib/cashfree';
+import { getPhonePeOrderStatus } from '@/lib/phonepe';
 
 export const runtime = 'nodejs';
 
@@ -40,17 +40,17 @@ export async function GET(request: NextRequest) {
     let success = finalOrder.status === 'PAID';
     let transaction = finalOrder.transactions.find(t => t.status === 'SUCCESS');
 
-    // If not marked paid yet, verify with Cashfree and update
-    if (!success && finalOrder.cashfreeOrderId) {
+    // If not marked paid yet, verify with PhonePe and update
+    if (!success && finalOrder.phonePeOrderId) {
       try {
-        const cf = await getCashfreeOrder(finalOrder.id);
-        // order_status can be ACTIVE | PAID | EXPIRED | TERMINATED
-        if (cf?.order_status === 'PAID') {
+        const pp = await getPhonePeOrderStatus(finalOrder.id);
+        // state can be PENDING | COMPLETED | FAILED
+        if (pp?.state === 'COMPLETED') {
           const updated = await prisma.order.update({
             where: { id: finalOrder.id },
             data: {
               status: 'PAID',
-              paymentId: cf?.payments?.[0]?.cf_payment_id || finalOrder.paymentId || null,
+              paymentId: pp?.payment_details?.[0]?.transactionId || finalOrder.paymentId || null,
               paymentStatus: 'SUCCESS',
             },
             include: { transactions: true },
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
                 amount: updated.amount,
                 type: 'CREDIT_PURCHASE',
                 status: 'SUCCESS',
-                cashfreeOrderId: updated.cashfreeOrderId,
+                phonePeOrderId: updated.phonePeOrderId,
                 paymentId: updated.paymentId || undefined,
               },
             });

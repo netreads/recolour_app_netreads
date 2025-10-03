@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { load } from '@cashfreepayments/cashfree-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -84,22 +83,11 @@ export function PricingCard({
 
       const orderData = await response.json();
 
-      // Try Cashfree JS SDK checkout first
-      try {
-        const cashfree = await load({ mode: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox' });
-        const result = await cashfree.checkout({
-          paymentSessionId: orderData.paymentSessionId,
-        } as any);
-        if (result && (result as any).error) {
-          throw new Error((result as any).error?.message || 'Checkout failed');
-        }
-        return;
-      } catch (_sdkErr) {
-        // Fallback to hosted redirect
-        const env = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT;
-        const host = env === 'production' ? 'https://payments.cashfree.com' : 'https://sandbox.cashfree.com';
-        const cashfreeUrl = `${host}/pg/view/sessions/${orderData.paymentSessionId}`;
-        window.location.href = cashfreeUrl;
+      // PhonePe provides a redirect URL directly, so redirect to it
+      if (orderData.redirectUrl) {
+        window.location.href = orderData.redirectUrl;
+      } else {
+        throw new Error('No redirect URL received from PhonePe');
       }
       
     } catch (error: any) {

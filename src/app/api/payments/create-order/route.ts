@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { createCashfreeOrder, CREDIT_PACKAGES, CreditPackageType, generateOrderId } from '@/lib/cashfree';
+import { createPhonePeOrder, CREDIT_PACKAGES, CreditPackageType, generateOrderId } from '@/lib/phonepe';
 
 export const runtime = 'nodejs';
 
@@ -25,8 +25,10 @@ export async function POST(request: NextRequest) {
 
     // Derive base URL from env or request (for return/notify)
     const origin = process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin') || '';
-    if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
-      return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 500 });
+    if (!process.env.PHONEPE_CLIENT_ID || !process.env.PHONEPE_CLIENT_SECRET) {
+      return NextResponse.json({ 
+        error: 'Payment gateway not configured. Please set PHONEPE_CLIENT_ID and PHONEPE_CLIENT_SECRET environment variables.' 
+      }, { status: 500 });
     }
 
     // Create order in database
@@ -42,8 +44,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create Cashfree order via REST helper (amount in rupees)
-    const cashfreeOrder = await createCashfreeOrder({
+    // Create PhonePe order (amount in rupees)
+    const phonePeOrder = await createPhonePeOrder({
       orderId,
       orderAmountRupees: packageConfig.amount / 100,
       orderNote: `Purchase ${packageConfig.credits} credits - ${packageConfig.name}`,
@@ -57,18 +59,19 @@ export async function POST(request: NextRequest) {
       notifyUrl: `${origin}/api/payments/webhook`,
     });
 
-    // Update order with Cashfree order ID
+    // Update order with PhonePe order ID
     await (prisma as any).order.update({
       where: { id: orderId },
-      data: { cashfreeOrderId: String(cashfreeOrder.cfOrderId) },
+      data: { phonePeOrderId: String(phonePeOrder.orderId) },
     });
 
     return NextResponse.json({
       orderId: orderId,
-      paymentSessionId: cashfreeOrder.paymentSessionId,
+      redirectUrl: phonePeOrder.redirectUrl,
       orderAmount: packageConfig.amount,
       orderCurrency: 'INR',
-      customerDetails: cashfreeOrder.customerDetails,
+      state: phonePeOrder.state,
+      expireAt: phonePeOrder.expireAt,
     });
 
   } catch (error: any) {

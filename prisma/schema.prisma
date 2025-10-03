@@ -83,38 +83,38 @@ model Job {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  userId          String      @map("user_id")
-  packageName     String      @map("package_name")
-  credits         Int
-  amount          Int         // Amount in paise (e.g., 4990 for ₹49.90)
-  currency        String      @default("INR")
-  status          OrderStatus @default(PENDING)
-  cashfreeOrderId String?     @map("cashfree_order_id")
-  paymentId       String?     @map("payment_id")
-  paymentStatus   String?     @map("payment_status")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions    Transaction[]
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  packageName    String      @map("package_name")
+  credits        Int
+  amount         Int         // Amount in paise (e.g., 4990 for ₹49.90)
+  currency       String      @default("INR")
+  status         OrderStatus @default(PENDING)
+  phonePeOrderId String?     @map("phonepe_order_id")
+  paymentId      String?     @map("payment_id")
+  paymentStatus  String?     @map("payment_status")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
 
   @@map("orders")
 }
 
 model Transaction {
-  id              String           @id @default(cuid())
-  orderId         String           @map("order_id")
-  userId          String           @map("user_id")
-  credits         Int
-  amount          Int
-  type            TransactionType
-  status          TransactionStatus @default(PENDING)
-  cashfreeOrderId String?          @map("cashfree_order_id")
-  paymentId       String?          @map("payment_id")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String           @id @default(cuid())
+  orderId        String           @map("order_id")
+  userId         String           @map("user_id")
+  credits        Int
+  amount         Int
+  type           TransactionType
+  status         TransactionStatus @default(PENDING)
+  phonePeOrderId String?          @map("phonepe_order_id")
+  paymentId      String?          @map("payment_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  order          Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("transactions")
 }

@@ -6,7 +6,7 @@ A full-stack SaaS application that uses AI to colorize black and white photos. B
 
 - **AI-Powered Colorization**: Uses Google Gemini API to intelligently colorize black and white photos
 - **User Authentication**: Secure email/password authentication with BetterAuth
-- **Payment Integration**: Cashfree payment gateway for credit purchases
+- **Payment Integration**: PhonePe payment gateway for credit purchases
 - **Credit System**: Purchase credits to colorize images with flexible pricing packages
 - **Cloud Storage**: Images stored on Cloudflare R2 with presigned URLs
 - **Real-time Dashboard**: Track upload progress and view colorization results
@@ -28,7 +28,7 @@ A full-stack SaaS application that uses AI to colorize black and white photos. B
 
 ### AI & External Services
 - **Google Gemini API** for image colorization
-- **Cashfree Payment Gateway** for payment processing
+- **PhonePe Payment Gateway** for payment processing
 - **AWS4Fetch** for R2 presigned URL generation
 
 ## 🚀 Quick Start
@@ -37,7 +37,7 @@ A full-stack SaaS application that uses AI to colorize black and white photos. B
 - Node.js 18+
 - Cloudflare account
 - Google AI Studio account (for Gemini API)
-- Cashfree merchant account (for payments)
+- PhonePe merchant account (for payments)
 
 ### Installation
 
@@ -123,7 +123,7 @@ CREATE TABLE jobs (
 ## 🎨 How It Works
 
 1. **Sign Up**: Users create accounts and get 1 free credit
-2. **Purchase Credits**: Users can buy credit packages through Cashfree payment gateway
+2. **Purchase Credits**: Users can buy credit packages through PhonePe payment gateway
 3. **Upload**: User uploads a black and white photo (consumes 1 credit)
 4. **Storage**: Image is stored in Cloudflare R2 via presigned URL
 5. **Processing**: Google Gemini AI colorizes the image
@@ -131,10 +131,10 @@ CREATE TABLE jobs (
 
 ## 💳 Payment System
 
-The application uses Cashfree payment gateway for credit purchases:
+The application uses PhonePe payment gateway for credit purchases:
 
-- **Credit Packages**: 4 different packages from ₹49 to ₹999
-- **Secure Payments**: Hosted checkout with Cashfree's secure payment page
+- **Credit Packages**: 4 different packages from ₹149 to ₹2499
+- **Secure Payments**: Hosted checkout with PhonePe's secure payment page
 - **Real-time Updates**: Webhook-based payment status updates
 - **Automatic Credit Addition**: Credits are added automatically upon successful payment
 
