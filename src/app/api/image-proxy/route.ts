@@ -6,6 +6,9 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
+// Enable aggressive caching to reduce function invocations
+export const revalidate = 3600; // Cache for 1 hour
+
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -109,11 +112,13 @@ export async function GET(request: NextRequest) {
       offset += chunk.length;
     }
 
-    // Return the image with appropriate headers
+    // Return the image with aggressive caching headers
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': response.ContentType || 'image/jpeg',
-        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+        'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year (images don't change)
+        'CDN-Cache-Control': 'public, max-age=31536000',
+        'Vercel-CDN-Cache-Control': 'public, max-age=31536000',
         'Content-Length': buffer.length.toString(),
       },
     });

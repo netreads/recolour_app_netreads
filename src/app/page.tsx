@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -155,20 +156,28 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="grid grid-cols-2">
                     <div className="relative">
-                      <img
+                      <Image
                         src="/indian wedding original.jpg"
                         alt="Indian wedding photo before colorization"
+                        width={400}
+                        height={400}
                         className="aspect-square object-cover w-full h-full"
+                        loading="lazy"
+                        quality={85}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
                       </div>
                     </div>
                     <div className="relative">
-                      <img
+                      <Image
                         src="/indian wedding colour.jpg"
                         alt="Indian wedding photo after colorization"
+                        width={400}
+                        height={400}
                         className="aspect-square object-cover w-full h-full"
+                        loading="lazy"
+                        quality={85}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -188,20 +197,28 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="grid grid-cols-2">
                     <div className="relative">
-                      <img
+                      <Image
                         src="/grandfather original.jpg"
                         alt="Grandfather portrait before colorization"
+                        width={400}
+                        height={400}
                         className="aspect-square object-cover w-full h-full"
+                        loading="lazy"
+                        quality={85}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
                       </div>
                     </div>
                     <div className="relative">
-                      <img
+                      <Image
                         src="/grandfather colour.jpg"
                         alt="Grandfather portrait after colorization"
+                        width={400}
+                        height={400}
                         className="aspect-square object-cover w-full h-full"
+                        loading="lazy"
+                        quality={85}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -221,20 +238,28 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="grid grid-cols-2">
                     <div className="relative">
-                      <img
+                      <Image
                         src="/festival original.jpg"
                         alt="Festival celebration before colorization"
+                        width={400}
+                        height={400}
                         className="aspect-square object-cover w-full h-full"
+                        loading="lazy"
+                        quality={85}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
                       </div>
                     </div>
                     <div className="relative">
-                      <img
+                      <Image
                         src="/festival colour.jpg"
                         alt="Festival celebration after colorization"
+                        width={400}
+                        height={400}
                         className="aspect-square object-cover w-full h-full"
+                        loading="lazy"
+                        quality={85}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After

@@ -5,6 +5,9 @@ import { getDatabase } from "@/lib/db";
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
+// Cache jobs list for 5 seconds to reduce DB queries
+export const revalidate = 5;
+
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication and sync user to database
@@ -29,7 +32,11 @@ export async function GET(request: NextRequest) {
       created_at: job.createdAt.toISOString(),
     }));
 
-    return NextResponse.json({ jobs: transformedJobs });
+    return NextResponse.json({ jobs: transformedJobs }, {
+      headers: {
+        'Cache-Control': 'private, max-age=5, stale-while-revalidate=15',
+      },
+    });
   } catch (error) {
     console.error("Error fetching jobs:", error);
     return NextResponse.json(

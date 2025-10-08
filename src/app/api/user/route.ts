@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerUserWithSync } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 
+// Cache user data for 10 seconds to reduce DB queries
+export const revalidate = 10;
+
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication and sync user to database
@@ -25,6 +28,10 @@ export async function GET(request: NextRequest) {
       id: dbUserData.id,
       email: dbUserData.email,
       credits: dbUserData.credits,
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+      },
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
