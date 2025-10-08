@@ -602,11 +602,11 @@ export default function DashboardPage() {
                   return (
                     <div key={job.id} className="group relative rounded-xl overflow-hidden border bg-white shadow-sm">
                       <div
-                        className="aspect-[4/3] w-full cursor-zoom-in bg-muted"
+                        className="aspect-[4/3] w-full cursor-zoom-in bg-muted flex items-center justify-center"
                         onClick={() => { setViewerJob(job); setViewerOpen(true); }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={thumbUrl} alt="Recolored preview" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.01]" />
+                        <img src={thumbUrl} alt="Recolored preview" className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.01]" />
                       </div>
                       <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex gap-1 sm:gap-2">
                         <Button

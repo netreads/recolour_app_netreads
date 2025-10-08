@@ -478,42 +478,47 @@ export function ImageViewer({
                     </div>
                   </div>
                 ) : (
-                  // Single Image View
-                  <div
-                    className="relative transition-transform duration-200 ease-in-out"
-                    style={{
-                      transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
-                    }}
-                  >
-                    {imageError ? (
-                      <div className="flex flex-col items-center justify-center w-96 h-96 bg-red-50 border-2 border-red-200 rounded-lg">
-                        <X className="h-12 w-12 text-red-400 mb-4" />
-                        <p className="text-red-600 font-medium">Failed to load image</p>
-                        <p className="text-red-500 text-sm mt-2">Please try refreshing or check your connection</p>
-                      </div>
-                    ) : (
-                      <>
-                        <img
-                          ref={imageRef}
-                          src={currentImageUrl}
-                          alt={activeImage}
-                          className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${
-                            imageLoaded ? 'opacity-100' : 'opacity-0'
-                          }`}
-                          onLoad={handleImageLoad}
-                          onError={handleImageError}
-                          draggable={false}
-                        />
-                        {!imageLoaded && !imageError && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-lg">
-                            <div className="text-center space-y-4">
-                              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-                              <p className="text-gray-600 font-medium">Loading image...</p>
+                  // Single Image View - Similar to comparison view
+                  <div className="relative w-full h-full max-w-4xl max-h-full">
+                    <div 
+                      className="relative w-full h-full rounded-lg overflow-hidden shadow-2xl"
+                      style={{
+                        transform: zoom !== 1 || rotation !== 0 ? `scale(${zoom}) rotate(${rotation}deg)` : 'none',
+                      }}
+                    >
+                      {imageError ? (
+                        <div className="flex flex-col items-center justify-center w-full h-full bg-red-50 border-2 border-red-200 rounded-lg">
+                          <X className="h-12 w-12 text-red-400 mb-4" />
+                          <p className="text-red-600 font-medium">Failed to load image</p>
+                          <p className="text-red-500 text-sm mt-2">Please try refreshing or check your connection</p>
+                        </div>
+                      ) : (
+                        <>
+                          <img
+                            ref={imageRef}
+                            src={currentImageUrl}
+                            alt={activeImage}
+                            className={`w-full h-full object-contain transition-opacity duration-300 ${
+                              imageLoaded ? 'opacity-100' : 'opacity-0'
+                            }`}
+                            onLoad={handleImageLoad}
+                            onError={handleImageError}
+                            draggable={false}
+                            style={{
+                              transform: imagePosition.x !== 0 || imagePosition.y !== 0 ? `translate(${imagePosition.x}px, ${imagePosition.y}px)` : 'none',
+                            }}
+                          />
+                          {!imageLoaded && !imageError && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-lg">
+                              <div className="text-center space-y-4">
+                                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
+                                <p className="text-gray-600 font-medium">Loading image...</p>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </>
-                    )}
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
