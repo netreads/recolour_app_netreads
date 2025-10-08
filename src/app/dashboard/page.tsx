@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Image, CheckCircle, XCircle, Download, RefreshCw, Plus, SortAsc, Sparkles, Zap, TrendingUp } from "lucide-react";
+import { Upload, Image, Download, RefreshCw, Sparkles, AlertCircle, Loader2, Wand2, Palette, CheckCircle2 } from "lucide-react";
 import { getSession } from "@/lib/auth-client";
 import { ImageViewer } from "@/components/features/ImageViewer";
 
@@ -22,6 +22,16 @@ interface User {
   credits: number;
 }
 
+const LOADING_TIPS = [
+  "🎨 Our AI analyzes thousands of historical photos to understand authentic colors",
+  "🖼️ The colorization process considers lighting, shadows, and context",
+  "✨ Each image is processed with deep learning models trained on millions of photos",
+  "🌈 Colors are carefully selected based on the era and subject matter",
+  "🎭 Facial features help determine natural skin tones and makeup styles",
+  "📸 Texture analysis helps identify materials like fabric, wood, and metal",
+  "💡 The AI understands different lighting conditions for accurate colors",
+  "🏛️ Historical accuracy is maintained by analyzing period-appropriate palettes",
+];
 
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -29,6 +39,9 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<'uploading' | 'analyzing' | 'colorizing' | 'finalizing'>('uploading');
+  const [currentTip, setCurrentTip] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
@@ -42,6 +55,17 @@ export default function DashboardPage() {
   useEffect(() => {
     checkAuthAndFetchJobs();
   }, []);
+
+  // Rotate tips during upload
+  useEffect(() => {
+    if (!isUploading) return;
+    
+    const tipInterval = setInterval(() => {
+      setCurrentTip((prev) => (prev + 1) % LOADING_TIPS.length);
+    }, 3000);
+    
+    return () => clearInterval(tipInterval);
+  }, [isUploading]);
 
   const checkAuthAndFetchJobs = async () => {
     try {
@@ -138,16 +162,28 @@ export default function DashboardPage() {
     if (!uploadFile) return;
 
     setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStage('uploading');
+    setCurrentTip(0);
 
     try {
-      // Try server-side upload first (bypasses SSL issues)
+      // Stage 1: Uploading (0-25%)
+      setUploadStage('uploading');
       const formData = new FormData();
       formData.append('file', uploadFile);
+
+      // Simulate progress for upload stage
+      const uploadProgressInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 5, 25));
+      }, 100);
 
       const uploadResponse = await fetch("/api/upload-via-presigned", {
         method: "POST",
         body: formData,
       });
+
+      clearInterval(uploadProgressInterval);
+      setUploadProgress(25);
 
       if (!uploadResponse.ok) {
         if (uploadResponse.status === 401) {
@@ -158,7 +194,18 @@ export default function DashboardPage() {
 
       const { jobId } = await uploadResponse.json();
 
-      // Submit job for processing
+      // Stage 2: Analyzing (25-40%)
+      setUploadStage('analyzing');
+      const analyzingInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 3, 40));
+      }, 150);
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+      clearInterval(analyzingInterval);
+      setUploadProgress(40);
+
+      // Stage 3: Colorizing (40-85%)
+      setUploadStage('colorizing');
       const submitResponse = await fetch("/api/submit-job", {
         method: "POST",
         headers: {
@@ -169,11 +216,16 @@ export default function DashboardPage() {
         }),
       });
 
+      // Simulate progress for colorizing stage
+      const colorizingInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 2, 85));
+      }, 200);
+
       if (!submitResponse.ok) {
+        clearInterval(colorizingInterval);
         const errorData = await submitResponse.json();
         
         if (submitResponse.status === 402) {
-          // Insufficient credits
           throw new Error(`Insufficient Credits: ${errorData.error || "You need more credits to process images."}. Please purchase credits to continue.`);
         }
         
@@ -183,6 +235,20 @@ export default function DashboardPage() {
         
         throw new Error(errorData.error || "Failed to submit job");
       }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      clearInterval(colorizingInterval);
+      setUploadProgress(85);
+
+      // Stage 4: Finalizing (85-100%)
+      setUploadStage('finalizing');
+      const finalizingInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 3, 100));
+      }, 100);
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+      clearInterval(finalizingInterval);
+      setUploadProgress(100);
 
       // Reset form and refresh jobs and user data
       setUploadFile(null);
@@ -199,6 +265,8 @@ export default function DashboardPage() {
       }
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStage('uploading');
     }
   };
 
@@ -314,129 +382,76 @@ export default function DashboardPage() {
   const stats = getStats();
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Enhanced Header */}
-        <div className="text-center space-y-4 sm:space-y-6 max-w-5xl mx-auto">
-          <div className="space-y-4 sm:space-y-6">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-orange-500 to-green-600 rounded-xl mb-2 sm:mb-4">
-              <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
+        
+        {/* Simple Header with Credits */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+            <p className="text-sm text-gray-600 mt-1">Colorize your black & white photos with AI</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border">
+              <Sparkles className="h-4 w-4 text-orange-500" />
+              <div>
+                <p className="text-xs text-gray-500">Credits</p>
+                <p className="text-lg font-semibold">{user?.credits || 0}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchUserData}
+                className="h-8 w-8 p-0 ml-2"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 leading-tight">
-              Welcome to
-              <br />
-              <span className="bg-gradient-to-r from-orange-500 to-green-600 bg-clip-text text-transparent">
-                ReColor AI
-              </span>
-            </h1>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
-              Transform your black & white photos into vibrant, colorized masterpieces using advanced AI technology.
-              <br className="hidden sm:block" />
-              <span className="sm:hidden"> </span>Perfect for preserving your family's precious memories.
-            </p>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
-                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+        {/* Simple Stats Bar */}
+        {jobs.length > 0 && (
+          <div className="flex items-center flex-wrap gap-4 sm:gap-6 text-sm text-gray-600 bg-white px-4 py-3 rounded-lg border">
+            <div className="flex items-center gap-2">
+              <Image className="h-4 w-4 text-gray-400" />
+              <span>{stats.total} Total</span>
+            </div>
+            <div className="hidden sm:block h-4 w-px bg-gray-200" />
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+              <span>{stats.completed} Completed</span>
+            </div>
+            {stats.processing > 0 && (
+              <>
+                <div className="hidden sm:block h-4 w-px bg-gray-200" />
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-3.5 w-3.5 text-blue-500 animate-spin" />
+                  <span>{stats.processing} Processing</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Credits</p>
-                  <p className="text-lg sm:text-2xl font-bold">{user?.credits || 0}</p>
+              </>
+            )}
+            {stats.failed > 0 && (
+              <>
+                <div className="hidden sm:block h-4 w-px bg-gray-200" />
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                  <span>{stats.failed} Failed</span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchUserData}
-                  className="ml-1 sm:ml-2 h-6 w-6 sm:h-8 sm:w-8 p-0"
-                >
-                  <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
-                  <Image className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Images</p>
-                  <p className="text-lg sm:text-2xl font-bold">{stats.total}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Completed</p>
-                  <p className="text-lg sm:text-2xl font-bold">{stats.completed}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="p-1.5 sm:p-2 bg-yellow-100 rounded-lg">
-                  <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Processing</p>
-                  <p className="text-lg sm:text-2xl font-bold">{stats.processing}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
-                  <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Failed</p>
-                  <p className="text-lg sm:text-2xl font-bold">{stats.failed}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </>
+            )}
+          </div>
+        )}
 
-        {/* Enhanced Upload Section */}
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-          <CardHeader className="text-center pb-4 px-4 sm:px-6">
-            <CardTitle className="text-xl sm:text-2xl flex items-center justify-center">
-              <Zap className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-              Upload New Photo
-            </CardTitle>
-            <CardDescription className="text-sm sm:text-base px-4">
-              Drag & drop or click to select a black & white image for AI colorization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6">
-            <form onSubmit={handleFileUpload} className="space-y-4 sm:space-y-6">
-              {/* Drag & Drop Area */}
+        {/* Simple Upload Section */}
+        <Card>
+          <CardContent className="p-6">
+            <form onSubmit={handleFileUpload} className="space-y-4">
               <div
-                className={`relative border-2 border-dashed rounded-xl p-4 sm:p-8 text-center transition-all duration-200 ${
+                className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                   dragActive
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -452,9 +467,9 @@ export default function DashboardPage() {
                 />
                 
                 {uploadFile ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="relative w-full max-w-xs sm:max-w-sm mx-auto">
-                      <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden shadow-lg">
+                  <div className="space-y-4">
+                    <div className="relative w-full max-w-sm mx-auto">
+                      <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
                         <img
                           src={URL.createObjectURL(uploadFile)}
                           alt="Preview"
@@ -462,9 +477,9 @@ export default function DashboardPage() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-1 sm:space-y-2">
-                      <p className="font-medium text-foreground text-sm sm:text-base truncate">{uploadFile.name}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
+                    <div>
+                      <p className="font-medium text-gray-900 truncate">{uploadFile.name}</p>
+                      <p className="text-sm text-gray-500">
                         {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
@@ -475,164 +490,225 @@ export default function DashboardPage() {
                         setUploadFile(null);
                         if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
-                      className="text-xs sm:text-sm"
                     >
                       Choose Different File
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                      <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-                    </div>
-                    <div className="space-y-1 sm:space-y-2">
-                      <p className="text-base sm:text-lg font-medium">Drop your image here</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        or click to browse files
+                  <div className="space-y-4">
+                    <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                    <div>
+                      <p className="text-base font-medium text-gray-900">Drop your image here</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        or click to browse • JPG, PNG, WebP up to 10MB
                       </p>
                     </div>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-sm sm:text-base"
                     >
-                      <Plus className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       Select Image
                     </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Supports JPG, PNG, WebP up to 10MB
-                    </p>
                   </div>
                 )}
               </div>
 
               {user && user.credits < 1 ? (
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="text-center p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-yellow-800 font-medium text-sm sm:text-base">No credits remaining</p>
-                    <p className="text-yellow-600 text-xs sm:text-sm">Purchase credits to continue colorizing images</p>
-                  </div>
+                <div className="flex items-center justify-center">
                   <Button
-                    type="button"
-                    className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-2.5 sm:py-3 rounded-xl text-sm sm:text-base"
-                    size="lg"
                     onClick={() => router.push('/pricing')}
+                    className="bg-orange-500 hover:bg-orange-600"
+                    size="lg"
                   >
-                    <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                    <Sparkles className="mr-2 h-4 w-4" />
                     Buy Credits
                   </Button>
+                </div>
+              ) : isUploading ? (
+                <div className="space-y-4 p-6 bg-gradient-to-br from-orange-50 to-purple-50 border-2 border-orange-200 rounded-lg">
+                  {/* Progress Bar */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {uploadStage === 'uploading' && (
+                          <>
+                            <Upload className="h-4 w-4 text-orange-500 animate-pulse" />
+                            <span className="font-medium text-gray-700">Uploading your image...</span>
+                          </>
+                        )}
+                        {uploadStage === 'analyzing' && (
+                          <>
+                            <Wand2 className="h-4 w-4 text-purple-500 animate-pulse" />
+                            <span className="font-medium text-gray-700">Analyzing image details...</span>
+                          </>
+                        )}
+                        {uploadStage === 'colorizing' && (
+                          <>
+                            <Palette className="h-4 w-4 text-pink-500 animate-pulse" />
+                            <span className="font-medium text-gray-700">AI is colorizing...</span>
+                          </>
+                        )}
+                        {uploadStage === 'finalizing' && (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-500 animate-pulse" />
+                            <span className="font-medium text-gray-700">Finalizing your image...</span>
+                          </>
+                        )}
+                      </div>
+                      <span className="font-bold text-orange-600">{uploadProgress}%</span>
+                    </div>
+                    <div className="h-3 bg-white rounded-full overflow-hidden shadow-inner">
+                      <div
+                        className="h-full bg-gradient-to-r from-orange-400 via-purple-400 to-pink-400 transition-all duration-300 ease-out rounded-full"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stage Indicators */}
+                  <div className="flex items-center justify-between gap-2 px-2">
+                    {[
+                      { stage: 'uploading', icon: Upload, label: 'Upload' },
+                      { stage: 'analyzing', icon: Wand2, label: 'Analyze' },
+                      { stage: 'colorizing', icon: Palette, label: 'Colorize' },
+                      { stage: 'finalizing', icon: CheckCircle2, label: 'Finalize' },
+                    ].map(({ stage, icon: Icon, label }) => (
+                      <div
+                        key={stage}
+                        className={`flex flex-col items-center gap-1 flex-1 ${
+                          uploadStage === stage
+                            ? 'opacity-100'
+                            : uploadProgress > (
+                                stage === 'uploading' ? 0 :
+                                stage === 'analyzing' ? 25 :
+                                stage === 'colorizing' ? 40 : 85
+                              )
+                            ? 'opacity-100'
+                            : 'opacity-40'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-full ${
+                          uploadStage === stage
+                            ? 'bg-orange-500 text-white'
+                            : uploadProgress > (
+                                stage === 'uploading' ? 0 :
+                                stage === 'analyzing' ? 25 :
+                                stage === 'colorizing' ? 40 : 85
+                              )
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-200 text-gray-400'
+                        }`}>
+                          <Icon className="h-3 w-3" />
+                        </div>
+                        <span className="text-xs font-medium text-gray-600">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Rotating Tips */}
+                  <div className="mt-4 p-4 bg-white/70 rounded-lg border border-orange-100">
+                    <div className="flex items-start gap-3">
+                      <Loader2 className="h-5 w-5 text-orange-500 animate-spin flex-shrink-0 mt-0.5" />
+                      <div className="min-h-[3rem] flex items-center">
+                        <p key={currentTip} className="text-sm text-gray-700 leading-relaxed animate-fade-in">
+                          {LOADING_TIPS[currentTip]}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <Button
                   type="submit"
                   disabled={!uploadFile || isUploading}
-                  className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold py-2.5 sm:py-3 rounded-xl text-sm sm:text-base"
+                  className="w-full bg-orange-500 hover:bg-orange-600"
                   size="lg"
                 >
-                  {isUploading ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                      Processing Your Image...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                      Colorize with AI
-                    </>
-                  )}
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Colorize Image
                 </Button>
               )}
             </form>
           </CardContent>
         </Card>
 
-        {/* Gallery - Only completed recolored images */}
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-          <CardHeader className="px-4 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        {/* Simple Gallery */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-xl sm:text-2xl flex items-center">
-                  <TrendingUp className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-                  Your Gallery (Recolored)
-                </CardTitle>
-                <CardDescription className="text-sm sm:text-base">
-                  Only completed AI recolors are shown here for a clean, focused view
+                <CardTitle className="text-lg font-semibold">Your Images</CardTitle>
+                <CardDescription className="text-sm">
+                  {completedJobs.length} {completedJobs.length === 1 ? 'image' : 'images'} colorized
                 </CardDescription>
               </div>
-              {jobs.length > 0 && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSortBy(sortBy === 'newest' ? 'oldest' : 'newest')}
-                    className="text-xs sm:text-sm"
-                  >
-                    <SortAsc className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    {sortBy === 'newest' ? 'Newest First' : 'Oldest First'}
-                  </Button>
-                </div>
+              {completedJobs.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortBy(sortBy === 'newest' ? 'oldest' : 'newest')}
+                >
+                  {sortBy === 'newest' ? 'Newest' : 'Oldest'}
+                </Button>
               )}
             </div>
           </CardHeader>
-          <CardContent className="px-4 sm:px-6">
+          <CardContent>
             {isLoading ? (
-              <div className="flex items-center justify-center py-8 sm:py-12">
-                <div className="text-center space-y-3 sm:space-y-4">
-                  <RefreshCw className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-blue-600 mx-auto" />
-                  <p className="text-muted-foreground text-sm sm:text-base">Loading your gallery...</p>
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center space-y-3">
+                  <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto" />
+                  <p className="text-sm text-gray-500">Loading...</p>
                 </div>
               </div>
             ) : completedJobs.length === 0 ? (
-              <div className="text-center py-12 sm:py-16">
-                <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-4 sm:mb-6">
-                  <Image className="h-8 w-8 sm:h-12 sm:w-12 text-blue-600" />
-                </div>
-                <h3 className="text-lg sm:text-xl font-semibold mb-2">No recolored images yet</h3>
-                <p className="text-muted-foreground mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base px-4">
-                  Upload a black & white image to generate your first AI recolor.
+              <div className="text-center py-12">
+                <Image className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-base font-medium text-gray-900 mb-1">No images yet</h3>
+                <p className="text-sm text-gray-500">
+                  Upload a black & white image to get started
                 </p>
-               
               </div>
             ) : (
-              <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {completedJobs.map((job) => {
                   const active = thumbViewByJob[job.id] || 'colorized';
                   const thumbUrl = getImageUrl(job.id, active === 'colorized' ? 'output' : 'original');
                   return (
-                    <div key={job.id} className="group relative rounded-xl overflow-hidden border bg-white shadow-sm">
+                    <div key={job.id} className="group relative rounded-lg overflow-hidden border bg-white hover:shadow-md transition-shadow">
                       <div
-                        className="aspect-[4/3] w-full cursor-zoom-in bg-muted flex items-center justify-center"
+                        className="aspect-[4/3] w-full cursor-pointer bg-gray-100 flex items-center justify-center"
                         onClick={() => { setViewerJob(job); setViewerOpen(true); }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={thumbUrl} alt="Recolored preview" className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.01]" />
+                        <img src={thumbUrl} alt="Preview" className="h-full w-full object-contain" />
                       </div>
-                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex gap-1 sm:gap-2">
+                      <div className="absolute top-2 left-2 flex gap-1">
                         <Button
                           size="sm"
-                          variant={active === 'original' ? 'default' : 'outline'}
+                          variant={active === 'original' ? 'default' : 'secondary'}
                           onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'original' })); }}
-                          className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+                          className="text-xs h-7 px-2"
                         >
                           Original
                         </Button>
                         <Button
                           size="sm"
-                          variant={active === 'colorized' ? 'default' : 'outline'}
+                          variant={active === 'colorized' ? 'default' : 'secondary'}
                           onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'colorized' })); }}
-                          className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+                          className="text-xs h-7 px-2"
                         >
                           Colorized
                         </Button>
                       </div>
-                      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3">
-                        <div className="text-xs sm:text-sm text-muted-foreground">
-                          {new Date(job.created_at).toLocaleString()}
+                      <div className="flex items-center justify-between px-3 py-2 border-t bg-gray-50">
+                        <div className="text-xs text-gray-500">
+                          {new Date(job.created_at).toLocaleDateString()}
                         </div>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
                             const url = active === 'colorized' ? getImageUrl(job.id, 'output') : getImageUrl(job.id, 'original');
@@ -643,10 +719,9 @@ export default function DashboardPage() {
                             link.click();
                             document.body.removeChild(link);
                           }}
-                          className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+                          className="text-xs h-7 px-2"
                         >
-                          <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                          Download
+                          <Download className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
