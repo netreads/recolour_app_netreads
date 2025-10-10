@@ -21,7 +21,7 @@ export default function PricingPage() {
       name: "Single Image",
       credits: 1,
       price: "₹99",
-      description: "Try It Once — High conversion",
+      description: "Try It Once",
       features: [
         "1 image",
         "Full-resolution download",
