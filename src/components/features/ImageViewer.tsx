@@ -28,7 +28,7 @@ export function ImageViewer({
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [activeImage, setActiveImage] = useState<'original' | 'colorized'>('original');
+  const [activeImage, setActiveImage] = useState<'original' | 'colorized'>(colorizedImageUrl ? 'colorized' : 'original');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -253,11 +253,13 @@ export function ImageViewer({
   };
 
   const handleDownload = () => {
-    const url = activeImage === 'original' ? originalImageUrl : colorizedImageUrl;
+    // Always download the colorized image if available, otherwise download original
+    const url = colorizedImageUrl || originalImageUrl;
+    const imageType = colorizedImageUrl ? 'colorized' : 'original';
     if (url) {
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${activeImage}-${jobId}.jpg`;
+      link.download = `${imageType}-${jobId}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -286,8 +288,10 @@ export function ImageViewer({
       setImageError(false);
       setShowComparison(false);
       setShowMetadata(false);
+      // Default to colorized image if available
+      setActiveImage(colorizedImageUrl ? 'colorized' : 'original');
     }
-  }, [isOpen]);
+  }, [isOpen, colorizedImageUrl]);
 
   // Add event listeners for keyboard and wheel
   useEffect(() => {
@@ -317,9 +321,15 @@ export function ImageViewer({
       >
         <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
           {/* Enhanced Header */}
-          <DialogHeader className="flex-shrink-0 p-4 sm:p-6 pb-4 border-b bg-white/80 backdrop-blur-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <DialogHeader className="flex-shrink-0 p-3 sm:p-6 sm:pb-4 border-b bg-white/80 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-2">
+              {/* Mobile: Simple header with status badge */}
+              <div className="flex items-center gap-2 sm:hidden">
+                {getStatusBadge(status)}
+              </div>
+              
+              {/* Desktop: Full header */}
+              <div className="hidden sm:flex sm:flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <DialogTitle className="text-lg sm:text-xl font-semibold flex items-center gap-2">
                   <Eye className="h-5 w-5 text-blue-600" />
                   Image Viewer
@@ -336,23 +346,25 @@ export function ImageViewer({
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              
+              {/* Action buttons */}
+              <div className="flex items-center gap-2">
                 {colorizedImageUrl && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowComparison(!showComparison)}
-                    className={`${showComparison ? "bg-blue-50 border-blue-200" : ""} text-xs sm:text-sm`}
+                    className={`${showComparison ? "bg-blue-50 border-blue-200" : ""} h-8 w-8 sm:w-auto p-0 sm:px-3`}
                   >
                     {showComparison ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    <span className="hidden sm:inline ml-1">{showComparison ? "Hide" : "Compare"}</span>
+                    <span className="hidden sm:inline sm:ml-1">{showComparison ? "Hide" : "Compare"}</span>
                   </Button>
                 )}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowMetadata(!showMetadata)}
-                  className="text-xs sm:text-sm"
+                  className="hidden sm:flex text-xs sm:text-sm"
                 >
                   <Info className="h-4 w-4" />
                 </Button>
@@ -360,7 +372,7 @@ export function ImageViewer({
                   variant="outline"
                   size="sm"
                   onClick={toggleFullscreen}
-                  className="text-xs sm:text-sm"
+                  className="hidden sm:flex text-xs sm:text-sm"
                 >
                   {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
@@ -368,7 +380,7 @@ export function ImageViewer({
                   variant="outline"
                   size="sm"
                   onClick={onClose}
-                  className="text-xs sm:text-sm"
+                  className="h-8 w-8 sm:w-auto p-0 sm:px-3"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -377,35 +389,32 @@ export function ImageViewer({
           </DialogHeader>
 
           {/* Enhanced Image Tabs */}
-          <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b bg-white/60 backdrop-blur-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex gap-2">
+          <div className="flex-shrink-0 px-3 sm:px-6 py-2 sm:py-4 border-b bg-white/60 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   variant={activeImage === 'original' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setActiveImage('original')}
-                  className="flex items-center gap-2 text-xs sm:text-sm"
+                  className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm flex-1 sm:flex-initial"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Original
+                  <span>Original</span>
                 </Button>
                 {colorizedImageUrl && (
                   <Button
                     variant={activeImage === 'colorized' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setActiveImage('colorized')}
-                    className="flex items-center gap-2 text-xs sm:text-sm"
+                    className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm flex-1 sm:flex-initial"
                   >
+                    <span>Colorized</span>
                     <ArrowRight className="h-4 w-4" />
-                    Colorized
                   </Button>
                 )}
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                 {showComparison ? 'Drag slider or use arrow keys to compare • Space to exit comparison' : 'Use arrow keys to switch between images • Space for comparison • Mouse wheel to zoom'}
-              </div>
-              <div className="text-xs text-muted-foreground sm:hidden">
-                {showComparison ? 'Drag slider to compare • Tap buttons to switch' : 'Touch to pan • Pinch to zoom • Tap buttons to switch'}
               </div>
             </div>
           </div>
@@ -424,7 +433,7 @@ export function ImageViewer({
             style={{ cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
           >
             {currentImageUrl && (
-              <div className="absolute inset-0 flex items-center justify-center p-4">
+              <div className="absolute inset-0 flex items-center justify-center p-2 sm:p-4">
                 {showComparison && colorizedImageUrl ? (
                   // Comparison Slider
                   <div className="relative w-full h-full max-w-4xl max-h-full">
@@ -540,84 +549,101 @@ export function ImageViewer({
           </div>
 
           {/* Enhanced Controls */}
-          <div className="flex-shrink-0 p-4 sm:p-6 pt-4 border-t bg-white/80 backdrop-blur-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                {/* Zoom Controls */}
-                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleZoomOut}
-                    disabled={zoom <= 0.1}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ZoomOut className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm font-medium min-w-[4rem] text-center px-2">
-                    {Math.round(zoom * 100)}%
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleZoomIn}
-                    disabled={zoom >= 5}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ZoomIn className="h-4 w-4" />
-                  </Button>
+          <div className="flex-shrink-0 p-3 sm:p-6 sm:pt-4 border-t bg-white/80 backdrop-blur-sm">
+            {/* Mobile: Simple controls with just Download button */}
+            <div className="flex sm:hidden items-center justify-center">
+              {currentImageUrl && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-sm w-full max-w-xs"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Colorized Image
+                </Button>
+              )}
+            </div>
+            
+            {/* Desktop: Full controls */}
+            <div className="hidden sm:block">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  {/* Zoom Controls */}
+                  <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleZoomOut}
+                      disabled={zoom <= 0.1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium min-w-[4rem] text-center px-2">
+                      {Math.round(zoom * 100)}%
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleZoomIn}
+                      disabled={zoom >= 5}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Action Controls */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRotate}
+                      className="flex items-center gap-2 text-xs sm:text-sm"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      <span>Rotate</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={resetView}
+                      className="flex items-center gap-2 text-xs sm:text-sm"
+                    >
+                      <span>Reset View</span>
+                    </Button>
+                  </div>
                 </div>
                 
-                {/* Action Controls */}
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRotate}
-                    className="flex items-center gap-2 text-xs sm:text-sm"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    <span className="hidden sm:inline">Rotate</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={resetView}
-                    className="flex items-center gap-2 text-xs sm:text-sm"
-                  >
-                    <span className="hidden sm:inline">Reset View</span>
-                    <span className="sm:hidden">Reset</span>
-                  </Button>
+                  {currentImageUrl && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleDownload}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-xs sm:text-sm"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  )}
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                {currentImageUrl && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleDownload}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-xs sm:text-sm"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                )}
-              </div>
-            </div>
-            
-            {/* Keyboard Shortcuts Help */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex flex-wrap gap-2 sm:gap-4 text-xs text-muted-foreground">
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Esc</kbd> Close</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">←→</kbd> {showComparison ? 'Slider' : 'Switch'}</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Space</kbd> {showComparison ? 'Exit Compare' : 'Compare'}</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">R</kbd> Rotate</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">F</kbd> Fullscreen</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">+/-</kbd> Zoom</span>
-                <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">0</kbd> Reset</span>
-                <span className="hidden sm:inline"><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Wheel</kbd> Zoom</span>
-                {showComparison && <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Drag</kbd> Slider</span>}
+              {/* Keyboard Shortcuts Help */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex flex-wrap gap-2 sm:gap-4 text-xs text-muted-foreground">
+                  <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Esc</kbd> Close</span>
+                  <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">←→</kbd> {showComparison ? 'Slider' : 'Switch'}</span>
+                  <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Space</kbd> {showComparison ? 'Exit Compare' : 'Compare'}</span>
+                  <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">R</kbd> Rotate</span>
+                  <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">F</kbd> Fullscreen</span>
+                  <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">+/-</kbd> Zoom</span>
+                  <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">0</kbd> Reset</span>
+                  <span className="hidden sm:inline"><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Wheel</kbd> Zoom</span>
+                  {showComparison && <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Drag</kbd> Slider</span>}
+                </div>
               </div>
             </div>
           </div>
