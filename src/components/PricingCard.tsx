@@ -100,10 +100,10 @@ export function PricingCard({
 
   const getPackageType = (packageName: string): string => {
     const typeMap: { [key: string]: string } = {
-      'Single Edit': 'single',
-      'Saver Pack': 'saver',
-      'Pro Pack': 'pro',
-      'Business Pack': 'business',
+      'Single Image': 'single',
+      'Family Pack': 'family',
+      'Festive Pack': 'festive',
+      'Studio Pack': 'studio',
     };
     return typeMap[packageName] || 'single';
   };

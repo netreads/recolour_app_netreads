@@ -263,28 +263,28 @@ export async function getPhonePeOrderStatus(merchantOrderId: string): Promise<an
 // Credit packages configuration
 export const CREDIT_PACKAGES = {
   'single': {
-    name: 'Single Edit',
+    name: 'Single Image',
     credits: 1,
-    amount: 14900, // stored in paise
-    description: 'For one-time users'
+    amount: 9900, // stored in paise (₹99)
+    description: 'Try It Once — High conversion'
   },
-  'saver': {
-    name: 'Saver Pack',
+  'family': {
+    name: 'Family Pack',
     credits: 4,
-    amount: 49900, // stored in paise
-    description: 'Best for casual users'
+    amount: 39900, // stored in paise (₹399)
+    description: '4 images → ₹99/image'
   },
-  'pro': {
-    name: 'Pro Pack',
-    credits: 7,
-    amount: 69900, // stored in paise
-    description: 'Best value for regulars'
+  'festive': {
+    name: 'Festive Pack',
+    credits: 8,
+    amount: 69900, // stored in paise (₹699)
+    description: '8 images → ₹87/image'
   },
-  'business': {
-    name: 'Business Pack',
-    credits: 20,
-    amount: 249900, // stored in paise
-    description: 'For professionals & studios'
+  'studio': {
+    name: 'Studio Pack',
+    credits: 25,
+    amount: 199900, // stored in paise (₹1,999)
+    description: 'Business & Studios'
   }
 } as const;
 

@@ -18,10 +18,10 @@ export default function PricingPage() {
   }, []);
   const creditPackages = [
     {
-      name: "Single Edit",
+      name: "Single Image",
       credits: 1,
-      price: "₹149",
-      description: "For one-time users",
+      price: "₹99",
+      description: "Try It Once — High conversion",
       features: [
         "1 image",
         "Full-resolution download",
@@ -33,14 +33,13 @@ export default function PricingPage() {
       icon: <Star className="h-5 w-5" />,
     },
     {
-      name: "Saver Pack",
+      name: "Family Pack",
       credits: 4,
-      price: "₹499",
-      description: "Best for casual users",
+      price: "₹399",
+      description: "4 images → ₹99/image",
       features: [
         "4 images",
-        "₹124/image",
-        "⭐ Save 17% vs Single",
+        "₹99/image",
         "Priority processing",
         "Full-resolution downloads",
       ],
@@ -50,14 +49,14 @@ export default function PricingPage() {
       icon: <Zap className="h-5 w-5" />,
     },
     {
-      name: "Pro Pack",
-      credits: 7,
+      name: "Festive Pack",
+      credits: 8,
       price: "₹699",
-      description: "Best value for regulars",
+      description: "8 images → ₹87/image",
       features: [
-        "7 images",
-        "₹99/image",
-        "⭐ Save 34% vs Single",
+        "8 images",
+        "₹87/image",
+        "⭐ Best Value",
         "Faster priority processing",
         "Priority email support",
         "Unlimited re-downloads",
@@ -69,13 +68,13 @@ export default function PricingPage() {
       icon: <Crown className="h-5 w-5" />,
     },
     {
-      name: "Business Pack",
-      credits: 20,
-      price: "₹2,499",
-      description: "For professionals & studios",
+      name: "Studio Pack",
+      credits: 25,
+      price: "₹1,999",
+      description: "Business & Studios",
       features: [
-        "20 images",
-        "₹124/image",
+        "25 images",
+        "₹80/image",
         "Fastest processing queue",
         "Dedicated support",
         "Enhanced previews",
