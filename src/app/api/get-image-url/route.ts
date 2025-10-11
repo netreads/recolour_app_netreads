@@ -9,6 +9,9 @@ export const runtime = 'nodejs';
 // Set max duration to prevent unexpected costs from long-running functions
 export const maxDuration = 60;
 
+// Mark as dynamic to prevent static rendering at build time
+export const dynamic = 'force-dynamic';
+
 // Cache these responses aggressively since URLs don't change
 export const revalidate = 3600; // 1 hour
 

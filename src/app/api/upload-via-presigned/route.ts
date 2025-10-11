@@ -108,12 +108,17 @@ export async function POST(request: NextRequest) {
       originalUrl,
     });
   } catch (error) {
+    // Always log errors but sanitize for production
     const env = getServerEnv();
-    if (env.NODE_ENV === 'development') {
-      console.error("Error uploading file:", error);
-    }
+    console.error("Error uploading file:", error);
+    
+    // In production, return generic error but log details
+    const errorMessage = env.NODE_ENV === 'development' && error instanceof Error
+      ? error.message 
+      : "Failed to upload file";
+    
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
