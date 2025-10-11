@@ -266,7 +266,7 @@ export const CREDIT_PACKAGES = {
     name: 'Single Image',
     credits: 1,
     amount: 9900, // stored in paise (₹99)
-    description: 'Try It Once — High conversion'
+    description: 'Try It Once'
   },
   'family': {
     name: 'Family Pack',

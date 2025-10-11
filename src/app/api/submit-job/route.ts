@@ -18,28 +18,29 @@ async function applyFallbackColorization(imageBuffer: Buffer): Promise<Buffer> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication and sync user to database
+    // Try to get authenticated user, fallback to anonymous (null userId)
     const userData = await getServerUserWithSync();
+    const isAnonymous = !userData?.neonUser;
+    const user = userData?.neonUser || null;
 
-    if (!userData?.neonUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = userData.neonUser;
-
-    // Check if user has sufficient credits
+    // Get database instance
     const db = getDatabase();
-    const dbUserData = await db.getUserById(user.id);
-    
-    if (!dbUserData) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
 
-    if ((dbUserData as any).credits < 1) {
-      return NextResponse.json({ 
-        error: "Insufficient credits. Please purchase credits to continue.",
-        credits: (dbUserData as any).credits 
-      }, { status: 402 }); // 402 Payment Required
+    // Skip credit checks for anonymous users
+    if (!isAnonymous && user) {
+      // Check if user has sufficient credits
+      const dbUserData = await db.getUserById(user.id);
+      
+      if (!dbUserData) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      if ((dbUserData as any).credits < 1) {
+        return NextResponse.json({ 
+          error: "Insufficient credits. Please purchase credits to continue.",
+          credits: (dbUserData as any).credits 
+        }, { status: 402 }); // 402 Payment Required
+      }
     }
 
     const { jobId } = await request.json();
@@ -61,7 +62,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (job.userId !== user.id) {
+    // Skip authorization check for anonymous users
+    if (!isAnonymous && user && job.userId !== user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -235,14 +237,18 @@ export async function POST(request: NextRequest) {
         status: "DONE",
       });
 
-      // Deduct 1 credit for successful processing
-      const updatedUser = await db.deductCredits(user.id, 1);
+      // Deduct 1 credit for successful processing (only for authenticated users)
+      let creditsRemaining = null;
+      if (!isAnonymous && user) {
+        const updatedUser = await db.deductCredits(user.id, 1);
+        creditsRemaining = (updatedUser as any).credits;
+      }
 
       return NextResponse.json({
         success: true,
         jobId,
         outputUrl,
-        creditsRemaining: (updatedUser as any).credits,
+        creditsRemaining,
       });
     } catch (processingError: any) {
       console.error("Error processing image:", processingError);

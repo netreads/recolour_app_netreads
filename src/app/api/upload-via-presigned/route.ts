@@ -10,13 +10,9 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   try {
     
-    // Verify authentication
+    // Try to get authenticated user, fallback to null for anonymous
     const user = await getServerUser();
-
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = user?.id || null;
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -74,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Create job record in database
     const db = getDatabase();
-    await db.createJob(jobId, user.id, originalUrl);
+    await db.createJob(jobId, userId, originalUrl);
 
     return NextResponse.json({
       success: true,

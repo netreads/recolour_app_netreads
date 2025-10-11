@@ -34,7 +34,7 @@ export type User = {
 
 export type Job = {
   id: string;
-  userId: string;
+  userId: string | null;
   originalUrl: string;
   outputUrl: string | null;
   status: JobStatus;
@@ -57,11 +57,11 @@ export class DatabaseHelper {
   }
 
   // Job operations
-  async createJob(id: string, userId: string, originalUrl: string): Promise<Job> {
+  async createJob(id: string, userId: string | null, originalUrl: string): Promise<Job> {
     return await prisma.job.create({
       data: {
         id,
-        userId,
+        userId: userId as any,
         originalUrl,
         status: 'PENDING'
       }

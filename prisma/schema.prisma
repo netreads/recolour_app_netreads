@@ -72,12 +72,12 @@ model Verification {
 
 model Job {
   id          String    @id @default(cuid())
-  userId      String    @map("user_id")
+  userId      String?   @map("user_id")
   originalUrl String    @map("original_url")
   outputUrl   String?   @map("output_url")
   status      JobStatus @default(PENDING)
   createdAt   DateTime  @default(now()) @map("created_at")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("jobs")
 }
