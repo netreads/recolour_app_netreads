@@ -6,8 +6,8 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, Award, CheckCircle, Quote, Upload, Download, RefreshCw, Wand2, Palette, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
-import { trackPageView } from "@/components/FacebookPixel";
+import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, CheckCircle, Quote, Upload, Download, Wand2, Palette, CheckCircle2, Loader2 } from "lucide-react";
+import { trackInitiateCheckout } from "@/components/FacebookPixel";
 
 interface Job {
   id: string;
@@ -41,11 +41,6 @@ export default function HomePage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Track pageview for Facebook Pixel
-    trackPageView();
-  }, []);
 
   // Rotate tips during upload
   useEffect(() => {
@@ -151,6 +146,9 @@ export default function HomePage() {
       
       setCurrentJob(newJob);
       setShowPaymentModal(true);
+      
+      // Track InitiateCheckout event when preview is shown
+      trackInitiateCheckout(49, 'INR', [jobId]);
     } catch (error) {
       console.error("Error uploading file:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
@@ -530,29 +528,28 @@ export default function HomePage() {
 
                   {/* Colorized (Watermarked) */}
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-700">AI Colorized</p>
+                    <p className="text-sm font-medium text-gray-700">AI Colorized (Preview)</p>
                     <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2 border-orange-500">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={getImageUrl(currentJob.id, 'output')}
                         alt="Colorized"
-                        className="w-full h-full object-contain blur-sm"
+                        className="w-full h-full object-contain"
                       />
-                      {/* Watermark Overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <div className="text-center space-y-4 p-6 bg-white/90 backdrop-blur-sm rounded-lg max-w-sm mx-4">
-                          <div className="space-y-2">
-                            <div className="text-4xl">🔒</div>
-                            <h3 className="text-xl font-bold text-gray-900">HD Version Locked</h3>
-                            <p className="text-sm text-gray-600">
-                              Get the full HD colorized image without watermark
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="text-3xl font-bold text-orange-600">₹49</div>
-                            <p className="text-xs text-gray-500">One-time payment • Instant download</p>
-                          </div>
+                      {/* Partial Obfuscation Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40 pointer-events-none">
+                        {/* Top Watermark */}
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg">
+                          <p className="text-sm font-semibold text-gray-800">HD Locked 🔒</p>
                         </div>
+                        
+                        {/* Center Watermark */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-white/85 backdrop-blur-sm px-6 py-3 rounded-xl shadow-xl border-2 border-orange-200">
+                          <p className="text-lg font-bold text-orange-600">Recolor ai</p>
+                          <p className="text-xs text-gray-600 mt-1">Watermark Free HD Version</p>
+                        </div>
+                        
+                       
                       </div>
                     </div>
                   </div>

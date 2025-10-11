@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
       // Create prompt for colorization - simpler is better for Gemini
-      const prompt = `Colorize this black and white photo. Make it look realistic with natural colors.`;
+      const prompt = `Fully restore and colorize the provided image, do not keep any part uncolored.`;
 
       // Configure Gemini for image generation
       // For models with image output, we need to use the experimental model
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       };
       
       // Try the Imagen model via Gemini API
-      const model = 'gemini-2.0-flash-exp';
+      const model = "gemini-2.5-flash-image";
       const contents = [
         {
           role: 'user',

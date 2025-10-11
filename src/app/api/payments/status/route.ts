@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getPhonePeOrderStatus, reconcilePendingTransaction } from '@/lib/phonepe';
+import { getPhonePeOrderStatus } from '@/lib/phonepe';
 
 export const runtime = 'nodejs';
 

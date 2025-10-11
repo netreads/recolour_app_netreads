@@ -26,19 +26,6 @@ export type JobStatus = 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
 
 // Database helper functions using Prisma
 export class DatabaseHelper {
-  // User operations
-  async getUserByEmail(email: string): Promise<User | null> {
-    return await prisma.user.findUnique({
-      where: { email }
-    });
-  }
-
-  async getUserById(id: string): Promise<User | null> {
-    return await prisma.user.findUnique({
-      where: { id }
-    });
-  }
-
   // Job operations
   async createJob(id: string, userId: string | null, originalUrl: string): Promise<Job> {
     return await prisma.job.create({
@@ -64,105 +51,6 @@ export class DatabaseHelper {
     });
   }
 
-  async getJobsByUserId(userId: string): Promise<Job[]> {
-    return await prisma.job.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  // User creation and synchronization
-  async createOrUpdateUser(userData: {
-    id: string;
-    email: string;
-    name?: string;
-    image?: string;
-    emailVerified?: boolean;
-  }): Promise<User> {
-    return await prisma.user.upsert({
-      where: { id: userData.id },
-      update: {
-        email: userData.email,
-        name: userData.name,
-        image: userData.image,
-        emailVerified: userData.emailVerified ?? false,
-      },
-      create: {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        image: userData.image,
-        emailVerified: userData.emailVerified ?? false,
-        credits: 0, // Will be set to 1 by welcome credits logic
-      },
-    });
-  }
-
-  // Credit operations
-  async deductCredits(userId: string, amount: number): Promise<User> {
-    return await prisma.user.update({
-      where: { id: userId },
-      data: {
-        credits: {
-          decrement: amount
-        }
-      }
-    });
-  }
-
-  async addCredits(userId: string, amount: number): Promise<User> {
-    return await prisma.user.update({
-      where: { id: userId },
-      data: {
-        credits: {
-          increment: amount
-        }
-      }
-    });
-  }
-
-  async markWelcomeCreditsGiven(userId: string): Promise<User> {
-    return await prisma.user.update({
-      where: { id: userId },
-      data: {
-        welcomeCreditsGiven: true
-      }
-    });
-  }
-
-  // Atomic transaction for welcome credits
-  async giveWelcomeCreditsAtomically(userId: string, creditAmount: number = 1): Promise<User> {
-    return await prisma.$transaction(async (tx: any) => {
-      // First, check if user exists and hasn't received welcome credits
-      const user = await tx.user.findUnique({
-        where: { id: userId }
-      });
-
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      if (user.welcomeCreditsGiven) {
-        throw new Error('Welcome credits already given');
-      }
-
-      // Atomically add credits and mark as given
-      return await tx.user.update({
-        where: { id: userId },
-        data: {
-          credits: {
-            increment: creditAmount
-          },
-          welcomeCreditsGiven: true
-        }
-      });
-    });
-  }
-
-  // Generic transaction wrapper
-  async transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
-    return await prisma.$transaction(fn);
-  }
 }
 
 // Helper to get database instance

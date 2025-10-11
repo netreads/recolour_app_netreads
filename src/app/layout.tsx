@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 import { FacebookPixel } from "@/components/FacebookPixel";
+import { FacebookPixelDebug } from "@/components/FacebookPixelDebug";
 
 export const metadata: Metadata = {
   title: "ReColor AI - Bring Old Photos to Life",
@@ -54,6 +55,7 @@ export default function RootLayout({
         <Toaster />
         <SpeedInsights />
         <Analytics />
+        <FacebookPixelDebug />
       </body>
     </html>
   );
