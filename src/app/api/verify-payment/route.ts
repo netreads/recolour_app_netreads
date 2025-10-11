@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { API_CONFIG } from '@/lib/constants';
 
 export const runtime = 'nodejs';
+
+// Set max duration to prevent unexpected costs from long-running functions
+export const maxDuration = API_CONFIG.API_MAX_DURATION;
 
 export async function POST(request: NextRequest) {
   try {

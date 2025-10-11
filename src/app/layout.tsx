@@ -3,8 +3,8 @@ import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Analytics } from "@vercel/analytics/react";
+// import { SpeedInsights } from "@vercel/speed-insights/next"; // Disabled to reduce Vercel costs
+// import { Analytics } from "@vercel/analytics/react"; // Disabled to reduce Vercel costs
 import { FacebookPixel } from "@/components/FacebookPixel";
 
 
@@ -53,8 +53,9 @@ export default function RootLayout({
           <Footer />
         </div>
         <Toaster />
-        <SpeedInsights />
-        <Analytics />
+        {/* SpeedInsights and Analytics disabled to reduce Vercel costs */}
+        {/* <SpeedInsights /> */}
+        {/* <Analytics /> */}
         
       </body>
     </html>

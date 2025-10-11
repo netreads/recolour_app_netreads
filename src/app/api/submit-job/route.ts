@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db";
 import { AwsClient } from "aws4fetch";
 import { getServerEnv } from "@/lib/env";
-import { JOB_STATUS } from "@/lib/constants";
+import { JOB_STATUS, API_CONFIG } from "@/lib/constants";
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
+
+// Set max duration to prevent unexpected costs from long-running functions
+export const maxDuration = API_CONFIG.API_MAX_DURATION;
 
 // Fallback image processing function when API quota is exceeded
 async function applyFallbackColorization(imageBuffer: Buffer): Promise<Buffer> {
@@ -52,11 +55,28 @@ export async function POST(request: NextRequest) {
       const fileKey = job.originalUrl.split('/').slice(-2).join('/');
       
       // Create signed URL for fetching the uploaded image
-      const accountIdMatch = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/);
+      // Support both R2.dev public URLs and R2 cloudflarestorage URLs
+      let accountIdMatch = env.R2_PUBLIC_URL.match(/https:\/\/pub-([a-f0-9]+)\.r2\.dev/);
       if (!accountIdMatch) {
-        throw new Error("Invalid R2_PUBLIC_URL configuration");
+        // Try the cloudflarestorage.com format
+        accountIdMatch = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/);
       }
-      const accountId = accountIdMatch[1];
+      if (!accountIdMatch) {
+        throw new Error("Invalid R2_PUBLIC_URL configuration. Must be either https://pub-xxx.r2.dev or https://account.r2.cloudflarestorage.com");
+      }
+      
+      const isR2Dev = env.R2_PUBLIC_URL.includes('.r2.dev');
+      let accountId: string;
+      
+      if (isR2Dev) {
+        if (!env.R2_ACCOUNT_ID) {
+          throw new Error("R2_ACCOUNT_ID is required when using R2.dev public URLs");
+        }
+        accountId = env.R2_ACCOUNT_ID;
+      } else {
+        accountId = accountIdMatch[1];
+      }
+      
       const fetchUrl = `https://${accountId}.r2.cloudflarestorage.com/${env.R2_BUCKET}/${fileKey}`;
       
       const signedFetchUrl = await r2Client.sign(fetchUrl, {
@@ -178,10 +198,10 @@ export async function POST(request: NextRequest) {
 
       // Upload processed image to R2
       const outputKey = `outputs/${jobId}-colorized.jpg`;
-      const outputUrl = `${env.R2_PUBLIC_URL}/${env.R2_BUCKET}/${outputKey}`;
+      // For R2.dev public URLs, don't include bucket name in the path
+      const outputUrl = `${env.R2_PUBLIC_URL}/${outputKey}`;
 
       // processedImageBuffer is already defined above
-
       // Use the same endpoint format as in upload (reuse accountId from above)
       const uploadUrl = `https://${accountId}.r2.cloudflarestorage.com/${env.R2_BUCKET}/${outputKey}`;
 

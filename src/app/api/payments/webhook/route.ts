@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { validatePhonePeCallback } from '@/lib/phonepe';
 import { getServerEnv } from '@/lib/env';
-import { PAYMENT_STATUS } from '@/lib/constants';
+import { PAYMENT_STATUS, API_CONFIG } from '@/lib/constants';
 
 export const runtime = 'nodejs';
+
+// Set max duration to prevent unexpected costs from long-running functions
+export const maxDuration = API_CONFIG.API_MAX_DURATION;
 
 interface WebhookPayload {
   type?: string;

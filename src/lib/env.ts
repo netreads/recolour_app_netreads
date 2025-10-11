@@ -10,6 +10,7 @@ interface ServerEnv {
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_PUBLIC_URL: string;
+  R2_ACCOUNT_ID?: string; // Required when using R2.dev public URLs
   
   // Gemini AI
   GEMINI_API_KEY: string;
@@ -76,6 +77,7 @@ class EnvValidator {
       R2_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID!,
       R2_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY!,
       R2_PUBLIC_URL: env.R2_PUBLIC_URL!,
+      R2_ACCOUNT_ID: env.R2_ACCOUNT_ID,
       GEMINI_API_KEY: env.GEMINI_API_KEY!,
       PHONEPE_CLIENT_ID: env.PHONEPE_CLIENT_ID!,
       PHONEPE_CLIENT_SECRET: env.PHONEPE_CLIENT_SECRET!,

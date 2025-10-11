@@ -23,8 +23,9 @@ export const API_CONFIG = {
   ORDER_EXPIRY_SECONDS: 3600, // 1 hour
   MIN_ORDER_EXPIRY: 300, // 5 minutes
   MAX_ORDER_EXPIRY: 3600, // 1 hour
-  IMAGE_CACHE_SECONDS: 3600, // 1 hour
+  IMAGE_CACHE_SECONDS: 31536000, // 1 year (images are immutable)
   IMAGE_CDN_CACHE_SECONDS: 31536000, // 1 year
+  API_MAX_DURATION: 60, // 60 seconds max for API routes (Vercel limit)
 } as const;
 
 // Job status values

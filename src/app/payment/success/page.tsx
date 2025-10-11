@@ -8,6 +8,7 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { trackPurchase } from '@/components/FacebookPixel';
 import { PRICING } from '@/lib/constants';
+import { getDirectImageUrl } from '@/lib/utils';
 
 interface PaymentStatus {
   success: boolean;
@@ -26,6 +27,7 @@ function PaymentSuccessContent() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [purchaseTracked, setPurchaseTracked] = useState(false);
+  const [imageUrls, setImageUrls] = useState<{ original: string; output: string } | null>(null);
   const mountedRef = useRef(false);
 
   // Track component mount
@@ -106,8 +108,23 @@ function PaymentSuccessContent() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ orderId, jobId: finalJobId }),
             });
+            
+            // Fetch the actual image URLs from the database
+            const [originalResponse, outputResponse] = await Promise.all([
+              fetch(`/api/get-image-url?jobId=${finalJobId}&type=original`),
+              fetch(`/api/get-image-url?jobId=${finalJobId}&type=output`)
+            ]);
+            
+            const originalData = await originalResponse.json();
+            const outputData = await outputResponse.json();
+            
+            setImageUrls({
+              original: originalData.url || '',
+              output: outputData.url || ''
+            });
         } catch (err) {
           // Silent fail - job will be marked as paid by webhook or status check
+          console.error('Error fetching image URLs:', err);
         }
       }
     } catch (error) {
@@ -125,7 +142,19 @@ function PaymentSuccessContent() {
     
     setDownloading(true);
     try {
-      const imageUrl = `/api/image-proxy?jobId=${paymentStatus.jobId}&type=output`;
+      // Use the actual output URL if we have it
+      let imageUrl = imageUrls?.output;
+      
+      if (!imageUrl) {
+        // Fallback: fetch the URL from the API
+        const response = await fetch(`/api/get-image-url?jobId=${paymentStatus.jobId}&type=output`);
+        const data = await response.json();
+        imageUrl = data.url;
+      }
+      
+      if (!imageUrl) {
+        throw new Error('Image URL not available');
+      }
       
       // Fetch the image as a blob
       const response = await fetch(imageUrl);
@@ -217,7 +246,7 @@ function PaymentSuccessContent() {
                     <div className="relative aspect-[4/3] bg-gray-50 rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={`/api/image-proxy?jobId=${paymentStatus.jobId}&type=original`}
+                        src={imageUrls?.original || getDirectImageUrl(paymentStatus.jobId, 'original')}
                         alt="Original black and white"
                         className="w-full h-full object-contain"
                       />
@@ -230,7 +259,7 @@ function PaymentSuccessContent() {
                     <div className="relative aspect-[4/3] bg-gray-50 rounded-xl overflow-hidden border-2 border-green-500 shadow-xl">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={`/api/image-proxy?jobId=${paymentStatus.jobId}&type=output`}
+                        src={imageUrls?.output || getDirectImageUrl(paymentStatus.jobId, 'output')}
                         alt="Colorized HD version"
                         className="w-full h-full object-contain"
                       />

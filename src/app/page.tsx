@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, CheckCircle, Quote, Upload, Download, Wand2, Palette, CheckCircle2, Loader2 } from "lucide-react";
 import { trackInitiateCheckout } from "@/components/FacebookPixel";
 import { PRICING } from "@/lib/constants";
+import { getDirectImageUrl } from "@/lib/utils";
 
 interface Job {
   id: string;
@@ -55,8 +56,20 @@ export default function HomePage() {
     return () => clearInterval(tipInterval);
   }, [isUploading]);
 
+  // Use direct R2 URLs to avoid expensive serverless function invocations
   const getImageUrl = (jobId: string, type: 'original' | 'output'): string => {
-    return `/api/image-proxy?jobId=${jobId}&type=${type}`;
+    // If we have the job data, use the actual URLs from the database
+    if (currentJob && currentJob.id === jobId) {
+      if (type === 'original' && currentJob.original_url) {
+        return currentJob.original_url;
+      }
+      if (type === 'output' && currentJob.output_url) {
+        return currentJob.output_url;
+      }
+    }
+    
+    // Fallback to constructed URL (works for output, may not work for original without filename)
+    return getDirectImageUrl(jobId, type);
   };
 
   const handleFileUpload = async (e: React.FormEvent) => {
@@ -136,11 +149,22 @@ export default function HomePage() {
       clearInterval(finalizingInterval);
       setUploadProgress(100);
 
+      // Fetch the job data to get the actual image URLs
+      const jobResponse = await fetch(`/api/get-image-url?jobId=${jobId}&type=original`);
+      const jobData = await jobResponse.json();
+      
+      // Construct output URL (we know the format for this)
+      // For R2.dev public URLs, don't include the bucket name in the path
+      const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_URL || '';
+      const outputUrl = R2_PUBLIC_URL 
+        ? `${R2_PUBLIC_URL.replace(/\/$/, '')}/outputs/${jobId}-colorized.jpg`
+        : '';
+      
       // Create a new job entry and show preview
       const newJob: Job = {
         id: jobId,
-        original_url: '', // Will be filled by image proxy
-        output_url: '', // Will be filled by image proxy
+        original_url: jobData.url || '', // Actual URL from database
+        output_url: outputUrl,
         status: 'done',
         created_at: new Date().toISOString(),
         isPaid: false,
