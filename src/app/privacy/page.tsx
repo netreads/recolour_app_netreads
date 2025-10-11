@@ -139,6 +139,32 @@ export default function PrivacyPage() {
           </CardContent>
         </Card>
 
+        {/* Advertising and Analytics */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Eye className="h-5 w-5" />
+              <span>Advertising and Analytics</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-medium mb-2">Facebook Pixel</h4>
+              <p className="text-muted-foreground mb-3">
+                We use Facebook Pixel to analyze user behavior and improve the performance of our 
+                advertising campaigns. The Pixel may collect information such as your device, pages 
+                visited, and actions taken on this website. This data may be used to show you 
+                personalized ads on Facebook and its partner platforms.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You can opt out of personalized advertising by adjusting your ad preferences on Facebook 
+                or by using browser extensions that block tracking pixels. For more information about 
+                Facebook's data practices, please visit Facebook's Data Policy.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Data Security */}
         <Card>
           <CardHeader>

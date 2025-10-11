@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 // import { SpeedInsights } from "@vercel/speed-insights/next"; // Disabled to reduce Vercel costs
 // import { Analytics } from "@vercel/analytics/react"; // Disabled to reduce Vercel costs
 import { FacebookPixel } from "@/components/FacebookPixel";
+import { MicrosoftClarity } from "@/components/MicrosoftClarity";
 
 
 export const metadata: Metadata = {
@@ -46,7 +47,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-background font-sans antialiased">
+        {/* Tracking Scripts - loaded with beforeInteractive strategy for early initialization */}
         {pixelId && <FacebookPixel pixelId={pixelId} />}
+        <MicrosoftClarity />
+        
         <div className="relative flex min-h-screen flex-col">
           <Navbar />
           <main className="flex-1">{children}</main>
