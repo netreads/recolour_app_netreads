@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { createPhonePeOrder, CREDIT_PACKAGES, CreditPackageType, generateOrderId } from '@/lib/phonepe';
+import { createPhonePeOrder, generateOrderId } from '@/lib/phonepe';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const user = await getServerUser();
+    // All users are anonymous
+    const user = null;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { jobId } = await request.json();
+
+    // Only support single image purchases (49 Rs)
+    if (!jobId) {
+      return NextResponse.json({ error: 'Job ID is required for single image purchase' }, { status: 400 });
     }
 
-    const { packageType } = await request.json();
+    const orderConfig = {
+      name: 'Single Image Colorization',
+      amount: 4900, // 49 Rs in paise
+    };
 
-    if (!packageType || !(packageType in CREDIT_PACKAGES)) {
-      return NextResponse.json({ error: 'Invalid package type' }, { status: 400 });
-    }
-
-    const packageConfig = CREDIT_PACKAGES[packageType as CreditPackageType];
     const orderId = generateOrderId();
 
     // Derive base URL from env or request (for return/notify)
@@ -31,31 +31,31 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Create order in database
+    // Create order in database (all purchases are anonymous, no credits)
     const order = await (prisma as any).order.create({
       data: {
         id: orderId,
-        userId: user.id,
-        packageName: packageConfig.name,
-        credits: packageConfig.credits,
-        amount: packageConfig.amount,
+        packageName: orderConfig.name,
+        credits: 0, // No credits for single image purchases
+        amount: orderConfig.amount,
         currency: 'INR',
         status: 'PENDING',
+        metadata: { jobId }, // Store jobId for single image purchases
       },
     });
 
     // Create PhonePe order (amount in rupees)
     const phonePeOrder = await createPhonePeOrder({
       orderId, // Unique merchantOrderId
-      orderAmountRupees: packageConfig.amount / 100, // Amount will be converted to paise
-      orderNote: `Purchase ${packageConfig.credits} credits - ${packageConfig.name}`,
+      orderAmountRupees: orderConfig.amount / 100, // Amount will be converted to paise
+      orderNote: `Single Image Colorization - ₹49`,
       customerDetails: {
-        customerId: user.id,
-        customerName: user.user_metadata?.name || user.email || 'User',
-        customerEmail: user.email || '',
+        customerId: orderId, // Use orderId as customerId for anonymous
+        customerName: 'Guest User',
+        customerEmail: `${orderId}@guest.recolor.ai`,
         customerPhone: '9999999999',
       },
-      returnUrl: `${origin}/payment/success?order_id=${orderId}`, // paymentFlow.redirectUrl
+      returnUrl: `${origin}/payment/success?order_id=${orderId}&job_id=${jobId}`,
       notifyUrl: `${origin}/api/payments/webhook`,
       expireAfter: 3600, // Order expiry in seconds (1 hour, within 300-3600 range for Standard Checkout)
     });
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       orderId: orderId,
       redirectUrl: phonePeOrder.redirectUrl,
-      orderAmount: packageConfig.amount,
+      orderAmount: orderConfig.amount,
       orderCurrency: 'INR',
       state: phonePeOrder.state,
       expireAt: phonePeOrder.expireAt,

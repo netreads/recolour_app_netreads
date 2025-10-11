@@ -1,9 +1,8 @@
-import { updateSession } from '@/lib/supabase/middleware'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSecurityHeaders } from '@/lib/security'
 
 export async function middleware(request: NextRequest) {
-  const response = await updateSession(request)
+  const response = NextResponse.next()
   
   // Add security headers to all responses
   const securityHeaders = getSecurityHeaders()
@@ -16,13 +15,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/api/get-upload-url",
-    "/api/submit-job", 
-    "/api/jobs/:path*",
-    "/api/user",
-    "/api/refresh-user",
-    "/api/sync-user",
-    "/api/give-welcome-credits"
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

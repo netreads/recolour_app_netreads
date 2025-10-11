@@ -36,7 +36,7 @@ export default function HelpPage() {
         },
         {
           question: "What happens when I run out of credits?",
-          answer: "When you run out of credits, you'll need to purchase more to continue colorizing images. You can buy credits anytime from our pricing page."
+          answer: "When you run out of credits, you'll need to purchase more to continue colorizing images. Contact our support team to purchase credits."
         },
         {
           question: "Do you offer refunds?",

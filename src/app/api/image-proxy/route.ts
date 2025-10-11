@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerUser } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 
@@ -11,12 +10,8 @@ export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const user = await getServerUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // All users are anonymous
+    const user = null;
 
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
@@ -44,9 +39,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (job.userId !== user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    // No authorization check needed for anonymous users
 
     // Determine which URL to fetch
     let urlToFetch: string;

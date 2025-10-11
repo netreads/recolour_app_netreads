@@ -10,7 +10,7 @@ export default function FaqPage() {
       questions: [
         {
           question: "How do I get started with ReColor AI?",
-          answer: "Simply sign up for an account and you'll receive 1 free HD credit to try our service. Upload a black and white photo, and our AI will colorize it for you."
+          answer: "Simply visit our homepage and upload a black and white photo. Our AI will colorize it and show you a preview. Pay ₹49 to download the full HD version - no sign up required!"
         },
         {
           question: "What file formats are supported?",
@@ -22,7 +22,7 @@ export default function FaqPage() {
         },
         {
           question: "Do I need to create an account to use ReColor AI?",
-          answer: "Yes, you need to create an account to use our service. This allows us to track your credits, save your colorized images, and provide you with a better experience."
+          answer: "No! You can upload, preview, and pay for your colorized images without creating an account. Simply upload your photo and pay to download the HD version."
         },
         {
           question: "Is there a mobile app available?",
@@ -35,28 +35,24 @@ export default function FaqPage() {
       icon: <CreditCard className="h-5 w-5" />,
       questions: [
         {
-          question: "How do credits work?",
-          answer: "Each credit allows you to colorize one image. Credits never expire, so you can use them whenever you want. Get 1 free HD credit when you sign up!"
+          question: "How does pricing work?",
+          answer: "Each colorized image costs ₹49. You upload your photo, preview the colorized result for free, and only pay when you're happy with it and want to download the HD version."
         },
         {
-          question: "Do credits expire?",
-          answer: "No, credits never expire! You can purchase credits and use them whenever you want. There's no rush to use them up."
-        },
-        {
-          question: "What happens when I run out of credits?",
-          answer: "When you run out of credits, you'll need to purchase more to continue colorizing images. You can buy credits anytime from our pricing page."
+          question: "Can I preview before paying?",
+          answer: "Yes! Upload your photo and see a preview of the colorized result for free. You only pay ₹49 when you want to download the full HD version."
         },
         {
           question: "Do you offer refunds?",
-          answer: "We offer a 30-day money-back guarantee for all credit purchases. If you're not satisfied, contact our support team for a full refund."
+          answer: "We offer a 30-day money-back guarantee for all purchases. If you're not satisfied with your colorized image, contact our support team for a full refund."
         },
         {
           question: "What payment methods do you accept?",
           answer: "We accept all major credit cards, debit cards, and digital wallets. All payments are processed securely through our payment partners."
         },
         {
-          question: "Are there any subscription plans?",
-          answer: "Currently, we operate on a credit-based system. However, we're considering subscription plans for high-volume users. Stay tuned for updates!"
+          question: "Are there any bulk discounts?",
+          answer: "Currently, each image costs ₹49. For bulk orders or enterprise needs, please contact our support team for special pricing."
         }
       ]
     },
@@ -99,12 +95,12 @@ export default function FaqPage() {
           answer: "Your colorized image will maintain the same resolution as your original image. We don't upscale or downscale your images."
         },
         {
-          question: "How long are my colorized images stored?",
-          answer: "Your colorized images are stored for 30 days after processing. Make sure to download them within this timeframe."
+          question: "How long can I download my image?",
+          answer: "After payment, you can download your colorized image immediately. We recommend downloading it right away and saving it to your device."
         },
         {
           question: "Can I request a different colorization result?",
-          answer: "Our AI produces consistent results, but if you're not satisfied, you can try colorizing the same image again using another credit."
+          answer: "Our AI produces consistent results, but if you're not satisfied, you can try uploading the same image again to see another preview before paying."
         },
         {
           question: "Can I share my colorized images?",
@@ -139,28 +135,28 @@ export default function FaqPage() {
       ]
     },
     {
-      title: "Account & Settings",
+      title: "Usage & History",
       icon: <Settings className="h-5 w-5" />,
       questions: [
         {
-          question: "How do I change my password?",
-          answer: "You can change your password by going to your account settings and selecting 'Change Password'. You'll need to enter your current password and create a new one."
+          question: "Can I colorize multiple images at once?",
+          answer: "Currently, you can upload and process one image at a time. For bulk processing needs, please contact our support team."
         },
         {
-          question: "Can I delete my account?",
-          answer: "Yes, you can delete your account at any time from your account settings. Please note that this action is irreversible and all your data will be permanently deleted."
+          question: "Do I need to save my images somewhere?",
+          answer: "Yes, we recommend downloading your colorized images immediately after purchase and saving them to your device or cloud storage."
         },
         {
-          question: "How do I update my email address?",
-          answer: "You can update your email address in your account settings. You'll need to verify the new email address before the change takes effect."
+          question: "Can I redownload my images later?",
+          answer: "We recommend downloading your images right away. For redownload requests, please contact our support team with your order details."
         },
         {
-          question: "Can I transfer credits to another account?",
-          answer: "Credits are non-transferable between accounts. Each account must purchase its own credits."
+          question: "What happens to my uploaded images?",
+          answer: "Your images are stored temporarily for processing and then automatically deleted from our servers after a short period for your privacy."
         },
         {
-          question: "How do I view my colorization history?",
-          answer: "You can view your colorization history in your dashboard. This shows all images you've processed, including their status and download links."
+          question: "Can I use ReColor AI offline?",
+          answer: "No, ReColor AI requires an internet connection to process images using our cloud-based AI technology."
         }
       ]
     }

@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, Award, CheckCircle, Quote, Upload, Download, RefreshCw, Wand2, Palette, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { trackPageView } from "@/components/FacebookPixel";
-import { ImageViewer } from "@/components/features/ImageViewer";
 
 interface Job {
   id: string;
@@ -16,6 +15,7 @@ interface Job {
   output_url: string | null;
   status: "pending" | "processing" | "done" | "failed";
   created_at: string;
+  isPaid?: boolean;
 }
 
 const LOADING_TIPS = [
@@ -30,7 +30,7 @@ const LOADING_TIPS = [
 ];
 
 export default function HomePage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -38,17 +38,13 @@ export default function HomePage() {
   const [uploadStage, setUploadStage] = useState<'uploading' | 'analyzing' | 'colorizing' | 'finalizing'>('uploading');
   const [currentTip, setCurrentTip] = useState(0);
   const [dragActive, setDragActive] = useState(false);
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
-  const [thumbViewByJob, setThumbViewByJob] = useState<Record<string, 'original' | 'colorized'>>({});
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerJob, setViewerJob] = useState<Job | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Track pageview for Facebook Pixel
     trackPageView();
-    // Load jobs from local storage on mount
-    loadJobsFromStorage();
   }, []);
 
   // Rotate tips during upload
@@ -61,25 +57,6 @@ export default function HomePage() {
     
     return () => clearInterval(tipInterval);
   }, [isUploading]);
-
-  const loadJobsFromStorage = () => {
-    try {
-      const storedJobs = localStorage.getItem('recolor_jobs');
-      if (storedJobs) {
-        setJobs(JSON.parse(storedJobs));
-      }
-    } catch (error) {
-      console.error("Error loading jobs from storage:", error);
-    }
-  };
-
-  const saveJobsToStorage = (newJobs: Job[]) => {
-    try {
-      localStorage.setItem('recolor_jobs', JSON.stringify(newJobs));
-    } catch (error) {
-      console.error("Error saving jobs to storage:", error);
-    }
-  };
 
   const getImageUrl = (jobId: string, type: 'original' | 'output'): string => {
     return `/api/image-proxy?jobId=${jobId}&type=${type}`;
@@ -162,21 +139,18 @@ export default function HomePage() {
       clearInterval(finalizingInterval);
       setUploadProgress(100);
 
-      // Create a new job entry and add to local storage
+      // Create a new job entry and show preview
       const newJob: Job = {
         id: jobId,
         original_url: '', // Will be filled by image proxy
         output_url: '', // Will be filled by image proxy
         status: 'done',
         created_at: new Date().toISOString(),
+        isPaid: false,
       };
       
-      const updatedJobs = [newJob, ...jobs];
-      setJobs(updatedJobs);
-      saveJobsToStorage(updatedJobs);
-
-      // Reset form
-      setUploadFile(null);
+      setCurrentJob(newJob);
+      setShowPaymentModal(true);
     } catch (error) {
       console.error("Error uploading file:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
@@ -222,13 +196,45 @@ export default function HomePage() {
     }
   };
 
-  const completedJobs = jobs
-    .filter(job => job.status === 'done' && job.output_url)
-    .sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
-    });
+  const handlePayment = async () => {
+    if (!currentJob) return;
+    
+    setIsProcessingPayment(true);
+    try {
+      // Create order for single image (₹49)
+      const orderResponse = await fetch('/api/payments/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: currentJob.id,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const { redirectUrl } = await orderResponse.json();
+      
+      // Store current job in localStorage for retrieval after payment
+      localStorage.setItem('pending_job', JSON.stringify(currentJob));
+      
+      // Redirect to PhonePe payment
+      window.location.href = redirectUrl;
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Failed to initiate payment. Please try again.');
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleTryAnother = () => {
+    setCurrentJob(null);
+    setUploadFile(null);
+    setShowPaymentModal(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   return (
     <>
@@ -267,16 +273,16 @@ export default function HomePage() {
                 Trusted by 50,000+ Indian families 🇮🇳
               </Badge>
               <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 leading-tight">
-                Bring your old Photos back to life
+                Bring your old photo to life
                 <br />
                 <span className="bg-gradient-to-r from-orange-500 to-green-600 bg-clip-text text-transparent">
-                  in stunning HD colors
+                  — AI colorizes it in seconds!
                 </span>
               </h1>
               <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
-                Restore faded photos to vivid HD color with professional AI
+                Upload → Preview → Pay ₹49 → Download HD
                 <br className="hidden sm:block" />
-                <span className="sm:hidden"> </span>— Perfect for family albums, weddings, and festivals.
+                <span className="sm:hidden"> </span>No signup required • Instant results
               </p>
             </div>
 
@@ -284,19 +290,19 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-sm text-gray-500 px-4">
                 <div className="flex items-center">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span>Studio-quality AI colorization</span>
+                  <span>Preview before you pay</span>
                 </div>
                 <div className="flex items-center">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span>Restore old & damaged photos</span>
+                  <span>Just ₹49 per photo</span>
                 </div>
                 <div className="flex items-center">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span>Free to use</span>
+                  <span>Instant HD download</span>
                 </div>
                 <div className="flex items-center">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span>100% secure & private</span>
+                  <span>UPI / PhonePe / GPay</span>
                 </div>
               </div>
             </div>
@@ -474,7 +480,7 @@ export default function HomePage() {
                       size="lg"
                     >
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Colorize Image - Free
+                      Colorize & Preview Free
                     </Button>
                   )}
                 </form>
@@ -483,91 +489,135 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Gallery Section */}
-        {completedJobs.length > 0 && (
-          <section className="py-8 sm:py-12 bg-white">
-            <div className="container mx-auto px-4 max-w-6xl">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg font-semibold">Your Colorized Images</CardTitle>
-                      <CardDescription className="text-sm">
-                        {completedJobs.length} {completedJobs.length === 1 ? 'image' : 'images'} colorized
-                      </CardDescription>
-                    </div>
-                    {completedJobs.length > 1 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSortBy(sortBy === 'newest' ? 'oldest' : 'newest')}
-                      >
-                        {sortBy === 'newest' ? 'Newest' : 'Oldest'}
-                      </Button>
-                    )}
+        {/* Preview & Payment Modal */}
+        {showPaymentModal && currentJob && (
+          <section className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <CardHeader className="border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl sm:text-2xl font-bold">🎨 Your Photo is Ready!</CardTitle>
+                    <CardDescription className="text-sm mt-1">
+                      Preview the colorized result below
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                    {completedJobs.map((job) => {
-                      const active = thumbViewByJob[job.id] || 'colorized';
-                      const thumbUrl = getImageUrl(job.id, active === 'colorized' ? 'output' : 'original');
-                      return (
-                        <div key={job.id} className="group relative rounded-lg overflow-hidden border bg-white hover:shadow-md transition-shadow">
-                          <div
-                            className="aspect-[4/3] w-full cursor-pointer bg-gray-100 flex items-center justify-center"
-                            onClick={() => { setViewerJob(job); setViewerOpen(true); }}
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={thumbUrl} alt="Preview" className="h-full w-full object-contain" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowPaymentModal(false)}
+                    className="h-8 w-8"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="p-4 sm:p-6 space-y-6">
+                {/* Before/After Comparison */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Original */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700">Original</p>
+                    <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={getImageUrl(currentJob.id, 'original')}
+                        alt="Original"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Colorized (Watermarked) */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700">AI Colorized</p>
+                    <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2 border-orange-500">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={getImageUrl(currentJob.id, 'output')}
+                        alt="Colorized"
+                        className="w-full h-full object-contain blur-sm"
+                      />
+                      {/* Watermark Overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="text-center space-y-4 p-6 bg-white/90 backdrop-blur-sm rounded-lg max-w-sm mx-4">
+                          <div className="space-y-2">
+                            <div className="text-4xl">🔒</div>
+                            <h3 className="text-xl font-bold text-gray-900">HD Version Locked</h3>
+                            <p className="text-sm text-gray-600">
+                              Get the full HD colorized image without watermark
+                            </p>
                           </div>
-                          <div className="absolute top-2 left-2 flex gap-1">
-                            <Button
-                              size="sm"
-                              variant={active === 'original' ? 'default' : 'secondary'}
-                              onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'original' })); }}
-                              className="text-xs h-7 px-2"
-                            >
-                              Original
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={active === 'colorized' ? 'default' : 'secondary'}
-                              onClick={(e) => { e.stopPropagation(); setThumbViewByJob(prev => ({ ...prev, [job.id]: 'colorized' })); }}
-                              className="text-xs h-7 px-2"
-                            >
-                              Colorized
-                            </Button>
-                          </div>
-                          <div className="flex items-center justify-between px-3 py-2 border-t bg-gray-50">
-                            <div className="text-xs text-gray-500">
-                              {new Date(job.created_at).toLocaleDateString()}
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const url = active === 'colorized' ? getImageUrl(job.id, 'output') : getImageUrl(job.id, 'original');
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = `${active}-${job.id}.jpg`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                              className="text-xs h-7 px-2"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </Button>
+                          <div className="space-y-2">
+                            <div className="text-3xl font-bold text-orange-600">₹49</div>
+                            <p className="text-xs text-gray-500">One-time payment • Instant download</p>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+
+                {/* Payment CTA */}
+                <div className="border-t pt-6 space-y-4">
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-semibold">Unlock Your HD Colorized Photo</h3>
+                    <p className="text-sm text-gray-600">
+                      Get instant access to the full-resolution image • Satisfaction guaranteed
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button
+                      onClick={handlePayment}
+                      disabled={isProcessingPayment}
+                      size="lg"
+                      className="bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold text-lg px-8 py-6"
+                    >
+                      {isProcessingPayment ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-5 w-5" />
+                          Unlock & Download for ₹49
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleTryAnother}
+                      variant="outline"
+                      size="lg"
+                      className="px-8 py-6"
+                    >
+                      Try Another Photo
+                    </Button>
+                  </div>
+
+                  {/* Trust Signals */}
+                  <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-gray-500 pt-4">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                      <span>Instant Download</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Shield className="w-4 h-4 text-green-500 mr-1" />
+                      <span>Secure Payment</span>
+                    </div>
+                    <div className="flex items-center">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                      <span>UPI / PhonePe / GPay</span>
+                    </div>
+                    <div className="flex items-center">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                      <span>100% Satisfaction</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </section>
         )}
 
@@ -988,18 +1038,6 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Modal Viewer */}
-      {viewerJob && (
-        <ImageViewer
-          isOpen={viewerOpen}
-          onClose={() => setViewerOpen(false)}
-          originalImageUrl={getImageUrl(viewerJob.id, 'original')}
-          colorizedImageUrl={viewerJob.output_url ? getImageUrl(viewerJob.id, 'output') : undefined}
-          jobId={viewerJob.id}
-          status={viewerJob.status}
-          createdAt={viewerJob.created_at}
-        />
-      )}
     </>
   );
 }

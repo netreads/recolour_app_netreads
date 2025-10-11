@@ -91,7 +91,7 @@ async function handlePaymentSuccess(data: any) {
       data: {
         orderId: orderId,
         userId: order.userId,
-        credits: order.credits,
+        credits: 0, // No credits for single image purchases
         amount: order.amount,
         type: 'CREDIT_PURCHASE',
         status: 'SUCCESS',
@@ -100,15 +100,19 @@ async function handlePaymentSuccess(data: any) {
       },
     });
 
-    // Add credits to user account
-    await prisma.user.update({
-      where: { id: order.userId },
-      data: {
-        credits: {
-          increment: order.credits,
-        },
-      },
-    });
+    // No credits to add for single image purchases
+
+    // Mark job as paid if this is a single image purchase
+    if (order.metadata && typeof order.metadata === 'object') {
+      const metadata = order.metadata as any;
+      if (metadata.jobId) {
+        await prisma.job.update({
+          where: { id: metadata.jobId },
+          data: { isPaid: true },
+        });
+        console.log(`Marked job ${metadata.jobId} as paid`);
+      }
+    }
 
   } catch (error) {
     console.error('Error handling payment success:', error);

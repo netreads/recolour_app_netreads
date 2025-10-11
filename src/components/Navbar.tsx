@@ -29,9 +29,6 @@ export function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium" role="navigation" aria-label="Main navigation">
-          <Link href="/pricing" className="transition-colors hover:text-foreground/80 text-foreground/60">
-            Pricing
-          </Link>
           <Link href="/faq" className="transition-colors hover:text-foreground/80 text-foreground/60">
             FAQ
           </Link>
@@ -73,13 +70,6 @@ export function Navbar() {
           <div className="container mx-auto px-4 py-4 space-y-4">
             {/* Mobile Navigation Links */}
             <nav className="space-y-3" role="navigation" aria-label="Main navigation">
-              <Link 
-                href="/pricing" 
-                className="block text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Pricing
-              </Link>
               <Link 
                 href="/faq" 
                 className="block text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"

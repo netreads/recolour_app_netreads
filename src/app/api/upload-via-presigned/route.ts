@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerUser } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { AwsClient } from "aws4fetch";
@@ -10,9 +9,8 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   try {
     
-    // Try to get authenticated user, fallback to null for anonymous
-    const user = await getServerUser();
-    const userId = user?.id || null;
+    // All users are anonymous
+    const userId = null;
 
     const formData = await request.formData();
     const file = formData.get('file') as File;

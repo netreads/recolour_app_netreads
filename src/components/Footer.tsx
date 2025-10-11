@@ -33,18 +33,12 @@ export function Footer() {
           </div>
 
           {/* Quick Links - Compact on mobile */}
-          <div className="grid grid-cols-2 gap-3 py-4">
+          <div className="grid grid-cols-1 gap-3 py-4">
             <Link 
-              href="/pricing" 
+              href="/#upload" 
               className="flex items-center justify-center px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors active:scale-95"
             >
-              View Pricing
-            </Link>
-            <Link 
-              href="/dashboard" 
-              className="flex items-center justify-center px-4 py-3 bg-secondary text-secondary-foreground rounded-lg font-medium text-sm hover:bg-secondary/80 transition-colors active:scale-95"
-            >
-              Dashboard
+              Upload & Colorize
             </Link>
           </div>
 
@@ -123,16 +117,10 @@ export function Footer() {
               </p>
               <div className="flex gap-3 pt-2">
                 <Link 
-                  href="/pricing" 
+                  href="/#upload" 
                   className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium text-sm hover:bg-primary/90 transition-all hover:shadow-md"
                 >
                   Get Started
-                </Link>
-                <Link 
-                  href="/dashboard" 
-                  className="inline-flex items-center px-4 py-2 border border-border rounded-md font-medium text-sm hover:bg-accent transition-colors"
-                >
-                  Dashboard
                 </Link>
               </div>
             </div>
@@ -143,11 +131,8 @@ export function Footer() {
               <div className="space-y-4">
                 <h3 className="font-semibold text-base">Product</h3>
                 <nav className="flex flex-col space-y-3">
-                  <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all">
-                    Pricing
-                  </Link>
-                  <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all">
-                    Dashboard
+                  <Link href="/#upload" className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all">
+                    Upload & Colorize
                   </Link>
                 </nav>
               </div>

@@ -16,30 +16,13 @@ prisma.$connect().catch((error: any) => {
   console.error('Failed to connect to database:', error);
 });
 
-// Types for our database entities
+// Import Prisma types
+import type { Job as PrismaJob, User as PrismaUser } from '@prisma/client';
+
+// Export Prisma types
+export type Job = PrismaJob;
+export type User = PrismaUser;
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
-
-// Define types based on Prisma schema
-export type User = {
-  id: string;
-  email: string;
-  name: string | null;
-  image: string | null;
-  emailVerified: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  credits: number;
-  welcomeCreditsGiven: boolean;
-};
-
-export type Job = {
-  id: string;
-  userId: string | null;
-  originalUrl: string;
-  outputUrl: string | null;
-  status: JobStatus;
-  createdAt: Date;
-};
 
 // Database helper functions using Prisma
 export class DatabaseHelper {

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getPhonePeOrderStatus, reconcilePendingTransaction } from '@/lib/phonepe';
 
@@ -7,13 +6,6 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const user = await getServerUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('order_id');
 
@@ -21,11 +13,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
-    // Get order details
-    let order = await prisma.order.findFirst({
+    // Get order details (allow anonymous orders)
+    let order = await (prisma as any).order.findFirst({
       where: {
         id: orderId,
-        userId: user.id,
       },
       include: {
         transactions: true,
@@ -38,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     let finalOrder = order;
     let success = finalOrder.status === 'PAID';
-    let transaction = finalOrder.transactions.find(t => t.status === 'SUCCESS');
+    let transaction = finalOrder.transactions.find((t: any) => t.status === 'SUCCESS');
 
     // If not marked paid yet, verify with PhonePe and update
     if (!success && finalOrder.phonePeOrderId) {
@@ -75,7 +66,7 @@ export async function GET(request: NextRequest) {
               data: {
                 orderId: updated.id,
                 userId: updated.userId,
-                credits: updated.credits,
+                credits: 0, // No credits for single image purchases
                 amount: updated.amount,
                 type: 'CREDIT_PURCHASE',
                 status: 'SUCCESS',
@@ -85,15 +76,11 @@ export async function GET(request: NextRequest) {
             });
           }
 
-          // Credit user if not already credited
-          await prisma.user.update({
-            where: { id: updated.userId },
-            data: { credits: { increment: updated.credits } },
-          });
+          // No credits to add for single image purchases
 
           finalOrder = updated as any;
           success = true;
-          transaction = updated.transactions.find(t => t.status === 'SUCCESS') || transaction;
+          transaction = updated.transactions.find((t: any) => t.status === 'SUCCESS') || transaction;
         } else if (pp?.state === 'FAILED') {
           // Update order status to failed
           await prisma.order.update({
@@ -129,14 +116,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Extract jobId from metadata if it's a single image purchase
+    const jobId = (finalOrder.metadata as any)?.jobId || null;
+    
     return NextResponse.json({
       success,
       orderId: finalOrder.id,
-      credits: success ? finalOrder.credits : 0,
       amount: success ? finalOrder.amount : 0,
       status: finalOrder.status,
+      jobId: jobId, // Include jobId for single image purchases
       message: success 
-        ? `Successfully added ${finalOrder.credits} credits to your account`
+        ? `Payment successful! Your image is ready.`
         : `Payment ${finalOrder.status.toLowerCase()}`,
     });
 
