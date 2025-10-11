@@ -1,60 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { validatePhonePeCallback } from '@/lib/phonepe';
+import { getServerEnv } from '@/lib/env';
+import { PAYMENT_STATUS } from '@/lib/constants';
 
 export const runtime = 'nodejs';
+
+interface WebhookPayload {
+  type?: string;
+  event?: string;
+  payload?: {
+    state: string;
+    originalMerchantOrderId: string;
+    [key: string]: unknown;
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
     const authorization = request.headers.get('authorization') || '';
+    const env = getServerEnv();
 
     // Get PhonePe webhook credentials from environment
-    const username = process.env.PHONEPE_WEBHOOK_USERNAME || '';
-    const password = process.env.PHONEPE_WEBHOOK_PASSWORD || '';
+    const username = env.PHONEPE_WEBHOOK_USERNAME || '';
+    const password = env.PHONEPE_WEBHOOK_PASSWORD || '';
 
     if (!username || !password) {
-      console.error('PhonePe webhook credentials not configured');
       return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
     }
 
     // Validate PhonePe callback
-    let callbackResponse;
+    let callbackResponse: WebhookPayload;
     try {
-      callbackResponse = validatePhonePeCallback(username, password, authorization, body);
+      callbackResponse = validatePhonePeCallback(username, password, authorization, body) as WebhookPayload;
     } catch (error) {
-      console.error('Invalid PhonePe callback:', error);
       return NextResponse.json({ error: 'Invalid callback' }, { status: 401 });
     }
 
     const { type, payload, event } = callbackResponse;
 
-    console.log('Webhook payload received:', {
-      type: type, // deprecated - use event field instead
-      event: event, // use this field instead of type
-      payloadState: payload?.state, // rely only on payload.state field
-      orderId: payload?.originalMerchantOrderId
-    });
-
     // Use event field instead of deprecated type parameter
     // Rely only on payload.state field for payment status
-    const eventType = event || type; // fallback to type if event not available
+    const eventType = event || type;
     const paymentState = payload?.state;
 
-    if (eventType === 'CHECKOUT_ORDER_COMPLETED' || paymentState === 'COMPLETED') {
+    if (eventType === 'CHECKOUT_ORDER_COMPLETED' || paymentState === PAYMENT_STATUS.COMPLETED) {
       await handlePaymentSuccess(payload);
-    } else if (eventType === 'CHECKOUT_ORDER_FAILED' || paymentState === 'FAILED') {
+    } else if (eventType === 'CHECKOUT_ORDER_FAILED' || paymentState === PAYMENT_STATUS.FAILED) {
       await handlePaymentFailed(payload);
-    } else if (paymentState === 'PENDING') {
+    } else if (paymentState === PAYMENT_STATUS.PENDING) {
       await handlePaymentPending(payload);
-    } else {
-      console.log('Unhandled webhook event:', { eventType, paymentState });
     }
 
     return NextResponse.json({ status: 'success' });
 
   } catch (error) {
-    console.error('Webhook error:', error);
+    const env = getServerEnv();
+    if (env.NODE_ENV === 'development') {
+      console.error('Webhook error:', error);
+    }
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }
@@ -62,18 +67,25 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handlePaymentSuccess(data: any) {
-  const { originalMerchantOrderId, amount, state, paymentDetails, expireAt, timestamp } = data;
-  const orderId = originalMerchantOrderId;
-  const paymentId = paymentDetails?.[0]?.transactionId || '';
+interface PaymentData {
+  originalMerchantOrderId: string;
+  amount: number;
+  state: string;
+  paymentDetails?: Array<{ transactionId?: string }>;
+  expireAt?: number;
+  timestamp?: number;
+}
 
-  console.log('Handling payment success:', {
-    orderId,
-    state,
-    paymentId,
-    expireAt: expireAt ? new Date(expireAt) : null, // expireAt is epoch timestamp in milliseconds
-    timestamp: timestamp ? new Date(timestamp) : null // timestamp is epoch timestamp in milliseconds
-  });
+interface OrderMetadata {
+  jobId?: string;
+}
+
+async function handlePaymentSuccess(data: PaymentData | undefined) {
+  if (!data) return;
+
+  const orderId = data.originalMerchantOrderId;
+  const paymentDetails = Array.isArray(data.paymentDetails) ? data.paymentDetails : [];
+  const paymentId = paymentDetails[0]?.transactionId || '';
 
   try {
     // Update order status
@@ -91,7 +103,7 @@ async function handlePaymentSuccess(data: any) {
       data: {
         orderId: orderId,
         userId: order.userId,
-        credits: 0, // No credits for single image purchases
+        credits: 0,
         amount: order.amount,
         type: 'CREDIT_PURCHASE',
         status: 'SUCCESS',
@@ -100,30 +112,32 @@ async function handlePaymentSuccess(data: any) {
       },
     });
 
-    // No credits to add for single image purchases
-
     // Mark job as paid if this is a single image purchase
     if (order.metadata && typeof order.metadata === 'object') {
-      const metadata = order.metadata as any;
+      const metadata = order.metadata as OrderMetadata;
       if (metadata.jobId) {
         await prisma.job.update({
           where: { id: metadata.jobId },
           data: { isPaid: true },
         });
-        console.log(`Marked job ${metadata.jobId} as paid`);
       }
     }
 
   } catch (error) {
-    console.error('Error handling payment success:', error);
+    const env = getServerEnv();
+    if (env.NODE_ENV === 'development') {
+      console.error('Error handling payment success:', error);
+    }
     throw error;
   }
 }
 
-async function handlePaymentFailed(data: any) {
-  const { originalMerchantOrderId, paymentDetails, errorCode } = data;
-  const orderId = originalMerchantOrderId;
-  const paymentId = paymentDetails?.[0]?.transactionId || '';
+async function handlePaymentFailed(data: PaymentData | undefined) {
+  if (!data) return;
+
+  const orderId = data.originalMerchantOrderId;
+  const paymentDetails = Array.isArray(data.paymentDetails) ? data.paymentDetails : [];
+  const paymentId = paymentDetails[0]?.transactionId || '';
 
   try {
     // Get order to fetch userId
@@ -132,7 +146,6 @@ async function handlePaymentFailed(data: any) {
     });
 
     if (!order) {
-      console.error('Order not found for failed payment:', orderId);
       return;
     }
 
@@ -161,21 +174,18 @@ async function handlePaymentFailed(data: any) {
     });
 
   } catch (error) {
-    console.error('Error handling payment failure:', error);
+    const env = getServerEnv();
+    if (env.NODE_ENV === 'development') {
+      console.error('Error handling payment failure:', error);
+    }
     throw error;
   }
 }
 
-async function handlePaymentPending(data: any) {
-  const { originalMerchantOrderId, amount, state, expireAt, timestamp } = data;
-  const orderId = originalMerchantOrderId;
+async function handlePaymentPending(data: PaymentData | undefined) {
+  if (!data) return;
 
-  console.log('Handling payment pending:', {
-    orderId,
-    state,
-    expireAt: expireAt ? new Date(expireAt) : null, // expireAt is epoch timestamp in milliseconds
-    timestamp: timestamp ? new Date(timestamp) : null // timestamp is epoch timestamp in milliseconds
-  });
+  const orderId = data.originalMerchantOrderId;
 
   try {
     // Get order to check current status
@@ -184,7 +194,6 @@ async function handlePaymentPending(data: any) {
     });
 
     if (!order) {
-      console.error('Order not found for pending payment:', orderId);
       return;
     }
 
@@ -197,13 +206,15 @@ async function handlePaymentPending(data: any) {
       },
     });
 
-    // Note: For PENDING transactions, we should implement reconciliation
+    // Note: For PENDING transactions, implement reconciliation
     // This webhook indicates the transaction is still in progress
     // The reconciliation schedule should be triggered here or via a background job
-    console.log(`Payment pending for order ${orderId} - reconciliation should be scheduled`);
 
   } catch (error) {
-    console.error('Error handling payment pending:', error);
+    const env = getServerEnv();
+    if (env.NODE_ENV === 'development') {
+      console.error('Error handling payment pending:', error);
+    }
     throw error;
   }
 }

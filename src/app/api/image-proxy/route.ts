@@ -1,35 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getServerEnv } from "@/lib/env";
+import { API_CONFIG } from "@/lib/constants";
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
 // Enable aggressive caching to reduce function invocations
-export const revalidate = 3600; // Cache for 1 hour
+export const revalidate = API_CONFIG.IMAGE_CACHE_SECONDS;
 
 export async function GET(request: NextRequest) {
   try {
-    // All users are anonymous
-    const user = null;
-
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
     const type = searchParams.get('type') || 'original';
     
-    if (!jobId) {
-      return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
+    if (!jobId || typeof jobId !== 'string') {
+      return NextResponse.json({ error: "Valid Job ID is required" }, { status: 400 });
     }
 
     if (!['original', 'output'].includes(type)) {
       return NextResponse.json({ error: "Type must be 'original' or 'output'" }, { status: 400 });
     }
 
-    // Get environment variables
-    const env = process.env as any;
-    if (!env.R2_BUCKET || !env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_PUBLIC_URL) {
-      return NextResponse.json({ error: "R2 configuration missing" }, { status: 500 });
-    }
+    const env = getServerEnv();
 
     // Get job from database
     const db = getDatabase();
@@ -38,8 +33,6 @@ export async function GET(request: NextRequest) {
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
-
-    // No authorization check needed for anonymous users
 
     // Determine which URL to fetch
     let urlToFetch: string;
@@ -53,10 +46,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Extract account ID from R2_PUBLIC_URL
-    const accountId = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/)?.[1];
-    if (!accountId) {
+    const accountIdMatch = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/);
+    if (!accountIdMatch) {
       return NextResponse.json({ error: "Invalid R2 configuration" }, { status: 500 });
     }
+    const accountId = accountIdMatch[1];
 
     // Create S3 client for R2
     const s3Client = new S3Client({
@@ -109,14 +103,17 @@ export async function GET(request: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': response.ContentType || 'image/jpeg',
-        'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year (images don't change)
-        'CDN-Cache-Control': 'public, max-age=31536000',
-        'Vercel-CDN-Cache-Control': 'public, max-age=31536000',
+        'Cache-Control': `public, max-age=${API_CONFIG.IMAGE_CDN_CACHE_SECONDS}, immutable`,
+        'CDN-Cache-Control': `public, max-age=${API_CONFIG.IMAGE_CDN_CACHE_SECONDS}`,
+        'Vercel-CDN-Cache-Control': `public, max-age=${API_CONFIG.IMAGE_CDN_CACHE_SECONDS}`,
         'Content-Length': buffer.length.toString(),
       },
     });
   } catch (error) {
-    console.error("Error fetching image:", error);
+    const env = getServerEnv();
+    if (env.NODE_ENV === 'development') {
+      console.error("Error fetching image:", error);
+    }
     return NextResponse.json(
       { error: "Failed to fetch image" },
       { status: 500 }

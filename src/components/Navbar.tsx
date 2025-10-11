@@ -32,8 +32,8 @@ export function Navbar() {
           <Link href="/faq" className="transition-colors hover:text-foreground/80 text-foreground/60">
             FAQ
           </Link>
-          <Link href="/help" className="transition-colors hover:text-foreground/80 text-foreground/60">
-            Help
+          <Link href="/contact" className="transition-colors hover:text-foreground/80 text-foreground/60">
+            Contact Us
           </Link>
         </nav>
 
@@ -78,11 +78,11 @@ export function Navbar() {
                 FAQ
               </Link>
               <Link 
-                href="/help" 
+                href="/contact" 
                 className="block text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Help
+                Contact Us
               </Link>
             </nav>
 

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, CheckCircle, Quote, Upload, Download, Wand2, Palette, CheckCircle2, Loader2 } from "lucide-react";
 import { trackInitiateCheckout } from "@/components/FacebookPixel";
+import { PRICING } from "@/lib/constants";
 
 interface Job {
   id: string;
@@ -41,6 +42,7 @@ export default function HomePage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewUrlRef = useRef<string | null>(null);
 
   // Rotate tips during upload
   useEffect(() => {
@@ -148,9 +150,8 @@ export default function HomePage() {
       setShowPaymentModal(true);
       
       // Track InitiateCheckout event when preview is shown
-      trackInitiateCheckout(49, 'INR', [jobId]);
+      trackInitiateCheckout(PRICING.SINGLE_IMAGE.RUPEES, 'INR', [jobId]);
     } catch (error) {
-      console.error("Error uploading file:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
       alert(errorMessage);
     } finally {
@@ -228,11 +229,25 @@ export default function HomePage() {
   };
 
   const handleTryAnother = () => {
+    // Clean up any existing blob URL to prevent memory leak
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     setCurrentJob(null);
     setUploadFile(null);
     setShowPaymentModal(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -292,7 +307,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span>Just ₹49 per photo</span>
+                  <span>Just ₹{PRICING.SINGLE_IMAGE.RUPEES} per photo</span>
                 </div>
                 <div className="flex items-center">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
@@ -337,7 +352,15 @@ export default function HomePage() {
                         <div className="relative w-full max-w-sm mx-auto">
                           <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
                             <img
-                              src={URL.createObjectURL(uploadFile)}
+                              src={(() => {
+                                // Clean up previous URL if exists
+                                if (previewUrlRef.current) {
+                                  URL.revokeObjectURL(previewUrlRef.current);
+                                }
+                                // Create new URL and store in ref
+                                previewUrlRef.current = URL.createObjectURL(uploadFile);
+                                return previewUrlRef.current;
+                              })()}
                               alt="Preview"
                               className="w-full h-full object-cover"
                             />
@@ -353,6 +376,11 @@ export default function HomePage() {
                           type="button"
                           variant="outline"
                           onClick={() => {
+                            // Clean up blob URL
+                            if (previewUrlRef.current) {
+                              URL.revokeObjectURL(previewUrlRef.current);
+                              previewUrlRef.current = null;
+                            }
                             setUploadFile(null);
                             if (fileInputRef.current) fileInputRef.current.value = '';
                           }}
@@ -579,7 +607,7 @@ export default function HomePage() {
                       ) : (
                         <>
                           <Download className="mr-2 h-5 w-5" />
-                          Unlock & Download for ₹49
+                          Unlock & Download for ₹{PRICING.SINGLE_IMAGE.RUPEES}
                         </>
                       )}
                     </Button>

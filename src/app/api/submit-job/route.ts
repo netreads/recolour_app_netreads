@@ -1,37 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db";
 import { AwsClient } from "aws4fetch";
+import { getServerEnv } from "@/lib/env";
+import { JOB_STATUS } from "@/lib/constants";
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
 // Fallback image processing function when API quota is exceeded
 async function applyFallbackColorization(imageBuffer: Buffer): Promise<Buffer> {
-  // For now, just return the original image
-  // In a real implementation, you could apply basic image filters:
-  // - Sepia tone
-  // - Basic color mapping
-  // - Use a lightweight image processing library like Sharp
+  // Return original image as fallback
+  // In production, consider using a lightweight library like Sharp for basic processing
   return imageBuffer;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Get database instance
     const db = getDatabase();
-
-    // All users are anonymous - no credit checks needed
+    const env = getServerEnv();
 
     const { jobId } = await request.json();
     
-    if (!jobId) {
-      return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
-    }
-
-    // Get environment variables
-    const env = process.env as any;
-    if (!env.GEMINI_API_KEY || !env.R2_BUCKET || !env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_PUBLIC_URL) {
-      return NextResponse.json({ error: "Missing configuration" }, { status: 500 });
+    if (!jobId || typeof jobId !== 'string') {
+      return NextResponse.json({ error: "Valid Job ID is required" }, { status: 400 });
     }
 
     // Get job from database
@@ -41,16 +32,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    // No authorization check needed for anonymous users
-
-    if (job.status !== "PENDING") {
+    if (job.status !== JOB_STATUS.PENDING) {
       return NextResponse.json({ error: "Job already processed" }, { status: 400 });
     }
 
     // Update job status to processing
-    await db.updateJob(jobId, { status: "PROCESSING" });
-
-    // We'll use direct fetch API calls instead of the SDK for better header control
+    await db.updateJob(jobId, { status: JOB_STATUS.PROCESSING });
 
     try {
       // Create R2 client for fetching the uploaded image
@@ -62,10 +49,14 @@ export async function POST(request: NextRequest) {
       });
 
       // Extract file key from the original URL
-      const fileKey = job.originalUrl.split('/').slice(-2).join('/'); // Get last two parts: uploads/filename
+      const fileKey = job.originalUrl.split('/').slice(-2).join('/');
       
       // Create signed URL for fetching the uploaded image
-      const accountId = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/)?.[1];
+      const accountIdMatch = env.R2_PUBLIC_URL.match(/https:\/\/([^.]+)\.r2\.cloudflarestorage\.com/);
+      if (!accountIdMatch) {
+        throw new Error("Invalid R2_PUBLIC_URL configuration");
+      }
+      const accountId = accountIdMatch[1];
       const fetchUrl = `https://${accountId}.r2.cloudflarestorage.com/${env.R2_BUCKET}/${fileKey}`;
       
       const signedFetchUrl = await r2Client.sign(fetchUrl, {
@@ -76,7 +67,6 @@ export async function POST(request: NextRequest) {
       const imageResponse = await fetch(signedFetchUrl.url);
       
       if (!imageResponse.ok) {
-        console.error("Failed to fetch image:", imageResponse.status, await imageResponse.text());
         throw new Error(`Failed to fetch uploaded image: ${imageResponse.status}`);
       }
       
@@ -140,7 +130,6 @@ export async function POST(request: NextRequest) {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Gemini API Error Response:', errorText);
           
           // Check for specific API restriction errors
           if (response.status === 403 && errorText.includes('API_KEY_HTTP_REFERRER_BLOCKED')) {
@@ -152,57 +141,34 @@ export async function POST(request: NextRequest) {
 
         const result = await response.json();
 
-        // Log the full response for debugging
-        console.log('Gemini API Response:', JSON.stringify(result, null, 2));
-
         // Parse the response
         if (result.candidates?.[0]?.content?.parts) {
           const parts = result.candidates[0].content.parts;
           
-          console.log('Number of parts in response:', parts.length);
-          
           for (const part of parts) {
-            console.log('Part keys:', Object.keys(part));
-            
             // Check for generated image
             if (part.inlineData) {
               const imageData = part.inlineData.data || '';
-              console.log('Found inline data, length:', imageData.length);
               processedImageBuffer = Buffer.from(imageData, 'base64');
             }
             
             // Check for text response
             if (part.text) {
               generatedText += part.text;
-              console.log('Found text:', part.text.substring(0, 100));
             }
           }
-        } else {
-          console.error('Unexpected response structure:', {
-            hasCandidates: !!result.candidates,
-            candidatesLength: result.candidates?.length,
-            firstCandidate: result.candidates?.[0] ? Object.keys(result.candidates[0]) : 'N/A',
-            fullResult: result
-          });
         }
 
         if (!processedImageBuffer) {
-          console.error("No image buffer created. Generated text:", generatedText);
           throw new Error("No image generated by Gemini 2.5 Flash. Check API response structure.");
         }
-        
-        console.log('Successfully created image buffer, size:', processedImageBuffer.length);
-      } catch (geminiError: any) {
-        console.error("Gemini API Error:", geminiError);
+      } catch (geminiError: unknown) {
+        const err = geminiError as Error & { code?: number; status?: string };
         
         // Check if it's a quota/rate limit error
-        if (geminiError?.code === 429 || geminiError?.status === "Too Many Requests") {
-          
-          // Fallback: Apply a simple image processing (e.g., sepia tone effect)
-          // This simulates colorization until API quota resets
+        if (err.code === 429 || err.status === "Too Many Requests") {
+          // Fallback: Apply simple image processing
           processedImageBuffer = await applyFallbackColorization(Buffer.from(imageBase64, "base64"));
-          
-          // Update job with a note about fallback processing
           generatedText = "Note: Used fallback processing due to API quota limits. Please try again later for AI-powered colorization.";
         } else {
           // Re-throw non-quota errors
@@ -231,51 +197,56 @@ export async function POST(request: NextRequest) {
       // Update job with output URL and status
       await db.updateJob(jobId, {
         outputUrl: outputUrl,
-        status: "DONE",
+        status: JOB_STATUS.DONE,
       });
-
-      // No credit deduction needed for anonymous users
 
       return NextResponse.json({
         success: true,
         jobId,
         outputUrl,
       });
-    } catch (processingError: any) {
-      console.error("Error processing image:", processingError);
+    } catch (processingError: unknown) {
+      const err = processingError as Error & { code?: number; status?: string; retryDelay?: string };
       
       // Update job status to failed
-      await db.updateJob(jobId, { status: "FAILED" });
+      await db.updateJob(jobId, { status: JOB_STATUS.FAILED });
       
       // Provide more specific error messages
       let errorMessage = "Failed to process image";
       let statusCode = 500;
       
-      if (processingError?.code === 429 || processingError?.status === "Too Many Requests") {
+      if (err.code === 429 || err.status === "Too Many Requests") {
         errorMessage = "API quota exceeded. Please try again later.";
         statusCode = 429;
-      } else if (processingError?.message?.includes("quota")) {
+      } else if (err.message?.includes("quota")) {
         errorMessage = "API quota limits reached. Please try again later.";
         statusCode = 429;
-      } else if (processingError?.message?.includes("referrer restrictions") || processingError?.message?.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
+      } else if (err.message?.includes("referrer restrictions") || err.message?.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
         errorMessage = "Google API configuration issue. Please contact support.";
         statusCode = 403;
-      } else if (processingError?.message?.includes("No image generated")) {
+      } else if (err.message?.includes("No image generated")) {
         errorMessage = "AI colorization service is currently unavailable. We're working on fixing this. Please try again later.";
         statusCode = 503;
+      }
+      
+      if (env.NODE_ENV === 'development') {
+        console.error("Error processing image:", err);
       }
       
       return NextResponse.json(
         { 
           error: errorMessage,
-          details: process.env.NODE_ENV === 'development' ? (processingError?.message || "Unknown error") : undefined,
-          retryAfter: processingError?.retryDelay || "Please try again in a few minutes"
+          details: env.NODE_ENV === 'development' ? (err.message || "Unknown error") : undefined,
+          retryAfter: err.retryDelay || "Please try again in a few minutes"
         },
         { status: statusCode }
       );
     }
   } catch (error) {
-    console.error("Error submitting job:", error);
+    const env = getServerEnv();
+    if (env.NODE_ENV === 'development') {
+      console.error("Error submitting job:", error);
+    }
     return NextResponse.json(
       { error: "Failed to submit job" },
       { status: 500 }

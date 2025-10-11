@@ -15,7 +15,7 @@ export function getSecurityHeaders() {
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https: blob:",
       "connect-src 'self' https://*.supabase.co https://*.supabase.io wss://*.supabase.co wss://*.supabase.io https://www.facebook.com https://connect.facebook.net https://va.vercel-scripts.com",
-      "frame-src 'self' https://accounts.google.com",
+      "frame-src 'self' https://accounts.google.com https://drive.google.com https://docs.google.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

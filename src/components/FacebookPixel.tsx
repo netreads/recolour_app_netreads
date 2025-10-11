@@ -27,11 +27,8 @@ interface FacebookPixelProps {
 
 export function FacebookPixel({ pixelId }: FacebookPixelProps) {
   if (!pixelId) {
-    console.warn('⚠️ Facebook Pixel: No pixelId provided');
     return null;
   }
-
-  console.log('🎯 Facebook Pixel: Initializing with ID:', pixelId);
 
   return (
     <>
@@ -50,7 +47,6 @@ export function FacebookPixel({ pixelId }: FacebookPixelProps) {
             'https://connect.facebook.net/en_US/fbevents.js');
             fbq('init', '${pixelId}');
             fbq('track', 'PageView');
-            console.log('✅ Facebook Pixel initialized and PageView tracked');
           `,
         }}
       />
@@ -68,17 +64,12 @@ export function FacebookPixel({ pixelId }: FacebookPixelProps) {
 }
 
 // Facebook Pixel event tracking functions
-export const trackFacebookEvent = (eventName: string, parameters?: any) => {
-  if (typeof window !== 'undefined') {
-    if (window.fbq) {
-      try {
-        window.fbq('track', eventName, parameters);
-        console.log(`✅ Facebook Pixel: Tracked ${eventName}`, parameters);
-      } catch (error) {
-        console.error(`❌ Facebook Pixel: Error tracking ${eventName}`, error);
-      }
-    } else {
-      console.warn(`⚠️ Facebook Pixel: fbq not available for ${eventName}`);
+export const trackFacebookEvent = (eventName: string, parameters?: unknown) => {
+  if (typeof window !== 'undefined' && window.fbq) {
+    try {
+      window.fbq('track', eventName, parameters);
+    } catch (error) {
+      // Silent fail - tracking is not critical
     }
   }
 };
