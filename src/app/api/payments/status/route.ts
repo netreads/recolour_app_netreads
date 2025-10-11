@@ -7,7 +7,7 @@ import { getServerEnv } from '@/lib/env';
 export const runtime = 'nodejs';
 
 // Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = API_CONFIG.API_MAX_DURATION;
+export const maxDuration = 60;
 
 interface OrderMetadata {
   jobId?: string;

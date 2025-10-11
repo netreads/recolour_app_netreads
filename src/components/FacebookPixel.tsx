@@ -1,25 +1,17 @@
-'use client';
-
 import Script from 'next/script';
 
 /**
- * Facebook Pixel Component
+ * Facebook Pixel Component (Server Component)
  * 
  * To use this component, add your Facebook Pixel ID to your environment variables:
  * NEXT_PUBLIC_FACEBOOK_PIXEL_ID=your_pixel_id_here
  * 
  * This component automatically tracks:
  * - PageView: Tracks when pages are viewed
- * - InitiateCheckout: Tracks when users start the checkout process
- * - Purchase: Tracks completed purchases
+ * 
+ * For client-side event tracking (InitiateCheckout, Purchase, etc.),
+ * import from '@/lib/facebookTracking' instead.
  */
-
-declare global {
-  interface Window {
-    fbq: any;
-    _fbq: any;
-  }
-}
 
 interface FacebookPixelProps {
   pixelId: string;
@@ -62,35 +54,3 @@ export function FacebookPixel({ pixelId }: FacebookPixelProps) {
     </>
   );
 }
-
-// Facebook Pixel event tracking functions
-export const trackFacebookEvent = (eventName: string, parameters?: unknown) => {
-  if (typeof window !== 'undefined' && window.fbq) {
-    try {
-      window.fbq('track', eventName, parameters);
-    } catch (error) {
-      // Silent fail - tracking is not critical
-    }
-  }
-};
-
-// Specific event functions
-export const trackInitiateCheckout = (value?: number, currency?: string, contentIds?: string[]) => {
-  trackFacebookEvent('InitiateCheckout', {
-    value,
-    currency: currency || 'INR',
-    content_ids: contentIds,
-  });
-};
-
-export const trackPurchase = (value?: number, currency?: string, contentIds?: string[]) => {
-  trackFacebookEvent('Purchase', {
-    value,
-    currency: currency || 'INR',
-    content_ids: contentIds,
-  });
-};
-
-export const trackPageView = () => {
-  trackFacebookEvent('PageView');
-};

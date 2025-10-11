@@ -38,8 +38,6 @@ const nextConfig: NextConfig = {
   compress: true,
   // Optimize output
   poweredByHeader: false,
-  // Enable SWC minification for smaller bundles
-  swcMinify: true,
   // Experimental features for better performance
   experimental: {
     // Optimize font loading

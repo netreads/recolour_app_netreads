@@ -6,8 +6,8 @@ import { API_CONFIG } from "@/lib/constants";
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
-// Set max duration
-export const maxDuration = API_CONFIG.API_MAX_DURATION;
+// Set max duration to prevent unexpected costs from long-running functions
+export const maxDuration = 60;
 
 // Cache these responses aggressively since URLs don't change
 export const revalidate = 3600; // 1 hour

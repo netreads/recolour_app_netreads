@@ -5,7 +5,7 @@ import { API_CONFIG } from '@/lib/constants';
 export const runtime = 'nodejs';
 
 // Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = API_CONFIG.API_MAX_DURATION;
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {

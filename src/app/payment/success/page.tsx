@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { trackPurchase } from '@/components/FacebookPixel';
+import { trackPurchase } from '@/lib/facebookTracking';
 import { PRICING } from '@/lib/constants';
 import { getDirectImageUrl } from '@/lib/utils';
 
@@ -49,7 +49,7 @@ function PaymentSuccessContent() {
     }
   }, [orderId]);
 
-  // Track purchase event - fires immediately when we have jobId OR when payment succeeds
+  // Track purchase event - fires ONLY when payment succeeds
   useEffect(() => {
     // Don't track if already tracked
     if (purchaseTracked) {
@@ -59,7 +59,8 @@ function PaymentSuccessContent() {
     // Get jobId from payment status or URL params
     const trackingJobId = paymentStatus?.jobId || jobId;
     
-    if (!trackingJobId) {
+    // Only track if we have a jobId AND payment was successful
+    if (!trackingJobId || !paymentStatus?.success) {
       return;
     }
     

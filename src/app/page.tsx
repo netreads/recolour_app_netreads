@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, CheckCircle, Quote, Upload, Download, Wand2, Palette, CheckCircle2, Loader2 } from "lucide-react";
-import { trackInitiateCheckout } from "@/components/FacebookPixel";
+import { trackInitiateCheckout } from "@/lib/facebookTracking";
 import { PRICING } from "@/lib/constants";
 import { getDirectImageUrl } from "@/lib/utils";
 
