@@ -173,33 +173,33 @@ function PaymentSuccessContent() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 py-12 sm:py-16">
+      <div className="container mx-auto px-4 py-6 sm:py-12 md:py-16">
         <div className="max-w-4xl mx-auto">
           {paymentStatus?.success ? (
-            <div className="space-y-8">
+            <div className="space-y-4 sm:space-y-8">
               {/* Success Header */}
-              <div className="text-center space-y-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-2 animate-bounce">
-                  <CheckCircle className="h-10 w-10 text-green-600" />
+              <div className="text-center space-y-2 sm:space-y-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full mb-1 sm:mb-2 animate-bounce">
+                  <CheckCircle className="h-8 w-8 sm:h-10 sm:w-10 text-green-600" />
                 </div>
-                <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight">
                   <span className="bg-gradient-to-r from-orange-500 to-green-600 bg-clip-text text-transparent">
                     Your Memory is Restored! 🎉
                   </span>
                 </h1>
-                <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                <p className="text-sm sm:text-lg text-gray-600 max-w-2xl mx-auto">
                   Full HD quality • No watermark • Yours forever
                 </p>
               </div>
 
               {/* Colorized Image Card */}
               {paymentStatus.jobId && (
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <Card className="border shadow-lg overflow-hidden bg-white">
-                    <CardContent className="p-6 sm:p-8 space-y-6">
+                    <CardContent className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
                       {/* Main Image Display */}
                       <div className="relative">
-                        <div className="relative aspect-[4/3] bg-gray-50 rounded-xl overflow-hidden border-2 border-gray-200">
+                        <div className="relative aspect-video sm:aspect-[4/3] bg-gray-50 rounded-lg sm:rounded-xl overflow-hidden border-2 border-gray-200">
                           {imageUrls?.output ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
@@ -208,13 +208,13 @@ function PaymentSuccessContent() {
                               className="w-full h-full object-contain"
                             />
                           ) : (
-                            <div className="flex flex-col items-center justify-center h-full space-y-3">
-                              <Loader2 className="h-12 w-12 animate-spin text-orange-500" />
-                              <p className="text-gray-500 font-medium">Loading your HD image...</p>
+                            <div className="flex flex-col items-center justify-center h-full space-y-2 sm:space-y-3">
+                              <Loader2 className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-orange-500" />
+                              <p className="text-sm sm:text-base text-gray-500 font-medium">Loading your HD image...</p>
                             </div>
                           )}
-                          <div className="absolute top-3 right-3">
-                            <span className="bg-gradient-to-r from-orange-500 to-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                          <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                            <span className="bg-gradient-to-r from-orange-500 to-green-600 text-white text-xs font-bold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-lg">
                               ✨ HD Unlocked
                             </span>
                           </div>
@@ -225,12 +225,12 @@ function PaymentSuccessContent() {
                       <Button 
                         onClick={handleDownload}
                         disabled={downloading || !imageUrls?.output}
-                        className="w-full h-14 bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all"
+                        className="w-full h-12 sm:h-14 bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all"
                         size="lg"
                       >
                         {downloading ? (
                           <>
-                            <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                            <Loader2 className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
                             Downloading...
                           </>
                         ) : (
@@ -245,7 +245,7 @@ function PaymentSuccessContent() {
                         asChild 
                         variant="outline" 
                         size="lg" 
-                        className="w-full h-12 border-2 border-green-600 text-green-700 hover:bg-green-50 font-semibold"
+                        className="w-full h-11 sm:h-12 border-2 border-green-600 text-green-700 hover:bg-green-50 font-semibold text-sm sm:text-base"
                       >
                         <Link href="https://wa.me/917984837468?text=Hi!%20I%20have%2020%2B%20photos%20to%20restore.%20Can%20I%20get%20a%20bulk%20discount%3F" target="_blank">
                           💬 WhatsApp Us for Bulk Orders (10+ Images)
@@ -253,7 +253,7 @@ function PaymentSuccessContent() {
                       </Button>
 
                       {/* Colorize Another Button */}
-                      <Button asChild variant="outline" size="lg" className="w-full h-12 border-2 hover:bg-gray-50">
+                      <Button asChild variant="outline" size="lg" className="w-full h-11 sm:h-12 border-2 hover:bg-gray-50 text-sm sm:text-base">
                         <Link href="/">
                           🎨 Colorize Another Memory
                         </Link>
@@ -289,7 +289,7 @@ function PaymentSuccessContent() {
                   size="lg" 
                   className="w-full h-14 text-lg border-2 hover:bg-gray-50"
                 >
-                  <Link href="https://wa.me/917984837468?text=Hi%2C%20I%20had%20a%20payment%20issue.%20Can%20you%20help%3F" target="_blank">
+                  <Link href="https://wa.me/917984837468?text=Hi%2C%20I%20am%20unable%20to%do%payement%20for%20the%20image.%20Can%20you%20help%3F" target="_blank">
                     💬 Contact Support on WhatsApp
                   </Link>
                 </Button>

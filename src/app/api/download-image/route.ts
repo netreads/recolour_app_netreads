@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the job from database
-    const job = await prisma.jobs.findUnique({
+    const job = await prisma.job.findUnique({
       where: { id: jobId },
     });
 
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if job is paid
-    if (!job.is_paid) {
+    if (!job.isPaid) {
       return NextResponse.json(
         { error: 'Unauthorized - Payment required' },
         { status: 403 }
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the appropriate URL
-    const imageUrl = type === 'output' ? job.output_url : job.original_url;
+    const imageUrl = type === 'output' ? job.outputUrl : job.originalUrl;
 
     if (!imageUrl) {
       return NextResponse.json(

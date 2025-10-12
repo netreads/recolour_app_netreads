@@ -546,13 +546,13 @@ export default function HomePage() {
           <>
             {/* Security protection active during preview */}
             <SecurityProtection />
-            <section className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <CardHeader className="border-b">
+            <section className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
+              <Card className="max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardHeader className="border-b py-3 sm:py-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl sm:text-2xl font-bold">🎨 Your Photo is Ready!</CardTitle>
-                    <CardDescription className="text-sm mt-1">
+                    <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold">🎨 Your Photo is Ready!</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm mt-0.5 sm:mt-1">
                       Preview the colorized result below
                     </CardDescription>
                   </div>
@@ -560,20 +560,20 @@ export default function HomePage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowPaymentModal(false)}
-                    className="h-8 w-8"
+                    className="h-7 w-7 sm:h-8 sm:w-8"
                   >
                     ✕
                   </Button>
                 </div>
               </CardHeader>
               
-              <CardContent className="p-4 sm:p-6 space-y-6">
+              <CardContent className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6">
                 {/* Before/After Comparison */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {/* Original */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-700">Original</p>
-                    <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2">
+                  <div className="space-y-1 sm:space-y-2">
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">Original</p>
+                    <div className="aspect-video sm:aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={getImageUrl(currentJob.id, 'original')}
@@ -584,10 +584,10 @@ export default function HomePage() {
                   </div>
 
                   {/* Colorized (Watermarked) */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-700">AI Colorized (Preview)</p>
+                  <div className="space-y-1 sm:space-y-2">
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">AI Colorized (Preview)</p>
                     <div 
-                      className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2 border-orange-500"
+                      className="relative aspect-video sm:aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2 border-orange-500"
                       onContextMenu={(e) => { e.preventDefault(); return false; }}
                       onDragStart={(e) => { e.preventDefault(); return false; }}
                       style={{
@@ -607,14 +607,14 @@ export default function HomePage() {
                       {/* Original UI Overlays */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40 pointer-events-none">
                         {/* Top Watermark */}
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg">
-                          <p className="text-sm font-semibold text-gray-800">HD Locked 🔒</p>
+                        <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-2 py-1 sm:px-4 sm:py-2 rounded-lg shadow-lg">
+                          <p className="text-xs sm:text-sm font-semibold text-gray-800">HD Locked 🔒</p>
                         </div>
                         
                         {/* Center Watermark */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-white/85 backdrop-blur-sm px-6 py-3 rounded-xl shadow-xl border-2 border-orange-200">
-                          <p className="text-lg font-bold text-orange-600">Recolor ai</p>
-                          <p className="text-xs text-gray-600 mt-1">Watermark Free HD Version</p>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-white/85 backdrop-blur-sm px-3 py-2 sm:px-6 sm:py-3 rounded-xl shadow-xl border-2 border-orange-200">
+                          <p className="text-base sm:text-lg font-bold text-orange-600">Recolor ai</p>
+                          <p className="text-[10px] sm:text-xs text-gray-600 mt-0.5 sm:mt-1">Watermark Free HD Version</p>
                         </div>
                       </div>
                     </div>
@@ -622,29 +622,29 @@ export default function HomePage() {
                 </div>
 
                 {/* Payment CTA */}
-                <div className="border-t pt-6 space-y-4">
-                  <div className="text-center space-y-2">
-                    <h3 className="text-lg font-semibold">Unlock Your HD Colorized Photo</h3>
-                    <p className="text-sm text-gray-600">
+                <div className="border-t pt-3 sm:pt-4 md:pt-6 space-y-3 sm:space-y-4">
+                  <div className="text-center space-y-1 sm:space-y-2">
+                    <h3 className="text-base sm:text-lg font-semibold">Unlock Your HD Colorized Photo</h3>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Get instant access to the full-resolution image • Satisfaction guaranteed
                     </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                     <Button
                       onClick={handlePayment}
                       disabled={isProcessingPayment}
                       size="lg"
-                      className="bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold text-lg px-8 py-6"
+                      className="bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-semibold text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6"
                     >
                       {isProcessingPayment ? (
                         <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                           Processing...
                         </>
                       ) : (
                         <>
-                          <Download className="mr-2 h-5 w-5" />
+                          <Download className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                           Unlock & Download for ₹{PRICING.SINGLE_IMAGE.RUPEES}
                         </>
                       )}
@@ -653,28 +653,28 @@ export default function HomePage() {
                       onClick={handleTryAnother}
                       variant="outline"
                       size="lg"
-                      className="px-8 py-6"
+                      className="px-6 sm:px-8 py-5 sm:py-6 text-sm sm:text-base"
                     >
                       Try Another Photo
                     </Button>
                   </div>
 
                   {/* Trust Signals */}
-                  <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-gray-500 pt-4">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 md:gap-6 text-[10px] sm:text-xs text-gray-500 pt-2 sm:pt-4">
                     <div className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                      <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 mr-1" />
                       <span>Instant Download</span>
                     </div>
                     <div className="flex items-center">
-                      <Shield className="w-4 h-4 text-green-500 mr-1" />
+                      <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 mr-1" />
                       <span>Secure Payment</span>
                     </div>
                     <div className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                      <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 mr-1" />
                       <span>UPI / PhonePe / GPay</span>
                     </div>
                     <div className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                      <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 mr-1" />
                       <span>100% Satisfaction</span>
                     </div>
                   </div>

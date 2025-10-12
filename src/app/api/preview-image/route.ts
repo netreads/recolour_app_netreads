@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch job from database with payment verification
-    const job = await db.job.findUnique({
+    const job = await prisma.job.findUnique({
       where: { id: jobId },
       select: {
         id: true,
