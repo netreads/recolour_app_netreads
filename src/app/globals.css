@@ -178,6 +178,29 @@
     }
   }
 
+  /* Security: Prevent image extraction on canvas elements */
+  canvas {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Prevent text selection on secure preview containers */
+  [data-secure-preview] {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
   /* Mobile-specific improvements */
   @media (max-width: 640px) {
     /* Improve touch targets */

@@ -10,6 +10,8 @@ import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, CheckCircle, Quote,
 import { trackInitiateCheckout } from "@/lib/facebookTracking";
 import { PRICING } from "@/lib/constants";
 import { getDirectImageUrl } from "@/lib/utils";
+import { SecureImagePreview } from "@/components/SecureImagePreview";
+import { SecurityProtection } from "@/components/SecurityProtection";
 
 interface Job {
   id: string;
@@ -541,8 +543,11 @@ export default function HomePage() {
 
         {/* Preview & Payment Modal */}
         {showPaymentModal && currentJob && (
-          <section className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <>
+            {/* Security protection active during preview */}
+            <SecurityProtection />
+            <section className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <CardHeader className="border-b">
                 <div className="flex items-center justify-between">
                   <div>
@@ -581,14 +586,25 @@ export default function HomePage() {
                   {/* Colorized (Watermarked) */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-700">AI Colorized (Preview)</p>
-                    <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2 border-orange-500">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={getImageUrl(currentJob.id, 'output')}
-                        alt="Colorized"
-                        className="w-full h-full object-contain"
+                    <div 
+                      className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border-2 border-orange-500"
+                      onContextMenu={(e) => { e.preventDefault(); return false; }}
+                      onDragStart={(e) => { e.preventDefault(); return false; }}
+                      style={{
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                        WebkitTouchCallout: "none",
+                      }}
+                    >
+                      {/* Secure image rendering with canvas (prevents URL extraction) */}
+                      <SecureImagePreview
+                        imageUrl={getImageUrl(currentJob.id, 'output')}
+                        alt="Colorized Preview"
+                        watermarkText=""
+                        className="w-full h-full absolute inset-0"
+                        blur={false}
                       />
-                      {/* Partial Obfuscation Overlay */}
+                      {/* Original UI Overlays */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40 pointer-events-none">
                         {/* Top Watermark */}
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg">
@@ -600,8 +616,6 @@ export default function HomePage() {
                           <p className="text-lg font-bold text-orange-600">Recolor ai</p>
                           <p className="text-xs text-gray-600 mt-1">Watermark Free HD Version</p>
                         </div>
-                        
-                       
                       </div>
                     </div>
                   </div>
@@ -668,6 +682,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </section>
+          </>
         )}
 
         {/* Before/After Images Section */}
