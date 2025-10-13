@@ -163,9 +163,50 @@ function PaymentSuccessContent() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-16">
-        <div className="max-w-md mx-auto text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Verifying payment status...</p>
+        <div className="max-w-2xl mx-auto">
+          <Card className="border shadow-lg bg-white">
+            <CardContent className="p-8 sm:p-12">
+              <div className="text-center space-y-6">
+                {/* Animated Icon */}
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-100 to-green-100 rounded-full mb-2">
+                  <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+                </div>
+                
+                {/* Main Message */}
+                <div className="space-y-3">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    Processing Your Order... ✨
+                  </h2>
+                  <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+                    We're verifying your payment and preparing your colorized image in full HD quality.
+                  </p>
+                </div>
+
+                {/* Progress Steps */}
+                <div className="bg-gradient-to-r from-orange-50 to-green-50 border-2 border-orange-200 rounded-xl p-6 text-left space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-gray-900">Payment Received</p>
+                      <p className="text-sm text-gray-600">Your transaction is being confirmed</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Loader2 className="h-5 w-5 text-orange-600 animate-spin mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-gray-900">Preparing Your Image</p>
+                      <p className="text-sm text-gray-600">Loading your restored memory in HD...</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reassurance */}
+                <p className="text-sm text-gray-500 italic">
+                  This usually takes just a few seconds. Your image will appear shortly! 🎨
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -283,6 +324,31 @@ function PaymentSuccessContent() {
                   </Link>
                 </Button>
                 
+                {/* Payment Deducted Notice */}
+                <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 sm:p-6 space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <span className="text-orange-600 text-xl sm:text-2xl">⚠️</span>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-orange-900 text-base sm:text-lg mb-2">
+                        Payment Deducted from Your Account?
+                      </h3>
+                      <p className="text-sm sm:text-base text-orange-800 leading-relaxed">
+                        If the payment amount was deducted from your account, please take a screenshot of your bank/payment confirmation and WhatsApp us immediately. We'll resolve this for you right away.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    asChild 
+                    size="lg" 
+                    className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Link href="https://wa.me/917984837468?text=Hi%2C%20my%20payment%20failed%20but%20the%20amount%20was%20deducted%20from%20my%20account.%20Order%20ID%3A%20%5BYour%20Order%20ID%5D.%20I%20am%20sharing%20the%20payment%20screenshot." target="_blank">
+                      📱 WhatsApp Us with Screenshot
+                    </Link>
+                  </Button>
+                </div>
+                
                 <Button 
                   asChild 
                   variant="outline" 
@@ -306,9 +372,27 @@ export default function PaymentSuccessPage() {
   return (
     <Suspense fallback={
       <div className="container mx-auto px-4 py-16">
-        <div className="max-w-md mx-auto text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+        <div className="max-w-2xl mx-auto">
+          <Card className="border shadow-lg bg-white">
+            <CardContent className="p-8 sm:p-12">
+              <div className="text-center space-y-6">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-100 to-green-100 rounded-full mb-2">
+                  <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+                </div>
+                <div className="space-y-3">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    Almost There! 🎉
+                  </h2>
+                  <p className="text-base sm:text-lg text-gray-600">
+                    Loading your payment details and colorized image...
+                  </p>
+                </div>
+                <p className="text-sm text-gray-500 italic">
+                  Your restored memory is just moments away! ✨
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     }>

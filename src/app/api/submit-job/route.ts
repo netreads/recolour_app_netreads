@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
         errorMessage = "Google API configuration issue. Please contact support.";
         statusCode = 403;
       } else if (err.message?.includes("No image generated")) {
-        errorMessage = "AI colorization service is currently unavailable. We're working on fixing this. Please try again later.";
+        errorMessage = "AI colorization service is currently unavailable. Please try again.";
         statusCode = 503;
       }
       

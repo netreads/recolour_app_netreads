@@ -90,7 +90,13 @@ export default function HomePage() {
       formData.append('file', uploadFile);
 
       const uploadProgressInterval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 5, 25));
+        setUploadProgress((prev) => {
+          if (prev >= 25) return 25;
+          const remaining = 25 - prev;
+          // Faster at start, slower near end
+          const increment = Math.max(0.5, remaining * 0.2);
+          return Math.min(prev + increment, 25);
+        });
       }, 100);
 
       const uploadResponse = await fetch("/api/upload-via-presigned", {
@@ -110,15 +116,31 @@ export default function HomePage() {
       // Stage 2: Analyzing (25-40%)
       setUploadStage('analyzing');
       const analyzingInterval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 3, 40));
-      }, 150);
+        setUploadProgress((prev) => {
+          const remaining = 40 - prev;
+          const increment = Math.max(0.5, remaining * 0.15); // Slow down as approaching target
+          return Math.min(prev + increment, 40);
+        });
+      }, 100);
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       clearInterval(analyzingInterval);
       setUploadProgress(40);
 
       // Stage 3: Colorizing (40-85%)
       setUploadStage('colorizing');
+      
+      // Start progress animation immediately for better UX
+      const colorizingInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 85) return 85;
+          const remaining = 85 - prev;
+          // Slow down as we approach the target for realistic feel
+          const increment = Math.max(0.3, remaining * 0.08);
+          return Math.min(prev + increment, 85);
+        });
+      }, 150);
+
       const submitResponse = await fetch("/api/submit-job", {
         method: "POST",
         headers: {
@@ -127,27 +149,30 @@ export default function HomePage() {
         body: JSON.stringify({ jobId }),
       });
 
-      const colorizingInterval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 2, 85));
-      }, 200);
-
       if (!submitResponse.ok) {
         clearInterval(colorizingInterval);
         const errorData = await submitResponse.json();
         throw new Error(errorData.error || "Failed to submit job");
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Let the progress animation complete smoothly
+      await new Promise(resolve => setTimeout(resolve, 500));
       clearInterval(colorizingInterval);
       setUploadProgress(85);
 
       // Stage 4: Finalizing (85-100%)
       setUploadStage('finalizing');
       const finalizingInterval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 3, 100));
-      }, 100);
+        setUploadProgress((prev) => {
+          if (prev >= 100) return 100;
+          const remaining = 100 - prev;
+          // Quick finish for final stage
+          const increment = Math.max(1, remaining * 0.25);
+          return Math.min(prev + increment, 100);
+        });
+      }, 80);
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 600));
       clearInterval(finalizingInterval);
       setUploadProgress(100);
 
@@ -286,11 +311,11 @@ export default function HomePage() {
             "@type": "VideoObject",
             "name": "ReColor AI Demo Video",
             "description": "Watch how our AI transforms black and white photos into vibrant memories",
-            "thumbnailUrl": "https://drive.google.com/thumbnail?id=1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu",
+            "thumbnailUrl": "https://drive.google.com/thumbnail?id=1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ",
             "uploadDate": "2024-01-01",
             "duration": "PT30S",
-            "contentUrl": "https://drive.google.com/file/d/1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu/view",
-            "embedUrl": "https://drive.google.com/file/d/1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu/preview",
+            "contentUrl": "https://drive.google.com/file/d/1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ/view",
+            "embedUrl": "https://drive.google.com/file/d/1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ/preview",
             "publisher": {
               "@type": "Organization",
               "name": "ReColor AI",
@@ -304,11 +329,11 @@ export default function HomePage() {
       />
       <div className="min-h-screen bg-white">
         {/* Hero Section */}
-        <section className="container mx-auto px-4 pt-16 sm:pt-20 pb-12 sm:pb-16">
-          <div className="text-center space-y-6 sm:space-y-8 max-w-5xl mx-auto">
-            <div className="space-y-4 sm:space-y-6">
-              <Badge variant="secondary" className="mx-auto bg-saffron-50 text-saffron-700 border-saffron-200 animate-pulse text-xs sm:text-sm">
-                <Sparkles className="w-3 h-3 mr-1 animate-spin" />
+        <section className="container mx-auto px-4 pt-6 sm:pt-20 pb-4 sm:pb-16">
+          <div className="text-center space-y-3 sm:space-y-8 max-w-5xl mx-auto">
+            <div className="space-y-2 sm:space-y-6">
+              <Badge variant="secondary" className="mx-auto bg-saffron-50 text-saffron-700 border-saffron-200 animate-pulse text-sm sm:text-sm">
+                <Sparkles className="w-4 h-4 mr-1 animate-spin" />
                 Trusted by 50,000+ Indian families 🇮🇳
               </Badge>
               <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 leading-tight">
@@ -318,29 +343,29 @@ export default function HomePage() {
                   — AI colorizes it in seconds!
                 </span>
               </h1>
-              <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
+              <p className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
                 Upload → Preview → Pay ₹49 → Download HD
                 <br className="hidden sm:block" />
                 <span className="sm:hidden"> </span>No signup required • Instant results
               </p>
             </div>
 
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-sm text-gray-500 px-4">
+            <div className="space-y-3 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-8 text-sm sm:text-sm text-gray-500 px-4">
                 <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                  <CheckCircle className="w-4 h-4 sm:w-4 sm:h-4 text-green-500 mr-1.5 sm:mr-2" />
                   <span>Preview before you pay</span>
                 </div>
                 <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span>Just ₹{PRICING.SINGLE_IMAGE.RUPEES} per photo</span>
+                  <CheckCircle className="w-4 h-4 sm:w-4 sm:h-4 text-green-500 mr-1.5 sm:mr-2" />
+                  <span> Both recolor and restore  </span>
                 </div>
                 <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                  <CheckCircle className="w-4 h-4 sm:w-4 sm:h-4 text-green-500 mr-1.5 sm:mr-2" />
                   <span>Instant HD download</span>
                 </div>
                 <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                  <CheckCircle className="w-4 h-4 sm:w-4 sm:h-4 text-green-500 mr-1.5 sm:mr-2" />
                   <span>UPI / PhonePe / GPay</span>
                 </div>
               </div>
@@ -349,13 +374,13 @@ export default function HomePage() {
         </section>
 
         {/* Upload Section */}
-        <section id="upload" className="py-8 sm:py-12 bg-gray-50">
+        <section id="upload" className="py-4 sm:py-12 bg-gray-50">
           <div className="container mx-auto px-4 max-w-4xl">
             <Card>
-              <CardContent className="p-4 sm:p-6">
-                <form onSubmit={handleFileUpload} className="space-y-4">
+              <CardContent className="p-3 sm:p-6">
+                <form onSubmit={handleFileUpload} className="space-y-3 sm:space-y-4">
                   <div
-                    className={`relative border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
+                    className={`relative border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${
                       dragActive
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-300 hover:border-gray-400'
@@ -415,11 +440,11 @@ export default function HomePage() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                      <div className="space-y-3 sm:space-y-4">
+                        <Upload className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto" />
                         <div>
-                          <p className="text-base font-medium text-gray-900">Drop your image here</p>
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm sm:text-base font-medium text-gray-900">Drop your image here</p>
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1">
                             or click to browse • JPG, PNG, WebP up to 10MB
                           </p>
                         </div>
@@ -427,6 +452,7 @@ export default function HomePage() {
                           type="button"
                           variant="outline"
                           onClick={() => fileInputRef.current?.click()}
+                          className="text-sm"
                         >
                           Select Image
                         </Button>
@@ -464,7 +490,7 @@ export default function HomePage() {
                               </>
                             )}
                           </div>
-                          <span className="font-bold text-orange-600">{uploadProgress}%</span>
+                          <span className="font-bold text-orange-600">{Math.round(uploadProgress)}%</span>
                         </div>
                         <div className="h-3 bg-white rounded-full overflow-hidden shadow-inner">
                           <div
@@ -528,10 +554,10 @@ export default function HomePage() {
                     <Button
                       type="submit"
                       disabled={!uploadFile || isUploading}
-                      className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700"
+                      className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-sm sm:text-base py-5 sm:py-6"
                       size="lg"
                     >
-                      <Sparkles className="mr-2 h-4 w-4" />
+                      <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                       Colorize & Preview Free
                     </Button>
                   )}
@@ -835,13 +861,13 @@ export default function HomePage() {
             <div className="max-w-4xl mx-auto">
               <div className="relative aspect-video rounded-xl sm:rounded-2xl overflow-hidden shadow-xl sm:shadow-2xl hover:shadow-2xl sm:hover:shadow-3xl transition-shadow duration-300">
                 <iframe
-                  src="https://drive.google.com/file/d/1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu/preview"
+                  src="https://drive.google.com/file/d/1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ/preview"
                   title="ReColor AI Demo Video - Watch how our AI transforms black and white photos into vibrant memories"
                   className="w-full h-full"
                   loading="lazy"
                   allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
-                  data-video-id="1iya9BXxFIkCD3CHc6azrL5A1Pom7_6qu"
+                  data-video-id="1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ"
                   data-video-title="ReColor AI Demo Video"
                   data-video-description="Watch how our AI transforms black and white photos into vibrant memories"
                 />
