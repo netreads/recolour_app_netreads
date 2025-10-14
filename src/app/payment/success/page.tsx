@@ -63,11 +63,22 @@ function PaymentSuccessContent() {
       return;
     }
     
+    // Generate event_id for deduplication with server-side tracking
+    // Facebook uses this to deduplicate events sent from both browser and server
+    const eventId = `${paymentStatus.orderId || orderId}_${trackingJobId}`;
+    
     // Function to track purchase with retries
     const trackPurchaseWithRetry = (attempts = 0, maxAttempts = 20): ReturnType<typeof setTimeout> | null => {
       if (typeof window !== 'undefined' && window.fbq) {
         try {
-          trackPurchase(PRICING.SINGLE_IMAGE.RUPEES, 'INR', [trackingJobId]);
+          // Send with event_id for deduplication with CAPI
+          window.fbq('track', 'Purchase', {
+            value: PRICING.SINGLE_IMAGE.RUPEES,
+            currency: 'INR',
+            content_ids: [trackingJobId],
+          }, {
+            eventID: eventId // Facebook will deduplicate if CAPI also sends this event_id
+          });
           setPurchaseTracked(true);
           return null;
         } catch (error) {

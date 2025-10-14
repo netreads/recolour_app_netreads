@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { validatePhonePeCallback } from '@/lib/phonepe';
 import { getServerEnv } from '@/lib/env';
 import { PAYMENT_STATUS, API_CONFIG } from '@/lib/constants';
+import { trackPurchaseServerSide } from '@/lib/facebookConversionsAPI';
 
 export const runtime = 'nodejs';
 
@@ -123,6 +124,24 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
           where: { id: metadata.jobId },
           data: { isPaid: true },
         });
+      }
+    }
+
+    // Track purchase via Facebook Conversions API (server-side)
+    // This bypasses ad blockers and browser privacy settings
+    try {
+      await trackPurchaseServerSide({
+        orderId: order.id,
+        jobId: (order.metadata as OrderMetadata)?.jobId,
+        amount: order.amount,
+        currency: 'INR',
+        userId: order.userId || undefined,
+      });
+    } catch (error) {
+      // Silent fail - don't break webhook processing if tracking fails
+      const env = getServerEnv();
+      if (env.NODE_ENV === 'development') {
+        console.error('Error tracking purchase server-side:', error);
       }
     }
 
