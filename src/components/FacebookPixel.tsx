@@ -4,7 +4,7 @@ import Script from 'next/script';
  * Facebook Pixel Component (Server Component)
  * 
  * To use this component, add your Facebook Pixel ID to your environment variables:
- * NEXT_PUBLIC_FACEBOOK_PIXEL_ID=your_pixel_id_here
+ * FACEBOOK_PIXEL_ID=your_pixel_id_here
  * 
  * This component automatically tracks:
  * - PageView: Tracks when pages are viewed

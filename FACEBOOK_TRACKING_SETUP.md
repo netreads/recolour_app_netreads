@@ -44,7 +44,7 @@ Add these to your `.env.local` file (or Vercel environment variables):
 
 ```bash
 # Browser-side pixel (optional but recommended)
-NEXT_PUBLIC_FACEBOOK_PIXEL_ID=your_pixel_id_here
+FACEBOOK_PIXEL_ID=your_pixel_id_here
 
 # Server-side Conversions API (CRITICAL - this is the main solution)
 FACEBOOK_PIXEL_ID=your_pixel_id_here
@@ -52,7 +52,7 @@ FACEBOOK_CONVERSIONS_API_TOKEN=your_capi_token_here
 ```
 
 **Note**: 
-- `NEXT_PUBLIC_FACEBOOK_PIXEL_ID` is for browser tracking (can be blocked)
+- `FACEBOOK_PIXEL_ID` is for browser tracking (can be blocked)
 - `FACEBOOK_PIXEL_ID` and `FACEBOOK_CONVERSIONS_API_TOKEN` are for server tracking (cannot be blocked)
 
 ### Step 4: Deploy & Test

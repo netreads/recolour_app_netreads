@@ -42,7 +42,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
+  const pixelId = process.env.FACEBOOK_PIXEL_ID;
 
   return (
     <html lang="en">

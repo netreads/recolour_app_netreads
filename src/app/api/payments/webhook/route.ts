@@ -128,7 +128,6 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
     }
 
     // Track purchase via Facebook Conversions API (server-side)
-    // This bypasses ad blockers and browser privacy settings
     try {
       await trackPurchaseServerSide({
         orderId: order.id,

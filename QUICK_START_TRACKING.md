@@ -46,7 +46,7 @@ FACEBOOK_CONVERSIONS_API_TOKEN = your_token_starting_with_EAA
 ```
 
 4. Make sure they're checked for **Production** environment
-5. (Optional) Add `NEXT_PUBLIC_FACEBOOK_PIXEL_ID` with same pixel ID for browser tracking
+5. (Optional) Add `FACEBOOK_PIXEL_ID` with same pixel ID for browser tracking
 
 ---
 

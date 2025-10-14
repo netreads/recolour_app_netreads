@@ -76,7 +76,7 @@ Add to Vercel (or `.env.local` for local testing):
 
 ```bash
 # Browser pixel (optional but recommended)
-NEXT_PUBLIC_FACEBOOK_PIXEL_ID=123456789012345
+FACEBOOK_PIXEL_ID=123456789012345
 
 # Server-side tracking (CRITICAL - this is the fix)
 FACEBOOK_PIXEL_ID=123456789012345
