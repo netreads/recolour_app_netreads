@@ -154,10 +154,16 @@ export async function trackPurchaseServerSide(params: {
   // This ensures Facebook doesn't count the same purchase twice
   const eventId = `${orderId}_${jobId || orderId}`;
 
+  // IMPORTANT: eventSourceUrl is required for proper event attribution
+  // If not provided, fallback to NEXT_PUBLIC_APP_URL or a generic domain
+  const finalEventSourceUrl = eventSourceUrl || 
+                               process.env.NEXT_PUBLIC_APP_URL || 
+                               'https://app.example.com'; // Generic fallback
+
   const eventData: ConversionEventData = {
     eventName: 'Purchase',
     eventTime: Math.floor(Date.now() / 1000),
-    eventSourceUrl: eventSourceUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://yoursite.com',
+    eventSourceUrl: finalEventSourceUrl,
     actionSource: 'website',
     eventId, // Facebook will deduplicate with browser pixel if both send same event_id
     userData,
@@ -168,6 +174,18 @@ export async function trackPurchaseServerSide(params: {
       content_type: 'product',
     },
   };
+
+  // Log warning if critical user data is missing (dev only)
+  if (process.env.NODE_ENV === 'development') {
+    const missingFields: string[] = [];
+    if (!userData.client_ip_address) missingFields.push('IP address');
+    if (!userData.client_user_agent) missingFields.push('user agent');
+    if (!userData.fbc && !userData.fbp) missingFields.push('Facebook cookies (fbc/fbp)');
+    if (missingFields.length > 0) {
+      console.warn(`[Facebook CAPI] Missing user data for better Event Match Quality: ${missingFields.join(', ')}`);
+      console.warn('[Facebook CAPI] Events may show as "__missing_event" without proper user data.');
+    }
+  }
 
   await sendFacebookConversionEvent(eventData);
 }
@@ -200,10 +218,14 @@ export async function trackInitiateCheckoutServerSide(params: {
     eventSourceUrl,
   } = params;
 
+  const finalEventSourceUrl = eventSourceUrl || 
+                               process.env.NEXT_PUBLIC_APP_URL || 
+                               'https://app.example.com';
+
   const eventData: ConversionEventData = {
     eventName: 'InitiateCheckout',
     eventTime: Math.floor(Date.now() / 1000),
-    eventSourceUrl: eventSourceUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://yoursite.com',
+    eventSourceUrl: finalEventSourceUrl,
     actionSource: 'website',
     userData: {
       client_ip_address: ipAddress,

@@ -82,6 +82,14 @@ interface PaymentData {
 
 interface OrderMetadata {
   jobId?: string;
+  tracking?: {
+    ipAddress?: string;
+    userAgent?: string;
+    eventSourceUrl?: string;
+    fbc?: string;
+    fbp?: string;
+    timestamp?: number;
+  };
 }
 
 async function handlePaymentSuccess(data: PaymentData | undefined) {
@@ -128,13 +136,24 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
     }
 
     // Track purchase via Facebook Conversions API (server-side)
+    // This bypasses ad blockers and ensures accurate conversion tracking
     try {
+      const metadata = order.metadata as OrderMetadata;
+      const tracking = metadata?.tracking;
+      
       await trackPurchaseServerSide({
         orderId: order.id,
-        jobId: (order.metadata as OrderMetadata)?.jobId,
+        jobId: metadata?.jobId,
         amount: order.amount,
         currency: 'INR',
         userId: order.userId || undefined,
+        // Critical user data for Facebook Event Match Quality (EMQ)
+        // Without these, events may show as "__missing_event" in Facebook
+        ipAddress: tracking?.ipAddress,
+        userAgent: tracking?.userAgent,
+        fbc: tracking?.fbc, // Facebook click ID from _fbc cookie
+        fbp: tracking?.fbp, // Facebook browser ID from _fbp cookie
+        eventSourceUrl: tracking?.eventSourceUrl,
       });
     } catch (error) {
       // Silent fail - don't break webhook processing if tracking fails

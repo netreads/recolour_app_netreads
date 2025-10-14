@@ -173,6 +173,12 @@ await trackPurchaseServerSide({
 
 ## 🚨 Troubleshooting
 
+### "Seeing `__missing_event` in Events Manager"
+
+**This has been fixed!** See [FACEBOOK_MISSING_EVENT_FIX.md](./FACEBOOK_MISSING_EVENT_FIX.md) for details.
+
+The fix ensures all user data parameters (IP, user agent, Facebook cookies) are captured and sent to Facebook for proper event matching.
+
 ### "No events showing in Events Manager"
 
 1. ✅ Check environment variables are set correctly
@@ -183,9 +189,10 @@ await trackPurchaseServerSide({
 
 ### "Events marked as 'Poor Quality'"
 
-- Add more user data (email, phone, IP, user agent)
+- ✅ User data (IP, user agent, cookies) is now automatically captured
+- Optionally add email/phone for even higher Event Match Quality
 - Ensure event_time is accurate (within 7 days)
-- Pass Facebook click ID (fbc) and browser ID (fbp) cookies
+- Pass Facebook click ID (fbc) and browser ID (fbp) cookies (now automatic)
 
 ### "Getting duplicate events"
 

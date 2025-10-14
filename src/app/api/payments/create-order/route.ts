@@ -24,6 +24,23 @@ export async function POST(request: NextRequest) {
     // Derive base URL from env or request (for return/notify)
     const origin = env.NEXT_PUBLIC_APP_URL || request.headers.get('origin') || '';
 
+    // Capture user data for Facebook Conversions API tracking
+    // This data is essential for Facebook's Event Match Quality (EMQ) and proper attribution
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                     request.headers.get('x-real-ip') || 
+                     request.headers.get('cf-connecting-ip') || // Cloudflare
+                     undefined;
+    const userAgent = request.headers.get('user-agent') || undefined;
+    const referer = request.headers.get('referer') || origin || undefined;
+    
+    // Facebook cookies for improved event matching
+    // These are critical for deduplication between browser and server events
+    const cookies = request.headers.get('cookie') || '';
+    const fbcMatch = cookies.match(/_fbc=([^;]+)/);
+    const fbpMatch = cookies.match(/_fbp=([^;]+)/);
+    const fbc = fbcMatch ? fbcMatch[1] : undefined;
+    const fbp = fbpMatch ? fbpMatch[1] : undefined;
+
     // Create order in database (all purchases are anonymous, no credits)
     await prisma.order.create({
       data: {
@@ -33,7 +50,18 @@ export async function POST(request: NextRequest) {
         amount: PRICING.SINGLE_IMAGE.PAISE,
         currency: 'INR',
         status: 'PENDING',
-        metadata: { jobId },
+        metadata: { 
+          jobId,
+          // User data for Facebook Conversions API tracking
+          tracking: {
+            ipAddress,
+            userAgent,
+            eventSourceUrl: referer,
+            fbc, // Facebook click ID
+            fbp, // Facebook browser ID
+            timestamp: Date.now(),
+          }
+        },
       },
     } as any); // Cast to bypass Prisma type checking for Json field
 
