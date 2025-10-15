@@ -56,9 +56,6 @@ export function Footer() {
               </button>
               {openSection === "support" && (
                 <nav className="px-4 py-3 space-y-2 bg-accent/50">
-                  <Link href="/help" className="block py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Help Center
-                  </Link>
                   <Link href="/contact" className="block py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     Contact Us
                   </Link>
@@ -141,9 +138,6 @@ export function Footer() {
               <div className="space-y-4">
                 <h3 className="font-semibold text-base">Support</h3>
                 <nav className="flex flex-col space-y-3">
-                  <Link href="/help" className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all">
-                    Help Center
-                  </Link>
                   <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all">
                     Contact Us
                   </Link>

@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
-// import { SpeedInsights } from "@vercel/speed-insights/next"; // Disabled to reduce Vercel costs
-// import { Analytics } from "@vercel/analytics/react"; // Disabled to reduce Vercel costs
 import { FacebookPixel } from "@/components/FacebookPixel";
 import { MicrosoftClarity } from "@/components/MicrosoftClarity";
+
+// OPTIMIZATION: Lazy load Footer to reduce initial bundle size by ~10KB
+// Still renders on server (ssr: true) but loaded as separate chunk
+const Footer = dynamic(() => import("@/components/Footer").then(mod => ({ default: mod.Footer })), {
+  ssr: true,
+  loading: () => null,
+});
 
 
 export const metadata: Metadata = {
@@ -59,10 +64,6 @@ export default function RootLayout({
           <Footer />
         </div>
         <Toaster />
-        {/* SpeedInsights and Analytics disabled to reduce Vercel costs */}
-        {/* <SpeedInsights /> */}
-        {/* <Analytics /> */}
-        
       </body>
     </html>
   );

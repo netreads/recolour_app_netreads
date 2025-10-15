@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,6 @@ const LOADING_TIPS = [
 
 export default function HomePage() {
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
