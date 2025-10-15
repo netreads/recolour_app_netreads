@@ -311,11 +311,11 @@ export default function HomePage() {
             "@type": "VideoObject",
             "name": "ReColor AI Demo Video",
             "description": "Watch how our AI transforms black and white photos into vibrant memories",
-            "thumbnailUrl": "https://drive.google.com/thumbnail?id=1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ",
+            "thumbnailUrl": "https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/demo_video_recolorAI.mp4",
             "uploadDate": "2024-01-01",
             "duration": "PT30S",
-            "contentUrl": "https://drive.google.com/file/d/1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ/view",
-            "embedUrl": "https://drive.google.com/file/d/1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ/preview",
+            "contentUrl": "https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/demo_video_recolorAI.mp4",
+            "embedUrl": "https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/demo_video_recolorAI.mp4",
             "publisher": {
               "@type": "Organization",
               "name": "ReColor AI",
@@ -728,13 +728,13 @@ export default function HomePage() {
                   <div className="grid grid-cols-2">
                     <div className="relative">
                       <Image
-                        src="/indian wedding original.jpg"
+                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/indian%20wedding%20original.jpg`}
                         alt="Indian wedding photo before colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={85}
+                        quality={75}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
@@ -742,13 +742,13 @@ export default function HomePage() {
                     </div>
                     <div className="relative">
                       <Image
-                        src="/indian wedding colour.jpg"
+                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/indian%20wedding%20colour.jpg`}
                         alt="Indian wedding photo after colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={85}
+                        quality={75}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -769,13 +769,13 @@ export default function HomePage() {
                   <div className="grid grid-cols-2">
                     <div className="relative">
                       <Image
-                        src="/grandfather original.jpg"
+                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/grandfather%20original.jpg`}
                         alt="Grandfather portrait before colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={85}
+                        quality={75}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
@@ -783,13 +783,13 @@ export default function HomePage() {
                     </div>
                     <div className="relative">
                       <Image
-                        src="/grandfather colour.jpg"
+                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/grandfather%20colour.jpg`}
                         alt="Grandfather portrait after colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={85}
+                        quality={75}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -810,13 +810,13 @@ export default function HomePage() {
                   <div className="grid grid-cols-2">
                     <div className="relative">
                       <Image
-                        src="/festival original.jpg"
+                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/festival%20original.jpg`}
                         alt="Festival celebration before colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={85}
+                        quality={75}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
@@ -824,13 +824,13 @@ export default function HomePage() {
                     </div>
                     <div className="relative">
                       <Image
-                        src="/festival colour.jpg"
+                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/festival%20colour.jpg`}
                         alt="Festival celebration after colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={85}
+                        quality={75}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -860,17 +860,18 @@ export default function HomePage() {
 
             <div className="max-w-4xl mx-auto">
               <div className="relative aspect-video rounded-xl sm:rounded-2xl overflow-hidden shadow-xl sm:shadow-2xl hover:shadow-2xl sm:hover:shadow-3xl transition-shadow duration-300">
-                <iframe
-                  src="https://drive.google.com/file/d/1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ/preview"
+                <video
+                  src="https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/demo_video_recolorAI.mp4"
                   title="ReColor AI Demo Video - Watch how our AI transforms black and white photos into vibrant memories"
                   className="w-full h-full"
-                  loading="lazy"
-                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  data-video-id="1BH6LfAYHKFIKePOI4Nscwqur2q4U2moZ"
+                  controls
+                  preload="metadata"
+                  playsInline
                   data-video-title="ReColor AI Demo Video"
                   data-video-description="Watch how our AI transforms black and white photos into vibrant memories"
-                />
+                >
+                  Your browser does not support the video tag.
+                </video>
                 <div className="absolute top-4 right-4">
                   <Badge className="bg-red-500 text-white">Demo</Badge>
                 </div>

@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Cookie, Settings, Shield, Eye, Database, Target } from "lucide-react";
 
+// Enable ISR - revalidate every hour to reduce function invocations
+export const revalidate = 3600;
+
 export default function CookiePolicyPage() {
   const cookieCategories = [
     {

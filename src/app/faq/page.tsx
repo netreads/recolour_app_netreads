@@ -2,6 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { HelpCircle, Zap, CreditCard, Shield, Download, Upload, Image, Settings } from "lucide-react";
 
+// Enable ISR - revalidate every hour to reduce function invocations
+export const revalidate = 3600;
+
 export default function FaqPage() {
   const faqCategories = [
     {

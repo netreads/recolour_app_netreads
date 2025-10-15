@@ -3,6 +3,9 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Shield, Eye, Database, Users, Globe, Lock, Mail } from "lucide-react";
 
+// Enable ISR - revalidate every hour to reduce function invocations
+export const revalidate = 3600;
+
 export default function PrivacyPage() {
   return (
     <div className="container mx-auto px-4 py-16 max-w-6xl">

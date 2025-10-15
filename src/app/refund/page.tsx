@@ -3,6 +3,9 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, CreditCard, Clock, Shield, AlertCircle, CheckCircle, XCircle, Mail, FileText } from "lucide-react";
 
+// Enable ISR - revalidate every hour to reduce function invocations
+export const revalidate = 3600;
+
 export default function RefundPage() {
   return (
     <div className="container mx-auto px-4 py-16 max-w-6xl">

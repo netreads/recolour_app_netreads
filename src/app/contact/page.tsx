@@ -2,6 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Mail, MapPin, Clock, MessageCircle } from "lucide-react";
 
+// Enable ISR - revalidate every hour to reduce function invocations
+export const revalidate = 3600;
+
 export default function ContactPage() {
   return (
     <div className="container mx-auto px-4 py-16 max-w-6xl">

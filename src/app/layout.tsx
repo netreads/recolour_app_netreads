@@ -10,13 +10,14 @@ import { MicrosoftClarity } from "@/components/MicrosoftClarity";
 
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://netreads.in'),
   title: "ReColor AI - Bring Old Photos to Life",
   description: "Recolorize your old black & white images using AI",
   icons: { icon: "/favicon.ico" },
   openGraph: {
     title: "ReColor AI - Bring Old Photos to Life",
     description: "Recolorize your old black & white images using AI",
-    url: "https://recolor.example.com",
+    url: "https://netreads.in",
     siteName: "ReColor AI",
     images: [
       {
@@ -47,9 +48,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-background font-sans antialiased">
-        {/* Tracking Scripts - loaded with beforeInteractive strategy for early initialization */}
+        {/* Tracking Scripts - optimized loading to reduce CPU usage */}
         {pixelId && <FacebookPixel pixelId={pixelId} />}
         <MicrosoftClarity />
+        {/* Microsoft Clarity will only load if NEXT_PUBLIC_MICROSOFT_CLARITY_ID is set */}
         
         <div className="relative flex min-h-screen flex-col">
           <Navbar />
