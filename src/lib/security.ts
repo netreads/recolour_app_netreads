@@ -2,7 +2,8 @@
 
 export function getSecurityHeaders() {
   return {
-    'X-Frame-Options': 'DENY',
+    // Allow framing ONLY for specific trusted domains (Google, Facebook)
+    // This is more flexible than X-Frame-Options: DENY
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
@@ -16,10 +17,10 @@ export function getSecurityHeaders() {
       "img-src 'self' data: https: blob:",
       "media-src 'self' https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev",
       "connect-src 'self' https://*.supabase.co https://*.supabase.io wss://*.supabase.co wss://*.supabase.io https://www.facebook.com https://connect.facebook.net https://va.vercel-scripts.com https://www.clarity.ms https://*.run.app https://*.conversionsapigateway.com",
-      "frame-src 'self' https://accounts.google.com",
+      "frame-src 'self' https://accounts.google.com https://www.facebook.com https://connect.facebook.net",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      "form-action 'self' https://www.facebook.com",
       "frame-ancestors 'none'"
     ].join('; ')
   };
