@@ -11,9 +11,9 @@ interface SecureImagePreviewProps {
 }
 
 /**
- * SECURITY: Canvas-based secure image preview that prevents URL extraction
- * The image URL is never exposed in the DOM, making it impossible to extract via inspect element
- * The image is rendered to canvas which prevents direct URL access
+ * SECURITY: Obfuscated image preview that makes URL extraction difficult
+ * Uses base64 data URL to hide the actual image source from DOM inspection
+ * Images load directly from R2 (no Vercel bandwidth costs)
  */
 export function SecureImagePreview({
   imageUrl,
@@ -23,96 +23,33 @@ export function SecureImagePreview({
   blur = false,
 }: SecureImagePreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [resizeKey, setResizeKey] = useState(0);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [obfuscatedUrl, setObfuscatedUrl] = useState<string>("");
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     setIsLoading(true);
     
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: false });
-    if (!ctx) return;
-
-    // Create a new image element (not added to DOM)
-    // Note: We intentionally do NOT set crossOrigin, which makes the canvas "tainted"
-    // This prevents users from extracting image data via canvas.toDataURL() or getImageData()
-    const img = new Image();
-    
-    img.onload = () => {
-      // Set canvas size to match image
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // Calculate dimensions to fit image in container while maintaining aspect ratio
-      const imgAspect = img.width / img.height;
-      const containerAspect = containerWidth / containerHeight;
-      
-      let drawWidth, drawHeight, offsetX, offsetY;
-      
-      if (imgAspect > containerAspect) {
-        // Image is wider than container
-        drawWidth = containerWidth;
-        drawHeight = containerWidth / imgAspect;
-        offsetX = 0;
-        offsetY = (containerHeight - drawHeight) / 2;
-      } else {
-        // Image is taller than container
-        drawHeight = containerHeight;
-        drawWidth = containerHeight * imgAspect;
-        offsetX = (containerWidth - drawWidth) / 2;
-        offsetY = 0;
-      }
-      
-      canvas.width = containerWidth;
-      canvas.height = containerHeight;
-      
-      // Clear canvas
-      ctx.clearRect(0, 0, containerWidth, containerHeight);
-      
-      // Draw image
-      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-      
-      
-      setIsLoading(false);
-    };
-
-    img.onerror = () => {
-      console.error('Failed to load image for secure preview');
-      setIsLoading(false);
-    };
-
-    // Load the image
-    img.src = imageUrl;
-
-    // Cleanup
-    return () => {
-      img.src = '';
-    };
-  }, [imageUrl, blur, resizeKey]);
-
-  // Handle window resize - redraw canvas
-  useEffect(() => {
-    let resizeTimeout: NodeJS.Timeout;
-    
-    const handleResize = () => {
-      // Debounce resize events to avoid excessive redraws
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        // Increment resize key to trigger canvas redraw
-        setResizeKey(prev => prev + 1);
-      }, 150);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
+    // Fetch the image and convert to base64 to hide the original URL
+    // This loads directly from R2, no Vercel proxy bandwidth
+    fetch(imageUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setObfuscatedUrl(reader.result as string);
+          setIsLoading(false);
+        };
+        reader.onerror = () => {
+          console.error('Failed to load preview image');
+          setIsLoading(false);
+        };
+        reader.readAsDataURL(blob);
+      })
+      .catch(() => {
+        console.error('Failed to fetch preview image');
+        setIsLoading(false);
+      });
+  }, [imageUrl]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -124,9 +61,15 @@ export function SecureImagePreview({
     return false;
   };
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Prevent right click
+    if (e.button === 2) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div 
-      ref={containerRef}
       className={`relative ${className}`}
       data-secure-preview="true"
       onContextMenu={handleContextMenu}
@@ -144,22 +87,27 @@ export function SecureImagePreview({
         </div>
       )}
       
-      {/* Canvas rendering - URL not exposed in DOM */}
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full object-contain"
-        onContextMenu={handleContextMenu}
-        onDragStart={handleDragStart}
-        style={{
-          userSelect: "none",
-          WebkitUserSelect: "none",
-          WebkitTouchCallout: "none",
-          opacity: isLoading ? 0 : 1,
-          transition: "opacity 0.3s ease-in-out",
-        }}
-      />
+      {/* Image with obfuscated URL (base64 data URL) */}
+      {obfuscatedUrl && (
+        <img
+          ref={imgRef}
+          src={obfuscatedUrl}
+          alt={alt}
+          className={`w-full h-full object-contain ${blur ? "blur-sm" : ""}`}
+          onContextMenu={handleContextMenu}
+          onDragStart={handleDragStart}
+          onPointerDown={handlePointerDown}
+          style={{
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none",
+            opacity: isLoading ? 0 : 1,
+            transition: "opacity 0.3s ease-in-out",
+          }}
+        />
+      )}
       
-      {/* CSS-based watermarks - much lighter than canvas */}
+      {/* CSS-based watermarks */}
       {watermarkText && watermarkText.trim() !== "" && (
         <>
           {/* Main watermark overlays */}
@@ -219,4 +167,3 @@ export function SecureImagePreview({
     </div>
   );
 }
-
