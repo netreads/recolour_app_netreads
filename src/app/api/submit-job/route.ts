@@ -240,11 +240,23 @@ export async function POST(request: NextRequest) {
         status: JOB_STATUS.DONE,
       });
 
-      return NextResponse.json({
-        success: true,
-        jobId,
-        outputUrl,
-      });
+      // OPTIMIZATION: Include originalUrl in response to eliminate extra API call
+      // This saves one additional function invocation per job submission
+      return NextResponse.json(
+        {
+          success: true,
+          jobId,
+          outputUrl,
+          originalUrl: job.originalUrl,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            // Don't cache this response as it's unique per job
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+          },
+        }
+      );
     } catch (processingError: unknown) {
       const err = processingError as Error & { code?: number; status?: string; retryDelay?: string };
       

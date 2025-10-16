@@ -174,6 +174,10 @@ export default function HomePage() {
         throw new Error(errorData.error || "Failed to submit job");
       }
 
+      // OPTIMIZATION: Get originalUrl and outputUrl from submit-job response
+      // This eliminates an extra API call, saving bandwidth and improving speed
+      const submitData = await submitResponse.json();
+
       // Let the progress animation complete smoothly
       await new Promise(resolve => setTimeout(resolve, 500));
       clearInterval(colorizingInterval);
@@ -194,23 +198,13 @@ export default function HomePage() {
       await new Promise(resolve => setTimeout(resolve, 600));
       clearInterval(finalizingInterval);
       setUploadProgress(100);
-
-      // Fetch the job data to get the actual image URLs
-      const jobResponse = await fetch(`/api/get-image-url?jobId=${jobId}&type=original`);
-      const jobData = await jobResponse.json();
-      
-      // Construct output URL (we know the format for this)
-      // For R2.dev public URLs, don't include the bucket name in the path
-      const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_URL || '';
-      const outputUrl = R2_PUBLIC_URL 
-        ? `${R2_PUBLIC_URL.replace(/\/$/, '')}/outputs/${jobId}-colorized.jpg`
-        : '';
       
       // Create a new job entry and show preview
+      // OPTIMIZATION: Use URLs from submit-job response (no extra API call needed)
       const newJob: Job = {
         id: jobId,
-        original_url: jobData.url || '', // Actual URL from database
-        output_url: outputUrl,
+        original_url: submitData.originalUrl || '',
+        output_url: submitData.outputUrl || '',
         status: 'done',
         created_at: new Date().toISOString(),
         isPaid: false,

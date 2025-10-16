@@ -94,14 +94,23 @@ export async function POST(request: NextRequest) {
     const db = getDatabase();
     await db.createJob(jobId, null, originalUrl);
 
-    return NextResponse.json({
-      success: true,
-      jobId,
-      originalUrl,
-      // Return presigned URL for client-side upload
-      uploadUrl: signedUpload.url,
-      fileKey,
-    });
+    // OPTIMIZATION: Add explicit response headers for better compression
+    return NextResponse.json(
+      {
+        success: true,
+        jobId,
+        originalUrl,
+        // Return presigned URL for client-side upload
+        uploadUrl: signedUpload.url,
+        fileKey,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      }
+    );
   } catch (error) {
     // Always log errors but sanitize for production
     const env = getServerEnv();

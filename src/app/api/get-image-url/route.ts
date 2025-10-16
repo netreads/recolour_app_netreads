@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDatabase } from "@/lib/db";
-import { getServerEnv } from "@/lib/env";
+import { prisma } from "@/lib/db";
 import { API_CONFIG } from "@/lib/constants";
 
-// Force Node.js runtime
+// Use Node.js runtime (required for Prisma)
 export const runtime = 'nodejs';
 
 // Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = 10; // Reduced - simple DB query shouldn't take long
+export const maxDuration = 10; // Simple DB query shouldn't take long
 
 // Mark as dynamic to prevent static rendering at build time
 export const dynamic = 'force-dynamic';
-
-// Cache these responses aggressively since URLs don't change
-export const revalidate = 3600; // 1 hour
 
 /**
  * Transform internal R2 URL to public R2 URL
@@ -89,8 +85,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get job from database
-    const db = getDatabase();
-    const job = await db.getJobById(jobId);
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: {
+        originalUrl: true,
+        outputUrl: true,
+      },
+    });
 
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
