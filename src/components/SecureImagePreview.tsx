@@ -32,7 +32,12 @@ export function SecureImagePreview({
     // Fetch the image and convert to base64 to hide the original URL
     // This loads directly from R2, no Vercel proxy bandwidth
     fetch(imageUrl)
-      .then(response => response.blob())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.blob();
+      })
       .then(blob => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -40,13 +45,13 @@ export function SecureImagePreview({
           setIsLoading(false);
         };
         reader.onerror = () => {
-          console.error('Failed to load preview image');
+          console.error('Failed to load preview image - FileReader error');
           setIsLoading(false);
         };
         reader.readAsDataURL(blob);
       })
-      .catch(() => {
-        console.error('Failed to fetch preview image');
+      .catch((error) => {
+        console.error('Failed to fetch preview image:', error);
         setIsLoading(false);
       });
   }, [imageUrl]);
