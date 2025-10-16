@@ -45,7 +45,6 @@ export default function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
 
-  // Rotate tips during upload
   useEffect(() => {
     if (!isUploading) return;
     
@@ -56,9 +55,7 @@ export default function HomePage() {
     return () => clearInterval(tipInterval);
   }, [isUploading]);
 
-  // Use direct R2 URLs to avoid expensive serverless function invocations
   const getImageUrl = (jobId: string, type: 'original' | 'output'): string => {
-    // If we have the job data, use the actual URLs from the database
     if (currentJob && currentJob.id === jobId) {
       if (type === 'original' && currentJob.original_url) {
         return currentJob.original_url;
@@ -68,7 +65,6 @@ export default function HomePage() {
       }
     }
     
-    // Fallback to constructed URL (works for output, may not work for original without filename)
     return getDirectImageUrl(jobId, type);
   };
 
@@ -82,10 +78,8 @@ export default function HomePage() {
     setCurrentTip(0);
 
     try {
-      // Stage 1: Uploading (0-25%)
       setUploadStage('uploading');
       
-      // OPTIMIZATION: Get presigned URL first (lightweight API call)
       const presignedResponse = await fetch("/api/upload-via-presigned", {
         method: "POST",
         headers: {
@@ -105,13 +99,10 @@ export default function HomePage() {
 
       const { jobId, uploadUrl } = await presignedResponse.json();
 
-      // OPTIMIZATION: Upload directly to R2 using presigned URL
-      // This bypasses Vercel entirely, saving 100% of upload bandwidth
       const uploadProgressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 25) return 25;
           const remaining = 25 - prev;
-          // Faster at start, slower near end
           const increment = Math.max(0.5, remaining * 0.2);
           return Math.min(prev + increment, 25);
         });
@@ -132,12 +123,11 @@ export default function HomePage() {
         throw new Error(`Failed to upload file to storage (${uploadResponse.status})`);
       }
 
-      // Stage 2: Analyzing (25-40%)
       setUploadStage('analyzing');
       const analyzingInterval = setInterval(() => {
         setUploadProgress((prev) => {
           const remaining = 40 - prev;
-          const increment = Math.max(0.5, remaining * 0.15); // Slow down as approaching target
+          const increment = Math.max(0.5, remaining * 0.15);
           return Math.min(prev + increment, 40);
         });
       }, 100);
@@ -146,15 +136,12 @@ export default function HomePage() {
       clearInterval(analyzingInterval);
       setUploadProgress(40);
 
-      // Stage 3: Colorizing (40-85%)
       setUploadStage('colorizing');
       
-      // Start progress animation immediately for better UX
       const colorizingInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 85) return 85;
           const remaining = 85 - prev;
-          // Slow down as we approach the target for realistic feel
           const increment = Math.max(0.3, remaining * 0.08);
           return Math.min(prev + increment, 85);
         });
@@ -174,22 +161,17 @@ export default function HomePage() {
         throw new Error(errorData.error || "Failed to submit job");
       }
 
-      // OPTIMIZATION: Get originalUrl and outputUrl from submit-job response
-      // This eliminates an extra API call, saving bandwidth and improving speed
       const submitData = await submitResponse.json();
 
-      // Let the progress animation complete smoothly
       await new Promise(resolve => setTimeout(resolve, 500));
       clearInterval(colorizingInterval);
       setUploadProgress(85);
 
-      // Stage 4: Finalizing (85-100%)
       setUploadStage('finalizing');
       const finalizingInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 100) return 100;
           const remaining = 100 - prev;
-          // Quick finish for final stage
           const increment = Math.max(1, remaining * 0.25);
           return Math.min(prev + increment, 100);
         });
@@ -199,8 +181,6 @@ export default function HomePage() {
       clearInterval(finalizingInterval);
       setUploadProgress(100);
       
-      // Create a new job entry and show preview
-      // OPTIMIZATION: Use URLs from submit-job response (no extra API call needed)
       const newJob: Job = {
         id: jobId,
         original_url: submitData.originalUrl || '',
@@ -213,7 +193,6 @@ export default function HomePage() {
       setCurrentJob(newJob);
       setShowPaymentModal(true);
       
-      // Track InitiateCheckout event when preview is shown
       trackInitiateCheckout(PRICING.SINGLE_IMAGE.RUPEES, 'INR', [jobId]);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to upload file. Please try again.";
@@ -243,12 +222,10 @@ export default function HomePage() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith('image/')) {
-        // Clean up previous blob URL if exists
         if (previewUrlRef.current) {
           URL.revokeObjectURL(previewUrlRef.current);
           previewUrlRef.current = null;
         }
-        // Create new blob URL
         previewUrlRef.current = URL.createObjectURL(file);
         setUploadFile(file);
       } else {
@@ -260,12 +237,10 @@ export default function HomePage() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      // Clean up previous blob URL if exists
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
         previewUrlRef.current = null;
       }
-      // Create new blob URL
       previewUrlRef.current = URL.createObjectURL(file);
       setUploadFile(file);
     } else {
@@ -278,7 +253,6 @@ export default function HomePage() {
     
     setIsProcessingPayment(true);
     try {
-      // Create order for single image (₹49)
       const orderResponse = await fetch('/api/payments/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,10 +267,8 @@ export default function HomePage() {
 
       const { redirectUrl } = await orderResponse.json();
       
-      // Store current job in localStorage for retrieval after payment
       localStorage.setItem('pending_job', JSON.stringify(currentJob));
       
-      // Redirect to PhonePe payment
       window.location.href = redirectUrl;
     } catch (error) {
       console.error('Payment error:', error);
@@ -307,7 +279,6 @@ export default function HomePage() {
   };
 
   const handleTryAnother = () => {
-    // Clean up any existing blob URL to prevent memory leak
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = null;
@@ -318,7 +289,6 @@ export default function HomePage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
       if (previewUrlRef.current) {
@@ -329,7 +299,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* SEO Structured Data for Video */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -446,7 +415,6 @@ export default function HomePage() {
                           type="button"
                           variant="outline"
                           onClick={() => {
-                            // Clean up blob URL
                             if (previewUrlRef.current) {
                               URL.revokeObjectURL(previewUrlRef.current);
                               previewUrlRef.current = null;

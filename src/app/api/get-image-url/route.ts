@@ -1,64 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { API_CONFIG } from "@/lib/constants";
 
-// Use Node.js runtime (required for Prisma)
 export const runtime = 'nodejs';
-
-// Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = 10; // Simple DB query shouldn't take long
-
-// Mark as dynamic to prevent static rendering at build time
+export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
-/**
- * Transform internal R2 URL to public R2 URL
- * This handles both old URLs (with bucket name) and new URLs (without bucket name)
- */
+
 function transformToPublicUrl(storedUrl: string): string {
   const publicUrl = process.env.NEXT_PUBLIC_R2_URL;
   
   if (!publicUrl) {
-    // If public URL not configured, return as-is
     return storedUrl;
   }
   
   try {
-    // Parse the stored URL
     const url = new URL(storedUrl);
     
-    // Check if it's already a public R2.dev URL (already in correct format)
     if (url.hostname.includes('.r2.dev')) {
       return storedUrl;
     }
     
-    // Handle internal R2 URLs (for backwards compatibility)
-    // Example: https://account.r2.cloudflarestorage.com/recolor-images/uploads/file.jpg
     if (url.hostname.includes('.r2.cloudflarestorage.com')) {
       const pathParts = url.pathname.split('/').filter(Boolean);
       
-      // The path parts are typically: [bucket, 'uploads'/'outputs', filename]
-      // Example: ['recolor-images', 'uploads', 'jobId-file.jpg']
-      
       if (pathParts.length < 2) {
-        // Invalid path format
         return storedUrl;
       }
       
-      // Extract just the storage path (uploads/xxx or outputs/xxx)
-      // Skip the bucket name (first element)
       const storagePath = pathParts.slice(1).join('/');
-      
-      // Clean up public URL (remove trailing slash)
       const cleanPublicUrl = publicUrl.replace(/\/$/, '');
-      
-      // Construct the final URL
       const publicFullUrl = `${cleanPublicUrl}/${storagePath}`;
       
       return publicFullUrl;
     }
     
-    // For any other URL format, return as-is
     return storedUrl;
   } catch (error) {
     console.error('Error transforming URL:', error);
@@ -66,10 +41,6 @@ function transformToPublicUrl(storedUrl: string): string {
   }
 }
 
-/**
- * Lightweight API endpoint to get the actual image URLs from the database
- * This is needed because original filenames vary and we can't construct the URL without them
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -97,17 +68,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    // Get the appropriate URL from database
     let url = type === 'original' ? job.originalUrl : job.outputUrl;
     
     if (!url) {
       return NextResponse.json({ error: `${type} image not available` }, { status: 404 });
     }
 
-    // Transform internal R2 URL to public URL
     url = transformToPublicUrl(url);
 
-    // OPTIMIZATION: Return minimal JSON response with compression headers
     return NextResponse.json(
       { url },
       {

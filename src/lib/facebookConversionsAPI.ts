@@ -1,18 +1,3 @@
-/**
- * Facebook Conversions API (Server-Side Tracking)
- * 
- * This bypasses ad blockers and browser privacy settings to ensure
- * accurate conversion tracking even when browser-side pixel is blocked.
- * 
- * Setup:
- * 1. Add to .env.local:
- *    FACEBOOK_PIXEL_ID=your_pixel_id
- *    FACEBOOK_CONVERSIONS_API_TOKEN=your_capi_token
- * 
- * 2. Get your Conversions API token from:
- *    Events Manager > Settings > Conversions API > Generate Access Token
- */
-
 import { getServerEnv } from '@/lib/env';
 import crypto from 'crypto';
 
@@ -39,18 +24,10 @@ interface ConversionEventData {
   };
 }
 
-/**
- * Hash data for Facebook Conversions API
- * Facebook requires PII to be SHA256 hashed
- */
 function hashData(data: string): string {
   return crypto.createHash('sha256').update(data.toLowerCase().trim()).digest('hex');
 }
 
-/**
- * Send conversion event to Facebook Conversions API
- * This runs server-side and bypasses browser tracking limitations
- */
 export async function sendFacebookConversionEvent(
   eventData: ConversionEventData
 ): Promise<{ success: boolean; error?: string }> {
@@ -60,7 +37,6 @@ export async function sendFacebookConversionEvent(
     const accessToken = process.env.FACEBOOK_CONVERSIONS_API_TOKEN;
 
     if (!pixelId || !accessToken) {
-      // Silent fail if not configured - don't break the payment flow
       if (env.NODE_ENV === 'development') {
         console.warn('Facebook Conversions API not configured. Set FACEBOOK_PIXEL_ID and FACEBOOK_CONVERSIONS_API_TOKEN');
       }
@@ -101,10 +77,6 @@ export async function sendFacebookConversionEvent(
   }
 }
 
-/**
- * Track a purchase event via Conversions API
- * Call this from your webhook when payment succeeds
- */
 export async function trackPurchaseServerSide(params: {
   orderId: string;
   jobId?: string;
@@ -150,22 +122,18 @@ export async function trackPurchaseServerSide(params: {
     userData.ph = hashData(userPhone);
   }
 
-  // Generate same event_id as browser pixel for deduplication
-  // This ensures Facebook doesn't count the same purchase twice
   const eventId = `${orderId}_${jobId || orderId}`;
 
-  // IMPORTANT: eventSourceUrl is required for proper event attribution
-  // If not provided, fallback to NEXT_PUBLIC_APP_URL or a generic domain
   const finalEventSourceUrl = eventSourceUrl || 
                                process.env.NEXT_PUBLIC_APP_URL || 
-                               'https://app.example.com'; // Generic fallback
+                               'https://app.example.com';
 
   const eventData: ConversionEventData = {
     eventName: 'Purchase',
     eventTime: Math.floor(Date.now() / 1000),
     eventSourceUrl: finalEventSourceUrl,
     actionSource: 'website',
-    eventId, // Facebook will deduplicate with browser pixel if both send same event_id
+    eventId,
     userData,
     customData: {
       value: amount,
@@ -175,7 +143,6 @@ export async function trackPurchaseServerSide(params: {
     },
   };
 
-  // Log warning if critical user data is missing (dev only)
   if (process.env.NODE_ENV === 'development') {
     const missingFields: string[] = [];
     if (!userData.client_ip_address) missingFields.push('IP address');
@@ -190,9 +157,6 @@ export async function trackPurchaseServerSide(params: {
   await sendFacebookConversionEvent(eventData);
 }
 
-/**
- * Track InitiateCheckout event via Conversions API
- */
 export async function trackInitiateCheckoutServerSide(params: {
   orderId: string;
   jobId?: string;

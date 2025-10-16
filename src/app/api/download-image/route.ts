@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-// Use Edge runtime for faster, cheaper execution
 export const runtime = 'edge';
 
-// OPTIMIZATION: Direct redirect to R2 instead of proxying through serverless
-// This reduces Fast Origin Transfer by 30-40% by avoiding image data going through Vercel
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -31,7 +28,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if job is paid
     if (!job.isPaid) {
       return NextResponse.json(
         { error: 'Unauthorized - Payment required' },
@@ -39,7 +35,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the appropriate URL
     const imageUrl = type === 'output' ? job.outputUrl : job.originalUrl;
 
     if (!imageUrl) {
@@ -49,9 +44,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // OPTIMIZATION: Redirect directly to R2 instead of proxying
-    // This saves Origin Transfer costs and reduces function duration by 90%
-    // The browser will download directly from R2
     return NextResponse.redirect(imageUrl, 302);
   } catch (error) {
     console.error('Download error:', error);

@@ -1,18 +1,5 @@
 import Script from 'next/script';
 
-/**
- * Facebook Pixel Component (Server Component)
- * 
- * To use this component, add your Facebook Pixel ID to your environment variables:
- * FACEBOOK_PIXEL_ID=your_pixel_id_here
- * 
- * This component automatically tracks:
- * - PageView: Tracks when pages are viewed
- * 
- * For client-side event tracking (InitiateCheckout, Purchase, etc.),
- * import from '@/lib/facebookTracking' instead.
- */
-
 interface FacebookPixelProps {
   pixelId: string;
 }

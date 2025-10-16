@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { validatePhonePeCallback } from '@/lib/phonepe';
 import { getServerEnv } from '@/lib/env';
-import { PAYMENT_STATUS, API_CONFIG } from '@/lib/constants';
+import { PAYMENT_STATUS } from '@/lib/constants';
 import { trackPurchaseServerSide } from '@/lib/facebookConversionsAPI';
 
 export const runtime = 'nodejs';
-
-// Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = 30; // Reduced from 60s to save costs
+export const maxDuration = 30;
 
 interface WebhookPayload {
   type?: string;
@@ -34,7 +32,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
     }
 
-    // Validate PhonePe callback
     let callbackResponse: WebhookPayload;
     try {
       callbackResponse = validatePhonePeCallback(username, password, authorization, body) as WebhookPayload;
@@ -43,9 +40,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { type, payload, event } = callbackResponse;
-
-    // Use event field instead of deprecated type parameter
-    // Rely only on payload.state field for payment status
     const eventType = event || type;
     const paymentState = payload?.state;
 
@@ -110,7 +104,6 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
       },
     });
 
-    // Create transaction record
     await prisma.transaction.create({
       data: {
         orderId: orderId,
@@ -124,7 +117,6 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
       },
     });
 
-    // Mark job as paid if this is a single image purchase
     if (order.metadata && typeof order.metadata === 'object') {
       const metadata = order.metadata as OrderMetadata;
       if (metadata.jobId) {
@@ -135,8 +127,6 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
       }
     }
 
-    // Track purchase via Facebook Conversions API (server-side)
-    // This bypasses ad blockers and ensures accurate conversion tracking
     try {
       const metadata = order.metadata as OrderMetadata;
       const tracking = metadata?.tracking;
@@ -147,16 +137,13 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
         amount: order.amount,
         currency: 'INR',
         userId: order.userId || undefined,
-        // Critical user data for Facebook Event Match Quality (EMQ)
-        // Without these, events may show as "__missing_event" in Facebook
         ipAddress: tracking?.ipAddress,
         userAgent: tracking?.userAgent,
-        fbc: tracking?.fbc, // Facebook click ID from _fbc cookie
-        fbp: tracking?.fbp, // Facebook browser ID from _fbp cookie
+        fbc: tracking?.fbc,
+        fbp: tracking?.fbp,
         eventSourceUrl: tracking?.eventSourceUrl,
       });
     } catch (error) {
-      // Silent fail - don't break webhook processing if tracking fails
       const env = getServerEnv();
       if (env.NODE_ENV === 'development') {
         console.error('Error tracking purchase server-side:', error);
@@ -180,7 +167,6 @@ async function handlePaymentFailed(data: PaymentData | undefined) {
   const paymentId = paymentDetails[0]?.transactionId || '';
 
   try {
-    // Get order to fetch userId
     const order = await prisma.order.findUnique({
       where: { id: orderId },
     });
@@ -189,7 +175,6 @@ async function handlePaymentFailed(data: PaymentData | undefined) {
       return;
     }
 
-    // Update order status
     await prisma.order.update({
       where: { id: orderId },
       data: {
@@ -199,7 +184,6 @@ async function handlePaymentFailed(data: PaymentData | undefined) {
       },
     });
 
-    // Create failed transaction record
     await prisma.transaction.create({
       data: {
         orderId: orderId,
@@ -228,7 +212,6 @@ async function handlePaymentPending(data: PaymentData | undefined) {
   const orderId = data.originalMerchantOrderId;
 
   try {
-    // Get order to check current status
     const order = await prisma.order.findUnique({
       where: { id: orderId },
     });
@@ -237,7 +220,6 @@ async function handlePaymentPending(data: PaymentData | undefined) {
       return;
     }
 
-    // Update order status to reflect pending state
     await prisma.order.update({
       where: { id: orderId },
       data: {
@@ -245,10 +227,6 @@ async function handlePaymentPending(data: PaymentData | undefined) {
         paymentStatus: 'PENDING',
       },
     });
-
-    // Note: For PENDING transactions, implement reconciliation
-    // This webhook indicates the transaction is still in progress
-    // The reconciliation schedule should be triggered here or via a background job
 
   } catch (error) {
     const env = getServerEnv();

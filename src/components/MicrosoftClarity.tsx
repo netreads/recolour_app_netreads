@@ -1,12 +1,5 @@
 import Script from 'next/script';
 
-/**
- * Microsoft Clarity Component
- * 
- * This component adds Microsoft Clarity tracking to your application.
- * Clarity provides session recordings and heatmaps to understand user behavior.
- */
-
 declare global {
   interface Window {
     clarity: any;
@@ -16,7 +9,6 @@ declare global {
 export function MicrosoftClarity() {
   const clarityId = process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID;
   
-  // Don't render if no Clarity ID is provided
   if (!clarityId) {
     return null;
   }

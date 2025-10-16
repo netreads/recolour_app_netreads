@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface SecureImagePreviewProps {
   imageUrl: string;
@@ -11,10 +11,9 @@ interface SecureImagePreviewProps {
 }
 
 /**
- * OPTIMIZATION: Simplified secure image preview using CSS overlays instead of canvas
- * This reduces bandwidth by not downloading images for client-side processing
- * Original canvas approach downloaded full images, processed them, and re-rendered
- * New approach uses CSS overlays and native <img> tags with proper caching
+ * SECURITY: Canvas-based secure image preview that prevents URL extraction
+ * The image URL is never exposed in the DOM, making it impossible to extract via inspect element
+ * The image is rendered to canvas which prevents direct URL access
  */
 export function SecureImagePreview({
   imageUrl,
@@ -24,20 +23,96 @@ export function SecureImagePreview({
   blur = false,
 }: SecureImagePreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const [resizeKey, setResizeKey] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset loading state when imageUrl changes
   useEffect(() => {
     setIsLoading(true);
-  }, [imageUrl]);
+    
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
-  // OPTIMIZATION: Simple image load handler - no canvas processing needed
-  const handleImageLoad = () => {
-    setIsLoading(false);
-  };
+    const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    if (!ctx) return;
 
-  const handleImageError = () => {
-    setIsLoading(false);
-  };
+    // Create a new image element (not added to DOM)
+    // Note: We intentionally do NOT set crossOrigin, which makes the canvas "tainted"
+    // This prevents users from extracting image data via canvas.toDataURL() or getImageData()
+    const img = new Image();
+    
+    img.onload = () => {
+      // Set canvas size to match image
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Calculate dimensions to fit image in container while maintaining aspect ratio
+      const imgAspect = img.width / img.height;
+      const containerAspect = containerWidth / containerHeight;
+      
+      let drawWidth, drawHeight, offsetX, offsetY;
+      
+      if (imgAspect > containerAspect) {
+        // Image is wider than container
+        drawWidth = containerWidth;
+        drawHeight = containerWidth / imgAspect;
+        offsetX = 0;
+        offsetY = (containerHeight - drawHeight) / 2;
+      } else {
+        // Image is taller than container
+        drawHeight = containerHeight;
+        drawWidth = containerHeight * imgAspect;
+        offsetX = (containerWidth - drawWidth) / 2;
+        offsetY = 0;
+      }
+      
+      canvas.width = containerWidth;
+      canvas.height = containerHeight;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, containerWidth, containerHeight);
+      
+      // Draw image
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+      
+      
+      setIsLoading(false);
+    };
+
+    img.onerror = () => {
+      console.error('Failed to load image for secure preview');
+      setIsLoading(false);
+    };
+
+    // Load the image
+    img.src = imageUrl;
+
+    // Cleanup
+    return () => {
+      img.src = '';
+    };
+  }, [imageUrl, blur, resizeKey]);
+
+  // Handle window resize - redraw canvas
+  useEffect(() => {
+    let resizeTimeout: NodeJS.Timeout;
+    
+    const handleResize = () => {
+      // Debounce resize events to avoid excessive redraws
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        // Increment resize key to trigger canvas redraw
+        setResizeKey(prev => prev + 1);
+      }, 150);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,15 +124,9 @@ export function SecureImagePreview({
     return false;
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    // Prevent any pointer events that might be used to extract the image
-    if (e.button === 2) { // Right click
-      e.preventDefault();
-    }
-  };
-
   return (
     <div 
+      ref={containerRef}
       className={`relative ${className}`}
       data-secure-preview="true"
       onContextMenu={handleContextMenu}
@@ -70,22 +139,17 @@ export function SecureImagePreview({
     >
       {/* Loading indicator */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
         </div>
       )}
       
-      {/* OPTIMIZATION: Use native img tag with proper caching instead of canvas */}
-      {/* This allows browser caching and CDN caching to work properly */}
-      <img
-        src={imageUrl}
-        alt={alt}
-        className={`w-full h-full object-contain ${blur ? "blur-md" : ""}`}
-        onLoad={handleImageLoad}
-        onError={handleImageError}
+      {/* Canvas rendering - URL not exposed in DOM */}
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full object-contain"
         onContextMenu={handleContextMenu}
         onDragStart={handleDragStart}
-        onPointerDown={handlePointerDown}
         style={{
           userSelect: "none",
           WebkitUserSelect: "none",
