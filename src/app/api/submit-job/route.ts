@@ -7,8 +7,9 @@ import { JOB_STATUS, API_CONFIG } from "@/lib/constants";
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
-// Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = 60;
+// OPTIMIZATION: Reduce max duration to limit bandwidth costs on hanging requests
+// Gemini typically responds in 15-30s, so 45s is enough with buffer
+export const maxDuration = 45; // Reduced from 60s to minimize costs on errors
 
 // Fallback image processing function when API quota is exceeded
 async function applyFallbackColorization(imageBuffer: Buffer): Promise<Buffer> {
@@ -84,10 +85,22 @@ export async function POST(request: NextRequest) {
         aws: { signQuery: true },
       });
 
-      const imageResponse = await fetch(signedFetchUrl.url);
+      // OPTIMIZATION: Fetch image from R2 with timeout to prevent hanging
+      const imageResponse = await fetch(signedFetchUrl.url, {
+        signal: AbortSignal.timeout(15000), // 15 second timeout for image fetch
+      });
       
       if (!imageResponse.ok) {
         throw new Error(`Failed to fetch uploaded image: ${imageResponse.status}`);
+      }
+      
+      // OPTIMIZATION: Check content length to prevent processing oversized images
+      const contentLength = imageResponse.headers.get("content-length");
+      if (contentLength) {
+        const sizeMB = parseInt(contentLength) / (1024 * 1024);
+        if (sizeMB > 10) {
+          throw new Error(`Image too large: ${sizeMB.toFixed(1)}MB. Maximum size is 10MB.`);
+        }
       }
       
       const imageBuffer = await imageResponse.arrayBuffer();
@@ -137,6 +150,7 @@ export async function POST(request: NextRequest) {
           generationConfig: config,
         };
 
+        // OPTIMIZATION: Add timeout to Gemini API call to prevent hanging
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -146,6 +160,7 @@ export async function POST(request: NextRequest) {
             'Origin': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
           },
           body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(35000), // 35 second timeout for Gemini API
         });
 
         if (!response.ok) {
@@ -205,7 +220,8 @@ export async function POST(request: NextRequest) {
       // Use the same endpoint format as in upload (reuse accountId from above)
       const uploadUrl = `https://${accountId}.r2.cloudflarestorage.com/${env.R2_BUCKET}/${outputKey}`;
 
-      await r2Client.fetch(uploadUrl, {
+      // OPTIMIZATION: Upload to R2 with timeout
+      const uploadResponse = await r2Client.fetch(uploadUrl, {
         method: "PUT",
         body: processedImageBuffer as BodyInit,
         headers: {
@@ -213,6 +229,10 @@ export async function POST(request: NextRequest) {
           "Content-Length": processedImageBuffer.length.toString(),
         },
       });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload processed image to R2: ${uploadResponse.status}`);
+      }
 
       // Update job with output URL and status
       await db.updateJob(jobId, {

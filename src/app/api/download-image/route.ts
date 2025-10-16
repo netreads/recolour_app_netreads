@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+// Use Edge runtime for faster, cheaper execution
+export const runtime = 'edge';
+
 // OPTIMIZATION: Direct redirect to R2 instead of proxying through serverless
 // This reduces Fast Origin Transfer by 30-40% by avoiding image data going through Vercel
 export async function GET(request: NextRequest) {

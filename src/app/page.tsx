@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,9 +84,29 @@ export default function HomePage() {
     try {
       // Stage 1: Uploading (0-25%)
       setUploadStage('uploading');
-      const formData = new FormData();
-      formData.append('file', uploadFile);
+      
+      // OPTIMIZATION: Get presigned URL first (lightweight API call)
+      const presignedResponse = await fetch("/api/upload-via-presigned", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: uploadFile.name,
+          fileType: uploadFile.type,
+          fileSize: uploadFile.size,
+        }),
+      });
 
+      if (!presignedResponse.ok) {
+        const errorData = await presignedResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to get upload URL");
+      }
+
+      const { jobId, uploadUrl } = await presignedResponse.json();
+
+      // OPTIMIZATION: Upload directly to R2 using presigned URL
+      // This bypasses Vercel entirely, saving 100% of upload bandwidth
       const uploadProgressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 25) return 25;
@@ -97,19 +117,20 @@ export default function HomePage() {
         });
       }, 100);
 
-      const uploadResponse = await fetch("/api/upload-via-presigned", {
-        method: "POST",
-        body: formData,
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        body: uploadFile,
+        headers: {
+          "Content-Type": uploadFile.type,
+        },
       });
 
       clearInterval(uploadProgressInterval);
       setUploadProgress(25);
 
       if (!uploadResponse.ok) {
-        throw new Error("Failed to upload file");
+        throw new Error(`Failed to upload file to storage (${uploadResponse.status})`);
       }
-
-      const { jobId } = await uploadResponse.json();
 
       // Stage 2: Analyzing (25-40%)
       setUploadStage('analyzing');
@@ -228,6 +249,13 @@ export default function HomePage() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith('image/')) {
+        // Clean up previous blob URL if exists
+        if (previewUrlRef.current) {
+          URL.revokeObjectURL(previewUrlRef.current);
+          previewUrlRef.current = null;
+        }
+        // Create new blob URL
+        previewUrlRef.current = URL.createObjectURL(file);
         setUploadFile(file);
       } else {
         alert('Please upload an image file');
@@ -238,6 +266,13 @@ export default function HomePage() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
+      // Clean up previous blob URL if exists
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+      // Create new blob URL
+      previewUrlRef.current = URL.createObjectURL(file);
       setUploadFile(file);
     } else {
       alert('Please select an image file');
@@ -401,15 +436,7 @@ export default function HomePage() {
                         <div className="relative w-full max-w-sm mx-auto">
                           <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
                             <img
-                              src={(() => {
-                                // Clean up previous URL if exists
-                                if (previewUrlRef.current) {
-                                  URL.revokeObjectURL(previewUrlRef.current);
-                                }
-                                // Create new URL and store in ref
-                                previewUrlRef.current = URL.createObjectURL(uploadFile);
-                                return previewUrlRef.current;
-                              })()}
+                              src={previewUrlRef.current || ''}
                               alt="Preview"
                               className="w-full h-full object-cover"
                             />
@@ -620,7 +647,7 @@ export default function HomePage() {
                         WebkitTouchCallout: "none",
                       }}
                     >
-                      {/* Secure image rendering with canvas (prevents URL extraction) */}
+                      {/* Secure image rendering (prevents URL extraction) */}
                       <SecureImagePreview
                         imageUrl={getImageUrl(currentJob.id, 'output')}
                         alt="Colorized Preview"
@@ -725,28 +752,28 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="grid grid-cols-2">
                     <div className="relative">
-                      <Image
-                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/indian%20wedding%20original.jpg`}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/indian%20wedding%20original.jpg"
                         alt="Indian wedding photo before colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={75}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
                       </div>
                     </div>
                     <div className="relative">
-                      <Image
-                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/indian%20wedding%20colour.jpg`}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/indian%20wedding%20colour.jpg"
                         alt="Indian wedding photo after colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={75}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -766,28 +793,28 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="grid grid-cols-2">
                     <div className="relative">
-                      <Image
-                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/grandfather%20original.jpg`}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/grandfather%20original.jpg"
                         alt="Grandfather portrait before colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={75}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
                       </div>
                     </div>
                     <div className="relative">
-                      <Image
-                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/grandfather%20colour.jpg`}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/grandfather%20colour.jpg"
                         alt="Grandfather portrait after colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={75}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -807,28 +834,28 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="grid grid-cols-2">
                     <div className="relative">
-                      <Image
-                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/festival%20original.jpg`}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/festival%20original.jpg"
                         alt="Festival celebration before colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={75}
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
                       </div>
                     </div>
                     <div className="relative">
-                      <Image
-                        src={`${process.env.NEXT_PUBLIC_R2_URL}/example-images/festival%20colour.jpg`}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev/example-images/festival%20colour.jpg"
                         alt="Festival celebration after colorization"
                         width={400}
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
-                        quality={75}
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After

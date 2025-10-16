@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    // OPTIMIZATION: Disable Next.js image optimization to save Fast Origin Transfer
+    // All images are served directly from R2 CDN using native <img> tags
+    // This prevents Vercel from fetching, optimizing, and serving images through Edge Functions
+    unoptimized: true,
     domains: ['localhost'],
     remotePatterns: [
       {
@@ -20,32 +24,15 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: '*.vercel.app',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.netlify.app',
-        port: '',
-        pathname: '/**',
-      },
     ],
-    // Optimize image delivery for cost reduction
-    formats: ['image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60,
   },
-  // Enable compression
+  // OPTIMIZATION: Enable compression for all responses
   compress: true,
   // Optimize output
   poweredByHeader: false,
   // Experimental features for better performance
   experimental: {
-    // Optimize font loading
+    // Optimize font loading and package imports
     optimizePackageImports: ['lucide-react'],
   },
 };

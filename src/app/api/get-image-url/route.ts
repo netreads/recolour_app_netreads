@@ -7,7 +7,7 @@ import { API_CONFIG } from "@/lib/constants";
 export const runtime = 'nodejs';
 
 // Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = 60;
+export const maxDuration = 10; // Reduced - simple DB query shouldn't take long
 
 // Mark as dynamic to prevent static rendering at build time
 export const dynamic = 'force-dynamic';
@@ -106,12 +106,13 @@ export async function GET(request: NextRequest) {
     // Transform internal R2 URL to public URL
     url = transformToPublicUrl(url);
 
-    // Return JSON with URL
+    // OPTIMIZATION: Return minimal JSON response with compression headers
     return NextResponse.json(
       { url },
       {
         headers: {
           'Cache-Control': 'public, max-age=3600, immutable',
+          'Content-Type': 'application/json; charset=utf-8',
         },
       }
     );

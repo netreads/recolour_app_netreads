@@ -16,7 +16,7 @@ export function getSecurityHeaders() {
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https: blob:",
       "media-src 'self' https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev",
-      "connect-src 'self' https://*.supabase.co https://*.supabase.io wss://*.supabase.co wss://*.supabase.io https://www.facebook.com https://connect.facebook.net https://va.vercel-scripts.com https://www.clarity.ms https://*.run.app https://*.conversionsapigateway.com",
+      "connect-src 'self' https://*.supabase.co https://*.supabase.io wss://*.supabase.co wss://*.supabase.io https://www.facebook.com https://connect.facebook.net https://va.vercel-scripts.com https://www.clarity.ms https://*.run.app https://*.conversionsapigateway.com https://*.r2.cloudflarestorage.com https://*.r2.dev",
       "frame-src 'self' https://accounts.google.com https://www.facebook.com https://connect.facebook.net",
       "object-src 'none'",
       "base-uri 'self'",

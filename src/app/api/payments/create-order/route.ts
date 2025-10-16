@@ -7,7 +7,7 @@ import { getServerEnv } from '@/lib/env';
 export const runtime = 'nodejs';
 
 // Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = 60;
+export const maxDuration = 30; // Reduced from 60s to save costs
 
 export async function POST(request: NextRequest) {
   try {
