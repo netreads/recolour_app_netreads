@@ -116,7 +116,7 @@ function PaymentSuccessContent() {
       if (data?.success && finalJobId) {
         // Retry logic for verify-payment to handle network issues and race conditions
         let verifyAttempts = 0;
-        const maxVerifyAttempts = 5;
+        const maxVerifyAttempts = 2; // Reduced from 5 to 2 for faster UX
         let verificationSuccess = false;
         
         while (verifyAttempts < maxVerifyAttempts && !verificationSuccess) {
@@ -148,7 +148,7 @@ function PaymentSuccessContent() {
         
         // Fetch the actual image URLs from the database with retry
         let fetchAttempts = 0;
-        const maxFetchAttempts = 3;
+        const maxFetchAttempts = 2; // Reduced from 3 to 2 for faster UX
         let fetchedUrls: { original: string; output: string } | null = null;
         
         while (fetchAttempts < maxFetchAttempts) {

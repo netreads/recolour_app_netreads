@@ -27,6 +27,9 @@ interface ServerEnv {
   FACEBOOK_PIXEL_ID?: string;
   FACEBOOK_CONVERSIONS_API_TOKEN?: string;
   
+  // Admin
+  ADMIN_FIX_PAYMENT_KEY?: string;
+  
   // App
   NEXT_PUBLIC_APP_URL?: string;
   NODE_ENV: string;
@@ -91,6 +94,7 @@ class EnvValidator {
       PHONEPE_WEBHOOK_PASSWORD: env.PHONEPE_WEBHOOK_PASSWORD,
       FACEBOOK_PIXEL_ID: env.FACEBOOK_PIXEL_ID,
       FACEBOOK_CONVERSIONS_API_TOKEN: env.FACEBOOK_CONVERSIONS_API_TOKEN,
+      ADMIN_FIX_PAYMENT_KEY: env.ADMIN_FIX_PAYMENT_KEY,
       NEXT_PUBLIC_APP_URL: env.NEXT_PUBLIC_APP_URL,
       NODE_ENV: env.NODE_ENV || 'development',
     };

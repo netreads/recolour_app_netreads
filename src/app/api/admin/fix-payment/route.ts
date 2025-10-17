@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const env = getServerEnv();
 
     // Simple admin authentication using environment variable
-    const expectedAdminKey = env.ADMIN_FIX_PAYMENT_KEY || process.env.ADMIN_FIX_PAYMENT_KEY;
+    const expectedAdminKey = env.ADMIN_FIX_PAYMENT_KEY;
     
     if (!expectedAdminKey || adminKey !== expectedAdminKey) {
       return NextResponse.json(
@@ -48,10 +48,6 @@ export async function POST(request: NextRequest) {
       const paidOrders = await prisma.order.findMany({
         where: {
           status: 'PAID',
-          metadata: {
-            path: ['jobId'],
-            not: null,
-          },
         },
         take: 100, // Limit to prevent timeout
       });
