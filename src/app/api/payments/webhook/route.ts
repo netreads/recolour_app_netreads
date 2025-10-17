@@ -309,10 +309,14 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
       const metadata = order.metadata as OrderMetadata;
       const tracking = metadata?.tracking;
       
+      // Convert amount from paise to rupees for Facebook (e.g., 4900 paise → 49 rupees)
+      // Facebook expects value in standard currency format (e.g., 9.99 or 9)
+      const amountInRupees = order.amount / 100;
+      
       await trackPurchaseServerSide({
         orderId: order.id,
         jobId: metadata?.jobId,
-        amount: order.amount,
+        amount: amountInRupees,
         currency: 'INR',
         userId: order.userId || undefined,
         ipAddress: tracking?.ipAddress,
@@ -322,7 +326,7 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
         eventSourceUrl: tracking?.eventSourceUrl,
       });
       
-      console.log(`[WEBHOOK] ✅ Facebook conversion tracked for order ${orderId}`);
+      console.log(`[WEBHOOK] ✅ Facebook conversion tracked for order ${orderId} (amount: ₹${amountInRupees})`);
     } catch (error) {
       console.error('[WEBHOOK] ⚠️  Error tracking Facebook conversion:', error);
       console.error('[WEBHOOK] ⚠️  Continuing anyway - tracking is non-critical');
