@@ -2,26 +2,50 @@
 
 export function getSecurityHeaders() {
   return {
-    // Allow framing ONLY for specific trusted domains (Google, Facebook)
-    // This is more flexible than X-Frame-Options: DENY
+    // Lenient security headers for production payment flows
+    // Allows all necessary third-party integrations while maintaining core security
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'X-XSS-Protection': '1; mode=block',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     'Content-Security-Policy': [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://connect.facebook.net https://va.vercel-scripts.com https://www.clarity.ms https://static.cloudflareinsights.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
+      // Allow self and data URIs
+      "default-src 'self' data:",
+      
+      // Scripts: Allow inline scripts and common CDNs (needed for payment gateways)
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:",
+      
+      // Styles: Allow inline styles and external stylesheets
+      "style-src 'self' 'unsafe-inline' https:",
+      
+      // Fonts: Allow from anywhere over HTTPS
+      "font-src 'self' data: https:",
+      
+      // Images: Allow from anywhere (needed for dynamic payment gateway images)
       "img-src 'self' data: https: blob:",
-      "media-src 'self' https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev",
-      "connect-src 'self' https://*.supabase.co https://*.supabase.io wss://*.supabase.co wss://*.supabase.io https://www.facebook.com https://connect.facebook.net https://va.vercel-scripts.com https://www.clarity.ms https://*.run.app https://*.conversionsapigateway.com https://*.r2.cloudflarestorage.com https://*.r2.dev",
-      "frame-src 'self' https://accounts.google.com https://www.facebook.com https://connect.facebook.net",
+      
+      // Media: Allow from R2 and other HTTPS sources
+      "media-src 'self' https: data: blob:",
+      
+      // Connect: Allow API calls to payment gateways and services
+      "connect-src 'self' https: wss: data: blob:",
+      
+      // Frames: Allow payment gateway iframes and authentication
+      "frame-src 'self' https: data:",
+      
+      // Object/Embed: Block for security
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self' https://www.facebook.com",
-      "frame-ancestors 'none'"
+      
+      // Form actions: Allow submissions to payment gateways
+      "form-action 'self' https:",
+      
+      // Frame ancestors: Allow embedding on same origin
+      "frame-ancestors 'self'",
+      
+      // Upgrade insecure requests to HTTPS
+      "upgrade-insecure-requests"
     ].join('; ')
   };
 }

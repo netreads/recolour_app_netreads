@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
       select: {
         originalUrl: true,
         outputUrl: true,
+        status: true,
       },
     });
 
@@ -71,7 +72,15 @@ export async function GET(request: NextRequest) {
     let url = type === 'original' ? job.originalUrl : job.outputUrl;
     
     if (!url) {
-      return NextResponse.json({ error: `${type} image not available` }, { status: 404 });
+      console.error(`get-image-url: ${type} URL not available for job ${jobId}. Job status: ${job.status}, originalUrl: ${!!job.originalUrl}, outputUrl: ${!!job.outputUrl}`);
+      return NextResponse.json({ 
+        error: `${type} image not available`,
+        jobStatus: job.status,
+        debug: {
+          hasOriginal: !!job.originalUrl,
+          hasOutput: !!job.outputUrl,
+        }
+      }, { status: 404 });
     }
 
     url = transformToPublicUrl(url);

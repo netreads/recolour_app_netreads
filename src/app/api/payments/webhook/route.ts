@@ -104,26 +104,56 @@ async function handlePaymentSuccess(data: PaymentData | undefined) {
       },
     });
 
-    await prisma.transaction.create({
-      data: {
+    // Check if transaction already exists to avoid duplicates
+    const existingTransaction = await prisma.transaction.findFirst({
+      where: {
         orderId: orderId,
-        userId: order.userId,
-        credits: 0,
-        amount: order.amount,
-        type: 'CREDIT_PURCHASE',
         status: 'SUCCESS',
-        phonePeOrderId: order.phonePeOrderId,
-        paymentId: paymentId,
       },
     });
 
+    if (!existingTransaction) {
+      await prisma.transaction.create({
+        data: {
+          orderId: orderId,
+          userId: order.userId,
+          credits: 0,
+          amount: order.amount,
+          type: 'CREDIT_PURCHASE',
+          status: 'SUCCESS',
+          phonePeOrderId: order.phonePeOrderId,
+          paymentId: paymentId,
+        },
+      });
+    }
+
+    // Mark job as paid - this is critical!
     if (order.metadata && typeof order.metadata === 'object') {
       const metadata = order.metadata as OrderMetadata;
       if (metadata.jobId) {
-        await prisma.job.update({
-          where: { id: metadata.jobId },
-          data: { isPaid: true },
-        });
+        try {
+          // First check if job exists
+          const job = await prisma.job.findUnique({
+            where: { id: metadata.jobId },
+          });
+          
+          if (job) {
+            // Only update if not already marked as paid
+            if (!job.isPaid) {
+              await prisma.job.update({
+                where: { id: metadata.jobId },
+                data: { isPaid: true },
+              });
+            }
+          } else {
+            console.error(`Webhook: Job ${metadata.jobId} not found for paid order ${orderId}`);
+          }
+        } catch (jobError) {
+          console.error(`Webhook: Failed to mark job ${metadata.jobId} as paid:`, jobError);
+          // Don't throw - we've already marked the order as paid
+        }
+      } else {
+        console.warn(`Webhook: Order ${orderId} has no jobId in metadata`);
       }
     }
 

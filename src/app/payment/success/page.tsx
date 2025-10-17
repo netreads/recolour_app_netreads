@@ -27,6 +27,7 @@ function PaymentSuccessContent() {
   const [downloading, setDownloading] = useState(false);
   const [purchaseTracked, setPurchaseTracked] = useState(false);
   const [imageUrls, setImageUrls] = useState<{ original: string; output: string } | null>(null);
+  const [showSupportMessage, setShowSupportMessage] = useState(false);
   const mountedRef = useRef(false);
 
   // Track component mount
@@ -113,29 +114,112 @@ function PaymentSuccessContent() {
       // If this is a single image purchase, verify and mark job as paid
       const finalJobId = data.jobId || jobId;
       if (data?.success && finalJobId) {
-        try {
-            await fetch('/api/verify-payment', {
+        // Retry logic for verify-payment to handle network issues and race conditions
+        let verifyAttempts = 0;
+        const maxVerifyAttempts = 5;
+        let verificationSuccess = false;
+        
+        while (verifyAttempts < maxVerifyAttempts && !verificationSuccess) {
+          try {
+            const verifyResponse = await fetch('/api/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ orderId, jobId: finalJobId }),
             });
             
-            // Fetch the actual image URLs from the database
+            if (verifyResponse.ok) {
+              verificationSuccess = true;
+              break;
+            } else {
+              // If verification fails, wait and retry
+              verifyAttempts++;
+              if (verifyAttempts < maxVerifyAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * verifyAttempts)); // Exponential backoff
+              }
+            }
+          } catch (err) {
+            verifyAttempts++;
+            console.error(`Verify payment attempt ${verifyAttempts} failed:`, err);
+            if (verifyAttempts < maxVerifyAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * verifyAttempts)); // Exponential backoff
+            }
+          }
+        }
+        
+        // Fetch the actual image URLs from the database with retry
+        let fetchAttempts = 0;
+        const maxFetchAttempts = 3;
+        let fetchedUrls: { original: string; output: string } | null = null;
+        
+        while (fetchAttempts < maxFetchAttempts) {
+          try {
             const [originalResponse, outputResponse] = await Promise.all([
               fetch(`/api/get-image-url?jobId=${finalJobId}&type=original`),
               fetch(`/api/get-image-url?jobId=${finalJobId}&type=output`)
             ]);
             
-            const originalData = await originalResponse.json();
-            const outputData = await outputResponse.json();
+            // Check response status
+            if (!originalResponse.ok) {
+              console.error('Original image URL request failed:', originalResponse.status, await originalResponse.text());
+            }
+            if (!outputResponse.ok) {
+              console.error('Output image URL request failed:', outputResponse.status, await outputResponse.text());
+            }
             
-            setImageUrls({
-              original: originalData.url || '',
-              output: outputData.url || ''
-            });
-        } catch (err) {
-          // Silent fail - job will be marked as paid by webhook or status check
-          console.error('Error fetching image URLs:', err);
+            const originalData = originalResponse.ok ? await originalResponse.json() : { url: null };
+            const outputData = outputResponse.ok ? await outputResponse.json() : { url: null };
+            
+            // Debug logging
+            if (!originalData.url) {
+              console.warn('Original image URL not found. Response:', originalData, 'JobId:', finalJobId);
+            }
+            if (!outputData.url) {
+              console.warn('Output image URL not found. Response:', outputData, 'JobId:', finalJobId);
+            }
+            
+            if (originalData.url && outputData.url) {
+              fetchedUrls = {
+                original: originalData.url || '',
+                output: outputData.url || ''
+              };
+              setImageUrls(fetchedUrls);
+              break;
+            } else {
+              fetchAttempts++;
+              console.warn(`Image URLs incomplete on attempt ${fetchAttempts}. Original: ${!!originalData.url}, Output: ${!!outputData.url}`);
+              if (fetchAttempts < maxFetchAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              }
+            }
+          } catch (err) {
+            fetchAttempts++;
+            console.error(`Fetch image URLs attempt ${fetchAttempts} failed:`, err);
+            if (fetchAttempts < maxFetchAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        }
+        
+        // If we still don't have images after all retries, try direct URL construction as last resort
+        if (!fetchedUrls?.output) {
+          console.warn('Failed to fetch URLs from API, attempting direct URL construction...');
+          
+          // Try to construct URLs directly from R2 public URL
+          const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_URL;
+          if (R2_PUBLIC_URL) {
+            const cleanUrl = R2_PUBLIC_URL.replace(/\/$/, '');
+            // Note: We don't know the original filename, so this is a best-effort attempt
+            // The output URL pattern is predictable, but original URL is not
+            fetchedUrls = {
+              original: '', // We can't construct this without knowing the filename
+              output: `${cleanUrl}/outputs/${finalJobId}-colorized.jpg`
+            };
+            setImageUrls(fetchedUrls);
+            console.log('Constructed direct output URL:', fetchedUrls.output);
+          } else {
+            console.error('Failed to fetch images after all retry attempts. Verification success:', verificationSuccess);
+            setShowSupportMessage(true);
+          }
         }
       }
     } catch (error) {
@@ -273,17 +357,56 @@ function PaymentSuccessContent() {
                         </div>
                       </div>
 
+                      {/* Support Message if images fail to load */}
+                      {showSupportMessage && !imageUrls?.output && (
+                        <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 sm:p-6">
+                          <div className="flex items-start space-x-3">
+                            <span className="text-orange-600 text-2xl">⚠️</span>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-orange-900 text-base sm:text-lg mb-2">
+                                Payment Received - Image Loading Issue
+                              </h3>
+                              <p className="text-sm sm:text-base text-orange-800 leading-relaxed mb-3">
+                                We've confirmed your payment, but there's a temporary issue loading your colorized image. 
+                                Don't worry - your image is safe and we'll help you get it!
+                              </p>
+                              <p className="text-sm text-orange-700 mb-4">
+                                <strong>Order ID:</strong> {paymentStatus?.orderId}
+                                <br />
+                                <strong>Job ID:</strong> {paymentStatus?.jobId}
+                              </p>
+                              <Button 
+                                asChild 
+                                size="lg" 
+                                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                <Link 
+                                  href={`https://wa.me/917984837468?text=Hi%2C%20my%20payment%20was%20successful%20but%20I%20can't%20download%20my%20image.%20Order%20ID%3A%20${encodeURIComponent(paymentStatus?.orderId || 'N/A')}%20%7C%20Job%20ID%3A%20${encodeURIComponent(paymentStatus?.jobId || 'N/A')}`} 
+                                  target="_blank"
+                                >
+                                  📱 Contact Support on WhatsApp
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Download Button */}
                       <Button 
                         onClick={handleDownload}
                         disabled={downloading || !imageUrls?.output}
-                        className="w-full h-12 sm:h-14 bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all"
+                        className="w-full h-12 sm:h-14 bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         size="lg"
                       >
                         {downloading ? (
                           <>
                             <Loader2 className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
                             Downloading...
+                          </>
+                        ) : !imageUrls?.output ? (
+                          <>
+                            ⏳ Loading your image...
                           </>
                         ) : (
                           <>
