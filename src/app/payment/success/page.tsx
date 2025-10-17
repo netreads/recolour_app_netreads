@@ -111,82 +111,27 @@ function PaymentSuccessContent() {
       const statusWithJobId = { ...data, jobId: data.jobId || jobId };
       setPaymentStatus(statusWithJobId);
 
-      // If this is a single image purchase, verify and mark job as paid
+      // If payment successful, display the colorized image
+      // Webhook has already marked order and job as paid
       const finalJobId = data.jobId || jobId;
       if (data?.success && finalJobId) {
-        // Retry logic for verify-payment to handle network issues and race conditions
-        let verifyAttempts = 0;
-        const maxVerifyAttempts = 2; // Reduced from 5 to 2 for faster UX
-        let verificationSuccess = false;
-        
-        while (verifyAttempts < maxVerifyAttempts && !verificationSuccess) {
-          try {
-            const verifyResponse = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ orderId, jobId: finalJobId }),
-            });
-            
-            if (verifyResponse.ok) {
-              verificationSuccess = true;
-              break;
-            } else {
-              // If verification fails, wait and retry
-              verifyAttempts++;
-              if (verifyAttempts < maxVerifyAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 1000 * verifyAttempts)); // Exponential backoff
-              }
-            }
-          } catch (err) {
-            verifyAttempts++;
-            console.error(`Verify payment attempt ${verifyAttempts} failed:`, err);
-            if (verifyAttempts < maxVerifyAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 1000 * verifyAttempts)); // Exponential backoff
-            }
-          }
-        }
-        
-        // Use direct R2 URLs instead of API calls
+        // Construct direct R2 URLs for images
         const R2_URL = process.env.NEXT_PUBLIC_R2_URL || 'https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev';
         const fetchedUrls = {
           original: `${R2_URL}/uploads/${finalJobId}`,
           output: `${R2_URL}/outputs/${finalJobId}-colorized.jpg`
         };
         
-        // Set the image URLs directly
+        // Set image URLs immediately - trust webhook processed payment
         setImageUrls(fetchedUrls);
         
-        // Optional: Verify the images exist with a quick HEAD request
-        let fetchAttempts = 0;
-        const maxFetchAttempts = 2;
-        
-        while (fetchAttempts < maxFetchAttempts) {
-          try {
-            const [originalCheck, outputCheck] = await Promise.all([
-              fetch(fetchedUrls.original, { method: 'HEAD' }),
-              fetch(fetchedUrls.output, { method: 'HEAD' })
-            ]);
-            
-            if (originalCheck.ok && outputCheck.ok) {
-              break; // Both images exist
-            } else {
-              fetchAttempts++;
-              console.warn(`Image verification attempt ${fetchAttempts}. Original: ${originalCheck.ok}, Output: ${outputCheck.ok}`);
-              if (fetchAttempts < maxFetchAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-              }
-            }
-          } catch (err) {
-            fetchAttempts++;
-            console.error(`Fetch image URLs attempt ${fetchAttempts} failed:`, err);
-            if (fetchAttempts < maxFetchAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
+        // Show support message after 5 seconds if images don't load
+        // (Natural loading will show the image, this is just a backup)
+        setTimeout(() => {
+          if (!imageUrls?.output) {
+            setShowSupportMessage(true);
           }
-        }
-        
-        // Images are already set directly from R2 URLs above
-        // No additional fallback needed since we construct URLs directly
+        }, 5000);
       }
     } catch (error) {
       setPaymentStatus({

@@ -5,9 +5,7 @@ import { PAYMENT_STATUS, ORDER_STATUS, API_CONFIG } from '@/lib/constants';
 import { getServerEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
-
-// Set max duration to prevent unexpected costs from long-running functions
-export const maxDuration = 60;
+export const maxDuration = 30; // Reduced - webhook handles payment, this is just fallback
 
 interface OrderMetadata {
   jobId?: string;
@@ -41,15 +39,21 @@ export async function GET(request: NextRequest) {
     let success = order.status === ORDER_STATUS.PAID;
     let transaction = order.transactions.find(t => t.status === 'SUCCESS');
 
-    // If not marked paid yet, verify with PhonePe and update
-    if (!success && order.phonePeOrderId) {
+    // WEBHOOK-FIRST APPROACH: Only poll PhonePe if webhook hasn't updated the order yet
+    // This reduces unnecessary API calls and improves reliability
+    if (!success && order.phonePeOrderId && order.status === ORDER_STATUS.PENDING) {
       try {
+        if (env.NODE_ENV === 'development') {
+          console.log(`[STATUS] Checking PhonePe status for pending order ${orderId}`);
+        }
+        
         const paymentStatus = await getPhonePeOrderStatus(order.id);
         
         if (paymentStatus.state === PAYMENT_STATUS.COMPLETED) {
           const paymentDetails = Array.isArray(paymentStatus.payment_details) ? paymentStatus.payment_details : [];
           const transactionId = paymentDetails[0]?.transactionId || order.paymentId || null;
           
+          // Update order (webhook should have done this, but handle fallback)
           const updated = await prisma.order.update({
             where: { id: order.id },
             data: {
@@ -59,6 +63,8 @@ export async function GET(request: NextRequest) {
             },
             include: { transactions: true },
           });
+
+          console.log(`[STATUS] Order ${orderId} marked as PAID via status check (webhook missed)`);
 
           // Create success transaction if not exists
           const hasSuccessTxn = updated.transactions.some(t => t.status === 'SUCCESS');
@@ -77,6 +83,26 @@ export async function GET(request: NextRequest) {
             });
           }
 
+          // Also mark job as paid (webhook should have done this)
+          const metadata = (updated as any).metadata as OrderMetadata;
+          if (metadata?.jobId) {
+            try {
+              const job = await prisma.job.findUnique({
+                where: { id: metadata.jobId },
+              });
+              
+              if (job && !job.isPaid) {
+                await prisma.job.update({
+                  where: { id: metadata.jobId },
+                  data: { isPaid: true },
+                });
+                console.log(`[STATUS] Job ${metadata.jobId} marked as PAID via status check`);
+              }
+            } catch (jobError) {
+              console.error(`[STATUS] Failed to mark job as paid:`, jobError);
+            }
+          }
+
           order = updated;
           success = true;
           transaction = updated.transactions.find(t => t.status === 'SUCCESS') || transaction;
@@ -89,22 +115,19 @@ export async function GET(request: NextRequest) {
             },
           });
           order.status = ORDER_STATUS.FAILED;
+          console.log(`[STATUS] Order ${orderId} marked as FAILED`);
         } else if (paymentStatus.state === PAYMENT_STATUS.PENDING) {
-          await prisma.order.update({
-            where: { id: order.id },
-            data: {
-              status: ORDER_STATUS.PENDING,
-              paymentStatus: 'PENDING',
-            },
-          });
-          order.status = ORDER_STATUS.PENDING;
+          // Still pending - no update needed, webhook will handle it when ready
+          if (env.NODE_ENV === 'development') {
+            console.log(`[STATUS] Order ${orderId} still PENDING, waiting for webhook`);
+          }
         }
       } catch (e) {
-        if (env.NODE_ENV === 'development') {
-          console.error('Error checking payment status:', e);
-        }
-        // Ignore error and surface DB status
+        console.error('[STATUS] Error checking PhonePe payment status:', e);
+        // Ignore error and surface DB status (webhook may have already updated it)
       }
+    } else if (env.NODE_ENV === 'development' && success) {
+      console.log(`[STATUS] Order ${orderId} already PAID (likely via webhook)`);
     }
 
     // Extract jobId from metadata if it's a single image purchase
@@ -124,9 +147,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     const env = getServerEnv();
-    if (env.NODE_ENV === 'development') {
-      console.error('Error checking payment status:', error);
-    }
+    console.error('[STATUS] Error checking payment status:', error);
     return NextResponse.json(
       { error: 'Failed to check payment status' },
       { status: 500 }

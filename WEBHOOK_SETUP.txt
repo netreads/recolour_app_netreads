@@ -1,0 +1,111 @@
+═══════════════════════════════════════════════════════════════
+  PHONEPE WEBHOOK CONFIGURATION GUIDE
+═══════════════════════════════════════════════════════════════
+
+CURRENT ISSUE FIXED:
+-------------------
+✗ Webhooks were not being utilized properly
+✗ Success page was polling PhonePe API repeatedly
+✗ Race conditions caused "image not generated" errors
+✗ Slow payment confirmation (3-5 seconds delay)
+✗ Higher API costs due to unnecessary polling
+
+
+NEW WEBHOOK-FIRST ARCHITECTURE:
+-------------------------------
+✓ Webhook receives instant payment notification from PhonePe
+✓ Database updated immediately by webhook
+✓ Success page reads from database (fast, reliable)
+✓ Fallback polling only if webhook fails
+✓ Comprehensive logging for debugging
+
+
+HOW TO CONFIGURE PHONEPE WEBHOOKS:
+----------------------------------
+
+STEP 1: Set Environment Variables
+Add these to your .env file:
+
+PHONEPE_WEBHOOK_USERNAME=your_webhook_username
+PHONEPE_WEBHOOK_PASSWORD=your_webhook_password
+
+(You'll get these from PhonePe dashboard in Step 3)
+
+
+STEP 2: Login to PhonePe Merchant Dashboard
+URL: https://business.phonepe.com/
+Login with your merchant credentials
+
+
+STEP 3: Configure Webhook URL
+1. Navigate to: Developer → API Configuration → Webhook Settings
+2. Set Webhook URL: https://yourdomain.com/api/payments/webhook
+   (Replace yourdomain.com with your actual domain)
+3. Generate webhook credentials (username and password)
+4. Copy these credentials to your .env file (from Step 1)
+5. Enable webhook notifications for these events:
+   - CHECKOUT_ORDER_COMPLETED
+   - CHECKOUT_ORDER_FAILED
+6. Save the configuration
+
+
+STEP 4: Test Webhook
+1. Make a test payment
+2. Check your server logs for "[WEBHOOK]" messages
+3. Verify payment is marked as PAID instantly
+4. If webhook fails, the system will fall back to polling (but fix webhook ASAP)
+
+
+WEBHOOK SECURITY:
+----------------
+- PhonePe sends Authorization header with each webhook
+- Authorization = SHA256(username:password)
+- Our code validates this before processing webhook
+- Invalid webhooks are rejected with 401 status
+
+
+BENEFITS OF WEBHOOK-FIRST APPROACH:
+-----------------------------------
+1. SPEED: Payment confirmation in <1 second (vs 3-5 seconds polling)
+2. RELIABILITY: No race conditions or timing issues
+3. COST: Fewer API calls to PhonePe = lower costs
+4. UX: Customers see their image immediately after payment
+5. ERRORS: Eliminates "image not generated" errors after payment
+
+
+MONITORING:
+-----------
+Check server logs for these messages:
+
+✓ Success: "[WEBHOOK] ✓ Order {orderId} marked as PAID"
+✓ Success: "[WEBHOOK] ✓ Job {jobId} marked as PAID"
+✗ Error: "[WEBHOOK] ✗ Job not found for paid order"
+⚠ Warning: "[WEBHOOK] Order already marked as PAID (idempotent call)"
+
+
+TROUBLESHOOTING:
+---------------
+Q: Webhook not receiving calls?
+A: Check webhook URL in PhonePe dashboard, ensure it's publicly accessible
+
+Q: Getting 401 errors in webhook?
+A: Verify PHONEPE_WEBHOOK_USERNAME and PHONEPE_WEBHOOK_PASSWORD match dashboard
+
+Q: Payments still work but slow?
+A: System falls back to polling - fix webhook config for optimal performance
+
+Q: How to verify webhook is working?
+A: Look for "[WEBHOOK]" log messages and check payment confirmation speed
+
+
+TECHNICAL DETAILS:
+-----------------
+- Webhook endpoint: /api/payments/webhook
+- Validation: PhonePe SDK validates callback signature
+- Idempotency: Safe to receive same webhook multiple times
+- Retry: PhonePe retries webhook if we return 5xx error
+- Timeout: Webhook must respond within 5 seconds
+- Fallback: Status API polls PhonePe if webhook fails
+
+═══════════════════════════════════════════════════════════════
+

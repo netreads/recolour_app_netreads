@@ -34,7 +34,8 @@ export type CreateOrderParams = {
     customerPhone: string;
   };
   returnUrl?: string;
-  notifyUrl?: string;
+  // Note: notifyUrl is NOT supported in PhonePe SDK
+  // Webhooks must be configured in PhonePe Merchant Dashboard
   expireAfter?: number;
 };
 

@@ -14,7 +14,9 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "deploy": "npm run build && npm run db:deploy"
+    "deploy": "npm run build && npm run db:deploy",
+    "cleanup:r2": "node scripts/cleanup-r2-old-files.js",
+    "cleanup:r2:dry-run": "node scripts/cleanup-r2-old-files.js --dry-run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.890.0",

@@ -1,0 +1,11 @@
+# Documentation files (not needed in production)
+*.md
+!README.md
+
+# Test scripts
+*.sh
+!scripts/*.sh
+
+# Development files
+.env.local
+.env.development

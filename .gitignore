@@ -41,3 +41,13 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# local scripts (manual use only, not for production)
+/scripts/cleanup-r2-old-files.js
+/scripts/README.md
+
+# Test/development scripts and docs (not needed in git)
+*.sh
+*.md
+!README.md
+!prisma/migrations/**/*.md

@@ -28,15 +28,6 @@
       ]
     },
     {
-      "source": "/api/get-image-url/:path*",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=3600, stale-while-revalidate=7200"
-        }
-      ]
-    },
-    {
       "source": "/api/download-image/:path*",
       "headers": [
         {
