@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -722,6 +721,7 @@ export default function HomePage() {
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
@@ -736,6 +736,7 @@ export default function HomePage() {
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -763,6 +764,7 @@ export default function HomePage() {
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
@@ -777,6 +779,7 @@ export default function HomePage() {
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After
@@ -804,6 +807,7 @@ export default function HomePage() {
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Before
@@ -818,6 +822,7 @@ export default function HomePage() {
                         height={400}
                         className="aspect-square object-cover w-full h-full"
                         loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
                         After

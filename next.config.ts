@@ -30,6 +30,7 @@ const nextConfig: NextConfig = {
   compress: true,
   // Optimize output
   poweredByHeader: false,
+  output: 'standalone',
   // Experimental features for better performance
   experimental: {
     // Optimize font loading and package imports

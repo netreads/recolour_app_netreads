@@ -103,6 +103,8 @@ export async function POST(request: NextRequest) {
         // Return presigned URL for client-side upload
         uploadUrl: signedUpload.url,
         fileKey,
+        // Add direct outputUrl for client use
+        outputUrl: `${env.R2_PUBLIC_URL}/outputs/${jobId}-colorized.jpg`,
       },
       {
         headers: {

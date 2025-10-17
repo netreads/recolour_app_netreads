@@ -146,47 +146,32 @@ function PaymentSuccessContent() {
           }
         }
         
-        // Fetch the actual image URLs from the database with retry
+        // Use direct R2 URLs instead of API calls
+        const R2_URL = process.env.NEXT_PUBLIC_R2_URL || 'https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev';
+        const fetchedUrls = {
+          original: `${R2_URL}/uploads/${finalJobId}`,
+          output: `${R2_URL}/outputs/${finalJobId}-colorized.jpg`
+        };
+        
+        // Set the image URLs directly
+        setImageUrls(fetchedUrls);
+        
+        // Optional: Verify the images exist with a quick HEAD request
         let fetchAttempts = 0;
-        const maxFetchAttempts = 2; // Reduced from 3 to 2 for faster UX
-        let fetchedUrls: { original: string; output: string } | null = null;
+        const maxFetchAttempts = 2;
         
         while (fetchAttempts < maxFetchAttempts) {
           try {
-            const [originalResponse, outputResponse] = await Promise.all([
-              fetch(`/api/get-image-url?jobId=${finalJobId}&type=original`),
-              fetch(`/api/get-image-url?jobId=${finalJobId}&type=output`)
+            const [originalCheck, outputCheck] = await Promise.all([
+              fetch(fetchedUrls.original, { method: 'HEAD' }),
+              fetch(fetchedUrls.output, { method: 'HEAD' })
             ]);
             
-            // Check response status
-            if (!originalResponse.ok) {
-              console.error('Original image URL request failed:', originalResponse.status, await originalResponse.text());
-            }
-            if (!outputResponse.ok) {
-              console.error('Output image URL request failed:', outputResponse.status, await outputResponse.text());
-            }
-            
-            const originalData = originalResponse.ok ? await originalResponse.json() : { url: null };
-            const outputData = outputResponse.ok ? await outputResponse.json() : { url: null };
-            
-            // Debug logging
-            if (!originalData.url) {
-              console.warn('Original image URL not found. Response:', originalData, 'JobId:', finalJobId);
-            }
-            if (!outputData.url) {
-              console.warn('Output image URL not found. Response:', outputData, 'JobId:', finalJobId);
-            }
-            
-            if (originalData.url && outputData.url) {
-              fetchedUrls = {
-                original: originalData.url || '',
-                output: outputData.url || ''
-              };
-              setImageUrls(fetchedUrls);
-              break;
+            if (originalCheck.ok && outputCheck.ok) {
+              break; // Both images exist
             } else {
               fetchAttempts++;
-              console.warn(`Image URLs incomplete on attempt ${fetchAttempts}. Original: ${!!originalData.url}, Output: ${!!outputData.url}`);
+              console.warn(`Image verification attempt ${fetchAttempts}. Original: ${originalCheck.ok}, Output: ${outputCheck.ok}`);
               if (fetchAttempts < maxFetchAttempts) {
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
@@ -200,27 +185,8 @@ function PaymentSuccessContent() {
           }
         }
         
-        // If we still don't have images after all retries, try direct URL construction as last resort
-        if (!fetchedUrls?.output) {
-          console.warn('Failed to fetch URLs from API, attempting direct URL construction...');
-          
-          // Try to construct URLs directly from R2 public URL
-          const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_URL;
-          if (R2_PUBLIC_URL) {
-            const cleanUrl = R2_PUBLIC_URL.replace(/\/$/, '');
-            // Note: We don't know the original filename, so this is a best-effort attempt
-            // The output URL pattern is predictable, but original URL is not
-            fetchedUrls = {
-              original: '', // We can't construct this without knowing the filename
-              output: `${cleanUrl}/outputs/${finalJobId}-colorized.jpg`
-            };
-            setImageUrls(fetchedUrls);
-            console.log('Constructed direct output URL:', fetchedUrls.output);
-          } else {
-            console.error('Failed to fetch images after all retry attempts. Verification success:', verificationSuccess);
-            setShowSupportMessage(true);
-          }
-        }
+        // Images are already set directly from R2 URLs above
+        // No additional fallback needed since we construct URLs directly
       }
     } catch (error) {
       setPaymentStatus({
@@ -240,13 +206,29 @@ function PaymentSuccessContent() {
       // Use the download API endpoint which handles authentication and CORS properly
       const downloadUrl = `/api/download-image?jobId=${paymentStatus.jobId}&type=output`;
       
+      // Fetch the image as a blob
+      const response = await fetch(downloadUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download image');
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+      
       // Create a temporary link and trigger download
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = blobUrl;
       link.download = `colorized-image-${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
+      
+      // Clean up
       document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error('Download error:', error);
       alert('Failed to download image. Please try again or right-click on the image and select "Save image as..."');

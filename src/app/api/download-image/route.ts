@@ -81,7 +81,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.redirect(imageUrl, 302);
+    // Fetch the image from R2
+    const imageResponse = await fetch(imageUrl);
+    
+    if (!imageResponse.ok) {
+      return NextResponse.json(
+        { error: 'Failed to fetch image' },
+        { status: 500 }
+      );
+    }
+
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    
+    // Determine filename
+    const filename = type === 'output' 
+      ? `colorized-${jobId}.jpg` 
+      : `original-${jobId}.jpg`;
+
+    // Return the image with download headers
+    return new NextResponse(imageBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Cache-Control': 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('Download error:', error);
     return NextResponse.json(
