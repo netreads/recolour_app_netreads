@@ -210,11 +210,16 @@ export async function POST(request: NextRequest) {
         status: JOB_STATUS.DONE,
       });
 
+      // SECURITY: Convert processed image to base64 data URL to hide R2 URL from client
+      // This prevents users from accessing the R2 URL before payment
+      const base64Image = processedImageBuffer.toString('base64');
+      const dataUrl = `data:image/jpeg;base64,${base64Image}`;
+
       return NextResponse.json(
         {
           success: true,
           jobId,
-          outputUrl,
+          outputUrl: dataUrl, // Return base64 data URL instead of R2 URL
           originalUrl: job.originalUrl,
         },
         {

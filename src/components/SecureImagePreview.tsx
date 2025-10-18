@@ -27,9 +27,9 @@ export function SecureImagePreview({
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    // OPTIMIZATION: Direct R2 URL instead of base64 conversion
-    // This saves 70% bandwidth - images served directly from R2 (FREE)
-    // Security is maintained through watermarks and right-click protection
+    // SECURITY: Image URL is now a base64 data URL (not R2 URL)
+    // This hides the actual R2 URL from users before payment
+    // The data URL is displayed directly without additional processing
     setObfuscatedUrl(imageUrl);
     setIsLoading(false);
   }, [imageUrl]);
