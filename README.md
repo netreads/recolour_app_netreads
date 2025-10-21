@@ -133,19 +133,21 @@ CREATE TABLE jobs (
 
 The application uses PhonePe payment gateway for credit purchases:
 
-- **Credit Packages**: 4 different packages from ₹149 to ₹2499
 - **Secure Payments**: Hosted checkout with PhonePe's secure payment page
-- **Real-time Updates**: Webhook-based payment status updates
-- **Automatic Credit Addition**: Credits are added automatically upon successful payment
+- **Payment Verification**: Polling-based payment verification with exponential backoff
+- **Automatic Access**: Jobs are automatically marked as paid and downloadable upon payment confirmation
 
-### Credit Packages
+### Payment Flow
 
-| Package | Credits | Price | Best For |
-|---------|---------|-------|----------|
-| Starter Pack | 1 | ₹49 | Trying the service |
-| Value Pack | 5 | ₹199 | Regular users |
-| Pro Pack | 12 | ₹399 | Power users |
-| Business Pack | 35 | ₹999 | Teams & businesses |
+1. **Order Creation**: User initiates payment, creates order in database
+2. **PhonePe Redirect**: User redirected to PhonePe payment page
+3. **Payment Completion**: User completes payment on PhonePe
+4. **Return to Site**: User redirected back to success page
+5. **Payment Verification**: Success page polls PhonePe API to verify payment (15 attempts over ~45 seconds)
+6. **Order Update**: Once verified, order marked as PAID and job marked as paid for download access
+7. **Image Display**: Colorized image loaded securely via download API
+
+**Note**: Payment verification uses polling (no webhooks) with exponential backoff to minimize API calls and costs.
 
 ## ⚡ Performance & Cost Optimizations
 
@@ -189,12 +191,23 @@ R2_BUCKET=your-bucket-name
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
 R2_PUBLIC_URL=https://your-bucket.r2.cloudflarestorage.com
+R2_ACCOUNT_ID=your-r2-account-id  # Required for R2.dev URLs
 
 # AI Service
 GEMINI_API_KEY=your-gemini-api-key
 
+# PhonePe Payment Gateway
+PHONEPE_CLIENT_ID=your-phonepe-client-id
+PHONEPE_CLIENT_SECRET=your-phonepe-client-secret
+PHONEPE_ENVIRONMENT=production  # or 'sandbox' for testing
+
+# Facebook Tracking (Optional)
+FACEBOOK_PIXEL_ID=your-pixel-id
+FACEBOOK_CONVERSIONS_API_TOKEN=your-api-token
+
 # App Configuration
 NEXT_PUBLIC_APP_URL=https://your-domain.com
+NEXT_PUBLIC_R2_URL=https://pub-xxxxx.r2.dev  # Must match your R2_PUBLIC_URL or use custom domain
 ```
 
 ## 📝 API Endpoints

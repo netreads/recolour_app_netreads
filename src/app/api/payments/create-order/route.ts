@@ -66,8 +66,7 @@ export async function POST(request: NextRequest) {
     } as any); // Cast to bypass Prisma type checking for Json field
 
     // Create PhonePe order (amount in rupees)
-    // Note: Webhook URL must be configured in PhonePe Merchant Dashboard
-    // It should point to: https://yourdomain.com/api/payments/webhook
+    // Payment status will be verified via polling on the success page
     const phonePeOrder = await createPhonePeOrder({
       orderId,
       orderAmountRupees: PRICING.SINGLE_IMAGE.RUPEES,

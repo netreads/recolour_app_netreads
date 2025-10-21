@@ -37,6 +37,7 @@ interface ServerEnv {
 
 interface ClientEnv {
   NEXT_PUBLIC_APP_URL?: string;
+  NEXT_PUBLIC_R2_URL?: string;
   FACEBOOK_PIXEL_ID?: string;
 }
 
@@ -105,6 +106,7 @@ class EnvValidator {
   getClientEnv(): ClientEnv {
     return {
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      NEXT_PUBLIC_R2_URL: process.env.NEXT_PUBLIC_R2_URL,
       FACEBOOK_PIXEL_ID: process.env.FACEBOOK_PIXEL_ID,
     };
   }

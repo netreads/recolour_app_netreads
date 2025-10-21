@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { trackPurchase } from '@/lib/facebookTracking';
 import { PRICING } from '@/lib/constants';
 
 interface PaymentStatus {
@@ -16,6 +15,7 @@ interface PaymentStatus {
   amount?: number;
   message?: string;
   jobId?: string;
+  status?: string;
 }
 
 function PaymentSuccessContent() {
@@ -26,9 +26,12 @@ function PaymentSuccessContent() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [purchaseTracked, setPurchaseTracked] = useState(false);
-  const [imageUrls, setImageUrls] = useState<{ original: string; output: string } | null>(null);
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
   const [showSupportMessage, setShowSupportMessage] = useState(false);
+  const [pollingAttempts, setPollingAttempts] = useState(0);
   const mountedRef = useRef(false);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Track component mount
   useEffect(() => {
@@ -37,9 +40,10 @@ function PaymentSuccessContent() {
     }
   }, [orderId, jobId]);
 
+  // Start polling when component mounts
   useEffect(() => {
     if (orderId) {
-      checkPaymentStatus(orderId);
+      startPollingPaymentStatus(orderId);
     } else {
       setPaymentStatus({
         success: false,
@@ -47,7 +51,24 @@ function PaymentSuccessContent() {
       });
       setLoading(false);
     }
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (imageBlobUrl) {
+        URL.revokeObjectURL(imageBlobUrl);
+      }
+    };
+  }, [imageBlobUrl]);
 
   // Track purchase event - fires ONLY when payment succeeds
   useEffect(() => {
@@ -65,20 +86,18 @@ function PaymentSuccessContent() {
     }
     
     // Generate event_id for deduplication with server-side tracking
-    // Facebook uses this to deduplicate events sent from both browser and server
     const eventId = `${paymentStatus.orderId || orderId}_${trackingJobId}`;
     
     // Function to track purchase with retries
     const trackPurchaseWithRetry = (attempts = 0, maxAttempts = 20): ReturnType<typeof setTimeout> | null => {
       if (typeof window !== 'undefined' && window.fbq) {
         try {
-          // Send with event_id for deduplication with CAPI
           window.fbq('track', 'Purchase', {
             value: PRICING.SINGLE_IMAGE.RUPEES,
             currency: 'INR',
             content_ids: [trackingJobId],
           }, {
-            eventID: eventId // Facebook will deduplicate if CAPI also sends this event_id
+            eventID: eventId
           });
           setPurchaseTracked(true);
           return null;
@@ -92,7 +111,6 @@ function PaymentSuccessContent() {
       }
     };
 
-    // Start immediately
     const cleanupTimer = trackPurchaseWithRetry();
     
     return () => {
@@ -100,46 +118,104 @@ function PaymentSuccessContent() {
     };
     
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId, paymentStatus]); // Don't include purchaseTracked in deps to avoid re-running after tracking
+  }, [jobId, paymentStatus]);
 
-  const checkPaymentStatus = async (orderId: string) => {
-    try {
-      const response = await fetch(`/api/payments/status?order_id=${orderId}`);
-      const data = await response.json();
-      
-      // Use jobId from API response, fallback to URL parameter
-      const statusWithJobId = { ...data, jobId: data.jobId || jobId };
-      setPaymentStatus(statusWithJobId);
+  // Poll payment status with exponential backoff (cost-efficient)
+  const startPollingPaymentStatus = async (orderId: string) => {
+    const maxAttempts = 15; // 15 attempts over ~45 seconds
+    let attempt = 0;
 
-      // If payment successful, display the colorized image
-      // Webhook has already marked order and job as paid
-      const finalJobId = data.jobId || jobId;
-      if (data?.success && finalJobId) {
-        // Construct direct R2 URLs for images
-        const R2_URL = process.env.NEXT_PUBLIC_R2_URL || 'https://pub-a16f47f2729e4df8b1e83fdf9703d1ca.r2.dev';
-        const fetchedUrls = {
-          original: `${R2_URL}/uploads/${finalJobId}`,
-          output: `${R2_URL}/outputs/${finalJobId}-colorized.jpg`
-        };
+    const poll = async () => {
+      try {
+        attempt++;
+        setPollingAttempts(attempt);
+        console.log(`[POLL] Attempt ${attempt}/${maxAttempts} for order ${orderId}`);
+
+        const response = await fetch(`/api/payments/status?order_id=${orderId}`);
+        const data = await response.json();
         
-        // Set image URLs immediately - trust webhook processed payment
-        setImageUrls(fetchedUrls);
-        
-        // Show support message after 5 seconds if images don't load
-        // (Natural loading will show the image, this is just a backup)
-        setTimeout(() => {
-          if (!imageUrls?.output) {
-            setShowSupportMessage(true);
+        console.log(`[POLL] Response:`, data);
+
+        if (data.success) {
+          // Payment successful!
+          const statusWithJobId = { ...data, jobId: data.jobId || jobId };
+          setPaymentStatus(statusWithJobId);
+          setLoading(false);
+
+          // Load image securely via download API
+          const finalJobId = data.jobId || jobId;
+          if (finalJobId) {
+            await loadImageSecurely(finalJobId);
           }
-        }, 5000);
+          return; // Stop polling
+        } else if (data.status === 'FAILED') {
+          // Payment failed
+          setPaymentStatus(data);
+          setLoading(false);
+          return; // Stop polling
+        } else if (attempt >= maxAttempts) {
+          // Max attempts reached
+          console.error(`[POLL] Max attempts reached for order ${orderId}`);
+          setPaymentStatus({
+            success: false,
+            message: 'Payment verification timeout. If you completed payment, please contact support.',
+            orderId,
+            jobId: jobId || undefined
+          });
+          setLoading(false);
+          setShowSupportMessage(true);
+          return;
+        } else {
+          // Still pending, schedule next poll with exponential backoff
+          const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 5000); // 1s, 1.5s, 2.25s, ... max 5s
+          console.log(`[POLL] Payment still pending, retrying in ${delay}ms...`);
+          pollingTimeoutRef.current = setTimeout(poll, delay);
+        }
+      } catch (error) {
+        console.error(`[POLL] Error checking payment status:`, error);
+        
+        if (attempt >= maxAttempts) {
+          setPaymentStatus({
+            success: false,
+            message: 'Failed to verify payment status. Please contact support.'
+          });
+          setLoading(false);
+          setShowSupportMessage(true);
+          return;
+        }
+
+        // Retry on error
+        const delay = Math.min(2000 * Math.pow(1.5, attempt - 1), 5000);
+        pollingTimeoutRef.current = setTimeout(poll, delay);
       }
+    };
+
+    // Start polling
+    await poll();
+  };
+
+  // Load image securely via download API (not direct R2 URL)
+  const loadImageSecurely = async (jobId: string) => {
+    try {
+      setImageLoading(true);
+      console.log(`[IMAGE] Loading image for job ${jobId} via secure API`);
+
+      const response = await fetch(`/api/download-image?jobId=${jobId}&type=output`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load image: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      setImageBlobUrl(blobUrl);
+      console.log(`[IMAGE] Image loaded successfully`);
     } catch (error) {
-      setPaymentStatus({
-        success: false,
-        message: 'Failed to verify payment status'
-      });
+      console.error('[IMAGE] Error loading image:', error);
+      setShowSupportMessage(true);
     } finally {
-      setLoading(false);
+      setImageLoading(false);
     }
   };
 
@@ -148,35 +224,30 @@ function PaymentSuccessContent() {
     
     setDownloading(true);
     try {
-      // Use the download API endpoint which handles authentication and CORS properly
-      const downloadUrl = `/api/download-image?jobId=${paymentStatus.jobId}&type=output`;
+      console.log(`[DOWNLOAD] Downloading image for job ${paymentStatus.jobId}`);
       
-      // Fetch the image as a blob
-      const response = await fetch(downloadUrl);
+      const response = await fetch(`/api/download-image?jobId=${paymentStatus.jobId}&type=output`);
       
       if (!response.ok) {
         throw new Error('Failed to download image');
       }
       
-      // Get the blob from the response
       const blob = await response.blob();
-      
-      // Create a temporary URL for the blob
       const blobUrl = URL.createObjectURL(blob);
       
-      // Create a temporary link and trigger download
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = `colorized-image-${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
       
-      // Clean up
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
+      
+      console.log(`[DOWNLOAD] Download successful`);
     } catch (error) {
-      console.error('Download error:', error);
-      alert('Failed to download image. Please try again or right-click on the image and select "Save image as..."');
+      console.error('[DOWNLOAD] Download error:', error);
+      alert('Failed to download image. Please try again or contact support.');
     } finally {
       setDownloading(false);
     }
@@ -197,10 +268,10 @@ function PaymentSuccessContent() {
                 {/* Main Message */}
                 <div className="space-y-3">
                   <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    Processing Your Order... ✨
+                    Verifying Your Payment... ✨
                   </h2>
                   <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                    We're verifying your payment and preparing your colorized image in full HD quality.
+                    We're confirming your payment with the payment gateway. This usually takes just a few seconds.
                   </p>
                 </div>
 
@@ -209,22 +280,29 @@ function PaymentSuccessContent() {
                   <div className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-gray-900">Payment Received</p>
-                      <p className="text-sm text-gray-600">Your transaction is being confirmed</p>
+                      <p className="font-semibold text-gray-900">Payment Initiated</p>
+                      <p className="text-sm text-gray-600">You completed the payment successfully</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
                     <Loader2 className="h-5 w-5 text-orange-600 animate-spin mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-gray-900">Preparing Your Image</p>
-                      <p className="text-sm text-gray-600">Loading your restored memory in HD...</p>
+                      <p className="font-semibold text-gray-900">Confirming with Payment Gateway</p>
+                      <p className="text-sm text-gray-600">Attempt {pollingAttempts} of 15...</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="h-5 w-5 border-2 border-gray-300 rounded-full mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-gray-700">Loading Your HD Image</p>
+                      <p className="text-sm text-gray-500">Next step after confirmation</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Reassurance */}
                 <p className="text-sm text-gray-500 italic">
-                  This usually takes just a few seconds. Your image will appear shortly! 🎨
+                  Please wait, do not refresh or close this page. This process is automatic. 🎨
                 </p>
               </div>
             </CardContent>
@@ -263,17 +341,17 @@ function PaymentSuccessContent() {
                       {/* Main Image Display */}
                       <div className="relative">
                         <div className="relative aspect-video sm:aspect-[4/3] bg-gray-50 rounded-lg sm:rounded-xl overflow-hidden border-2 border-gray-200">
-                          {imageUrls?.output ? (
+                          {imageBlobUrl && !imageLoading ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
-                              src={imageUrls.output}
+                              src={imageBlobUrl}
                               alt="Your colorized HD image"
                               className="w-full h-full object-contain"
                             />
                           ) : (
                             <div className="flex flex-col items-center justify-center h-full space-y-2 sm:space-y-3">
                               <Loader2 className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-orange-500" />
-                              <p className="text-sm sm:text-base text-gray-500 font-medium">Loading your HD image...</p>
+                              <p className="text-sm sm:text-base text-gray-500 font-medium">Loading your HD image securely...</p>
                             </div>
                           )}
                           <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
@@ -285,7 +363,7 @@ function PaymentSuccessContent() {
                       </div>
 
                       {/* Support Message if images fail to load */}
-                      {showSupportMessage && !imageUrls?.output && (
+                      {showSupportMessage && !imageBlobUrl && (
                         <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 sm:p-6">
                           <div className="flex items-start space-x-3">
                             <span className="text-orange-600 text-2xl">⚠️</span>
@@ -308,7 +386,7 @@ function PaymentSuccessContent() {
                                 className="w-full bg-green-600 hover:bg-green-700 text-white"
                               >
                                 <Link 
-                                  href={`https://wa.me/917984837468?text=Hi%2C%20my%20payment%20was%20successful%20but%20I%20can't%20download%20my%20image.%20Order%20ID%3A%20${encodeURIComponent(paymentStatus?.orderId || 'N/A')}%20%7C%20Job%20ID%3A%20${encodeURIComponent(paymentStatus?.jobId || 'N/A')}`} 
+                                  href={`https://wa.me/917984837468?text=Hi%2C%20my%20payment%20was%20successful%20but%20I%20can't%20see%20my%20image.%20Order%20ID%3A%20${encodeURIComponent(paymentStatus?.orderId || 'N/A')}%20%7C%20Job%20ID%3A%20${encodeURIComponent(paymentStatus?.jobId || 'N/A')}`} 
                                   target="_blank"
                                 >
                                   📱 Contact Support on WhatsApp
@@ -322,7 +400,7 @@ function PaymentSuccessContent() {
                       {/* Download Button */}
                       <Button 
                         onClick={handleDownload}
-                        disabled={downloading || !imageUrls?.output}
+                        disabled={downloading || !imageBlobUrl}
                         className="w-full h-12 sm:h-14 bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700 text-white font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         size="lg"
                       >
@@ -331,7 +409,7 @@ function PaymentSuccessContent() {
                             <Loader2 className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
                             Downloading...
                           </>
-                        ) : !imageUrls?.output ? (
+                        ) : !imageBlobUrl ? (
                           <>
                             ⏳ Loading your image...
                           </>
@@ -372,7 +450,9 @@ function PaymentSuccessContent() {
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto">
                   <span className="text-red-600 text-3xl font-bold">✕</span>
                 </div>
-                <CardTitle className="text-3xl text-red-600">Payment Failed</CardTitle>
+                <CardTitle className="text-3xl text-red-600">
+                  {paymentStatus?.status === 'PENDING' ? 'Payment Verification Timeout' : 'Payment Failed'}
+                </CardTitle>
                 <CardDescription className="text-lg text-gray-600">
                   {paymentStatus?.message || 'There was an issue processing your payment.'}
                 </CardDescription>
@@ -393,9 +473,20 @@ function PaymentSuccessContent() {
                       <h3 className="font-semibold text-orange-900 text-base sm:text-lg mb-2">
                         Payment Deducted from Your Account?
                       </h3>
-                      <p className="text-sm sm:text-base text-orange-800 leading-relaxed">
+                      <p className="text-sm sm:text-base text-orange-800 leading-relaxed mb-2">
                         If the payment amount was deducted from your account, please take a screenshot of your bank/payment confirmation and WhatsApp us immediately. We'll resolve this for you right away.
                       </p>
+                      {orderId && (
+                        <p className="text-sm text-orange-700 mb-3">
+                          <strong>Order ID:</strong> {orderId}
+                          {jobId && (
+                            <>
+                              <br />
+                              <strong>Job ID:</strong> {jobId}
+                            </>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
@@ -404,7 +495,10 @@ function PaymentSuccessContent() {
                     size="lg" 
                     className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Link href="https://wa.me/917984837468?text=Hi%2C%20my%20payment%20failed%20but%20the%20amount%20was%20deducted%20from%20my%20account.%20Order%20ID%3A%20%5BYour%20Order%20ID%5D.%20I%20am%20sharing%20the%20payment%20screenshot." target="_blank">
+                    <Link 
+                      href={`https://wa.me/917984837468?text=Hi%2C%20my%20payment%20verification%20failed%20but%20amount%20was%20deducted.%20Order%20ID%3A%20${encodeURIComponent(orderId || 'N/A')}%20%7C%20Job%20ID%3A%20${encodeURIComponent(jobId || 'N/A')}`}
+                      target="_blank"
+                    >
                       📱 WhatsApp Us with Screenshot
                     </Link>
                   </Button>
@@ -416,7 +510,7 @@ function PaymentSuccessContent() {
                   size="lg" 
                   className="w-full h-14 text-lg border-2 hover:bg-gray-50"
                 >
-                  <Link href="https://wa.me/917984837468?text=Hi%2C%20I%20am%20unable%20to%do%payement%20for%20the%20image.%20Can%20you%20help%3F" target="_blank">
+                  <Link href="https://wa.me/917984837468?text=Hi%2C%20I%20need%20help%20with%20my%20payment." target="_blank">
                     💬 Contact Support on WhatsApp
                   </Link>
                 </Button>
