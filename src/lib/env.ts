@@ -30,6 +30,9 @@ interface ServerEnv {
   // Admin
   ADMIN_FIX_PAYMENT_KEY?: string;
   
+  // Cron Jobs
+  CRON_SECRET?: string; // Secret for authenticating cron job requests
+  
   // App
   NEXT_PUBLIC_APP_URL?: string;
   NODE_ENV: string;
@@ -96,6 +99,7 @@ class EnvValidator {
       FACEBOOK_PIXEL_ID: env.FACEBOOK_PIXEL_ID,
       FACEBOOK_CONVERSIONS_API_TOKEN: env.FACEBOOK_CONVERSIONS_API_TOKEN,
       ADMIN_FIX_PAYMENT_KEY: env.ADMIN_FIX_PAYMENT_KEY,
+      CRON_SECRET: env.CRON_SECRET,
       NEXT_PUBLIC_APP_URL: env.NEXT_PUBLIC_APP_URL,
       NODE_ENV: env.NODE_ENV || 'development',
     };

@@ -278,3 +278,16 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 Built with ❤️ using Next.js, Cloudflare, and Google Gemini AI
+
+
+# Clean images older than 3 days (default)
+node scripts/cleanup-r2-old-files.js
+
+# Test what would be deleted (dry run)
+node scripts/cleanup-r2-old-files.js --dry-run
+
+# Clean images older than 7 days
+node scripts/cleanup-r2-old-files.js --days=7
+
+# Test 7-day cleanup
+node scripts/cleanup-r2-old-files.js --days=7 --dry-run

@@ -6,7 +6,7 @@ import { getServerEnv } from '@/lib/env';
 import { trackPurchaseServerSide } from '@/lib/facebookConversionsAPI';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30; // Handles payment verification via polling
+export const maxDuration = 60; // Extended to handle slow PhonePe confirmations during high load
 
 interface OrderMetadata {
   jobId?: string;
@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
     }
 
     let success = order.status === ORDER_STATUS.PAID;
-    let transaction = order.transactions.find(t => t.status === 'SUCCESS');
+    let transaction = order.transactions.find((t: { status: string }) => t.status === 'SUCCESS');
 
-    // POLLING APPROACH: Check PhonePe if order is still pending
+    // ENHANCED POLLING APPROACH: Check PhonePe if order is still pending
     // This ensures we catch payments even without webhooks
     if (!success && order.phonePeOrderId && order.status === ORDER_STATUS.PENDING) {
       console.log(`[STATUS] Polling PhonePe for order ${orderId}`);
@@ -62,70 +62,74 @@ export async function GET(request: NextRequest) {
           
           console.log(`[STATUS] ✅ Payment COMPLETED for order ${orderId}`);
           
-          // Update order status
-          const updated = await prisma.order.update({
-            where: { id: order.id },
-            data: {
-              status: ORDER_STATUS.PAID,
-              paymentId: transactionId,
-              paymentStatus: 'SUCCESS',
-            },
-            include: { transactions: true },
-          });
-
-          console.log(`[STATUS] ✅ Order ${orderId} marked as PAID`);
-
-          // Create success transaction if not exists
-          const hasSuccessTxn = updated.transactions.some(t => t.status === 'SUCCESS');
-          if (!hasSuccessTxn) {
-            await prisma.transaction.create({
+          // Update order status with transaction
+          await prisma.$transaction(async (tx: any) => {
+            // Update order status
+            const updated = await tx.order.update({
+              where: { id: order.id },
               data: {
-                orderId: updated.id,
-                userId: updated.userId,
-                credits: 0,
-                amount: updated.amount,
-                type: 'CREDIT_PURCHASE',
-                status: 'SUCCESS',
-                phonePeOrderId: updated.phonePeOrderId,
-                paymentId: updated.paymentId || undefined,
+                status: ORDER_STATUS.PAID,
+                paymentId: transactionId,
+                paymentStatus: 'SUCCESS',
               },
+              include: { transactions: true },
             });
-            console.log(`[STATUS] ✅ Transaction record created`);
-          }
 
-          // Mark job as paid - critical for download access
-          const metadata = (updated as any).metadata as OrderMetadata;
-          if (metadata?.jobId) {
-            try {
-              const job = await prisma.job.findUnique({
+            console.log(`[STATUS] ✅ Order ${orderId} marked as PAID`);
+
+            // Create success transaction if not exists
+            const hasSuccessTxn = updated.transactions.some((t: { status: string }) => t.status === 'SUCCESS');
+            if (!hasSuccessTxn) {
+              await tx.transaction.create({
+                data: {
+                  orderId: updated.id,
+                  userId: updated.userId,
+                  credits: 0,
+                  amount: updated.amount,
+                  type: 'CREDIT_PURCHASE',
+                  status: 'SUCCESS',
+                  phonePeOrderId: updated.phonePeOrderId,
+                  paymentId: updated.paymentId || undefined,
+                },
+              });
+              console.log(`[STATUS] ✅ Transaction record created`);
+            }
+
+            // Mark job as paid - critical for download access
+            const metadata = (updated as any).metadata as OrderMetadata;
+            if (metadata?.jobId) {
+              const job = await tx.job.findUnique({
                 where: { id: metadata.jobId },
               });
               
-              if (job && !job.isPaid) {
-                await prisma.job.update({
+              if (!job) {
+                console.error(`[STATUS] ❌ Job ${metadata.jobId} not found!`);
+              } else if (!job.isPaid) {
+                await tx.job.update({
                   where: { id: metadata.jobId },
                   data: { isPaid: true },
                 });
                 console.log(`[STATUS] ✅ Job ${metadata.jobId} marked as PAID`);
-              } else if (!job) {
-                console.error(`[STATUS] ❌ Job ${metadata.jobId} not found!`);
+              } else {
+                console.log(`[STATUS] ℹ️ Job ${metadata.jobId} already marked as PAID`);
               }
-            } catch (jobError) {
-              console.error(`[STATUS] ❌ Failed to mark job as paid:`, jobError);
             }
-          }
 
-          // Track purchase in Facebook Conversions API
+            return updated;
+          });
+
+          // Track purchase in Facebook Conversions API (outside transaction)
           try {
+            const metadata = (order as any).metadata as OrderMetadata;
             const tracking = metadata?.tracking as any;
-            const amountInRupees = updated.amount / 100;
+            const amountInRupees = order.amount / 100;
             
             await trackPurchaseServerSide({
-              orderId: updated.id,
+              orderId: order.id,
               jobId: metadata?.jobId,
               amount: amountInRupees,
               currency: 'INR',
-              userId: updated.userId || undefined,
+              userId: order.userId || undefined,
               ipAddress: tracking?.ipAddress,
               userAgent: tracking?.userAgent,
               fbc: tracking?.fbc,
@@ -139,9 +143,9 @@ export async function GET(request: NextRequest) {
             // Non-critical, continue
           }
 
-          order = updated;
+          // Update order status in memory for response
+          order.status = ORDER_STATUS.PAID;
           success = true;
-          transaction = updated.transactions.find(t => t.status === 'SUCCESS') || transaction;
         } else if (paymentStatus.state === PAYMENT_STATUS.FAILED) {
           console.log(`[STATUS] ❌ Payment FAILED for order ${orderId}`);
           await prisma.order.update({
