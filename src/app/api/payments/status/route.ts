@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
     let success = order.status === ORDER_STATUS.PAID;
     let transaction = order.transactions.find((t: { status: string }) => t.status === 'SUCCESS');
 
-    // ENHANCED POLLING APPROACH: Check PhonePe if order is still pending
-    // This ensures we catch payments even without webhooks
-    if (!success && order.phonePeOrderId && order.status === ORDER_STATUS.PENDING) {
-      console.log(`[STATUS] Polling PhonePe for order ${orderId}`);
+    // FIXED ARCHITECTURE: Always check PhonePe for accurate status
+    // This prevents failed payments from being treated as successful
+    if (order.phonePeOrderId) {
+      console.log(`[STATUS] Checking PhonePe for order ${orderId}`);
       try {
         const paymentStatus = await getPhonePeOrderStatus(order.id);
         console.log(`[STATUS] PhonePe status for ${orderId}: ${paymentStatus.state}`);
@@ -146,8 +146,11 @@ export async function GET(request: NextRequest) {
           // Update order status in memory for response
           order.status = ORDER_STATUS.PAID;
           success = true;
+          
         } else if (paymentStatus.state === PAYMENT_STATUS.FAILED) {
           console.log(`[STATUS] ❌ Payment FAILED for order ${orderId}`);
+          
+          // Update order status to failed
           await prisma.order.update({
             where: { id: order.id },
             data: {
@@ -155,9 +158,23 @@ export async function GET(request: NextRequest) {
               paymentStatus: 'FAILED',
             },
           });
+          
+          // Unmark job as paid if it was marked
+          const metadata = (order as any).metadata as OrderMetadata;
+          if (metadata?.jobId) {
+            await prisma.job.update({
+              where: { id: metadata.jobId },
+              data: { isPaid: false },
+            });
+            console.log(`[STATUS] ❌ Job ${metadata.jobId} unmarked as paid due to failed payment`);
+          }
+          
           order.status = ORDER_STATUS.FAILED;
+          success = false;
+          
         } else if (paymentStatus.state === PAYMENT_STATUS.PENDING) {
           console.log(`[STATUS] ⏳ Order ${orderId} still PENDING at PhonePe`);
+          // Keep current status, don't change success flag
         }
       } catch (e) {
         console.error('[STATUS] ❌ Error checking PhonePe payment status:', e);

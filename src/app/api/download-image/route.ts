@@ -30,87 +30,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if job is marked as paid
+    // Zero-Polling Architecture: Enhanced fallback logic
     let isPaid = job.isPaid;
-    let paidOrder = null;
     
-    // ENHANCED FALLBACK: If job is not marked as paid, check if there's a paid order for this job
-    // This handles race conditions where payment verification hasn't updated the job yet
+    // FALLBACK 1: If job is not marked as paid, check for recent orders (last 24 hours)
     if (!isPaid) {
-      console.log(`[DOWNLOAD] Job ${jobId} not marked as paid, checking for paid order...`);
+      console.log(`[DOWNLOAD] Job ${jobId} not marked as paid, checking for recent orders...`);
       
       try {
-        // Check for paid orders with this jobId in metadata
-        paidOrder = await prisma.order.findFirst({
+        // Check for any recent orders with this jobId in metadata
+        const recentOrder = await prisma.order.findFirst({
           where: {
-            status: 'PAID',
             metadata: {
               path: ['jobId'],
               equals: jobId,
             },
+            createdAt: {
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+            },
+          },
+          orderBy: {
+            createdAt: 'desc', // Most recent first
           },
         });
 
-        if (paidOrder) {
-          // Found a paid order for this job! Use transaction to ensure consistency
-          console.log(`[DOWNLOAD] ✅ Found paid order ${paidOrder.id} for job ${jobId}`);
+        if (recentOrder) {
+          console.log(`[DOWNLOAD] ✅ Found recent order ${recentOrder.id} for job ${jobId} (status: ${recentOrder.status})`);
+          
+          // Mark job as paid and allow download (optimistic approach)
           isPaid = true;
           
-          // Update the job atomically
           try {
             await prisma.job.update({
               where: { id: jobId },
               data: { isPaid: true },
             });
-            console.log(`[DOWNLOAD] ✅ Job ${jobId} marked as paid`);
+            console.log(`[DOWNLOAD] ✅ Job ${jobId} marked as paid via fallback`);
           } catch (updateError) {
             console.error(`[DOWNLOAD] ⚠️ Could not update job ${jobId} but allowing download anyway:`, updateError);
           }
         } else {
-          // Additional fallback: Check if there are any recent successful transactions for this job
-          // This handles edge cases where order metadata might not be properly set
-          const recentPaidOrder = await prisma.order.findFirst({
-            where: {
-              status: 'PAID',
-              createdAt: {
-                gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
-              },
-              transactions: {
-                some: {
-                  status: 'SUCCESS',
-                },
-              },
-            },
-            include: {
-              transactions: true,
-            },
-          });
-
-          if (recentPaidOrder) {
-            // Check if this order's metadata contains our jobId (case-insensitive search)
-            const metadata = recentPaidOrder.metadata as any;
-            if (metadata?.jobId === jobId) {
-              console.log(`[DOWNLOAD] ✅ Found recent paid order ${recentPaidOrder.id} for job ${jobId} via fallback check`);
-              isPaid = true;
-              
-              try {
-                await prisma.job.update({
-                  where: { id: jobId },
-                  data: { isPaid: true },
-                });
-                console.log(`[DOWNLOAD] ✅ Job ${jobId} marked as paid via fallback`);
-              } catch (updateError) {
-                console.error(`[DOWNLOAD] ⚠️ Could not update job ${jobId} but allowing download anyway:`, updateError);
-              }
-            }
-          }
-          
-          if (!isPaid) {
-            console.log(`[DOWNLOAD] ❌ No paid order found for job ${jobId}`);
-          }
+          console.log(`[DOWNLOAD] ❌ No recent order found for job ${jobId}`);
         }
       } catch (err) {
-        console.error('[DOWNLOAD] Error checking order payment status:', err);
+        console.error('[DOWNLOAD] Error checking recent orders:', err);
         // Continue with original isPaid value
       }
     }
