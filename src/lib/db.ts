@@ -16,18 +16,13 @@ prisma.$connect().catch((error: any) => {
   console.error('Failed to connect to database:', error);
 });
 
-// Import Prisma types
-import type { Job as PrismaJob, User as PrismaUser } from '@prisma/client';
-
-// Export Prisma types
-export type Job = PrismaJob;
-export type User = PrismaUser;
+// Export JobStatus enum
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
 
 // Database helper functions using Prisma
 export class DatabaseHelper {
   // Job operations
-  async createJob(id: string, userId: string | null, originalUrl: string): Promise<Job> {
+  async createJob(id: string, userId: string | null, originalUrl: string) {
     return await prisma.job.create({
       data: {
         id,
@@ -38,13 +33,13 @@ export class DatabaseHelper {
     });
   }
 
-  async getJobById(id: string): Promise<Job | null> {
+  async getJobById(id: string) {
     return await prisma.job.findUnique({
       where: { id }
     });
   }
 
-  async updateJob(id: string, updates: Partial<Pick<Job, 'outputUrl' | 'status'>>): Promise<Job> {
+  async updateJob(id: string, updates: { outputUrl?: string | null; status?: JobStatus }) {
     return await prisma.job.update({
       where: { id },
       data: updates
