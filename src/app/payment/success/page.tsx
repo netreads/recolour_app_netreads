@@ -1,97 +1,54 @@
 'use client';
 
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { PRICING } from '@/lib/constants';
 
 interface PaymentStatus {
   success: boolean;
   orderId?: string;
-  credits?: number;
   amount?: number;
   message?: string;
   jobId?: string;
   status?: string;
+  alreadyPaid?: boolean;
+  alreadyFailed?: boolean;
+  timeout?: boolean;
+  retryAfter?: number;
+  phonePeState?: string;
+  transactionId?: string;
+  error?: boolean;
 }
 
-function PaymentSuccessContent() {
+function SimplePaymentSuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('order_id');
   const jobId = searchParams.get('job_id');
   
-  // Add error boundary for debugging
-  const [hasError, setHasError] = useState(false);
-  
-  if (hasError) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-2xl mx-auto">
-          <Card className="border shadow-lg bg-white">
-            <CardContent className="p-8 sm:p-12">
-              <div className="text-center space-y-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-red-600">
-                  Something went wrong
-                </h2>
-                <p className="text-base sm:text-lg text-gray-600">
-                  There was an error loading your payment details. Please try refreshing the page.
-                </p>
-                <Button onClick={() => window.location.reload()}>
-                  Refresh Page
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [purchaseTracked, setPurchaseTracked] = useState(false);
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [showSupportMessage, setShowSupportMessage] = useState(false);
-  const [pollingAttempts, setPollingAttempts] = useState(0);
-  const [showRetryButton, setShowRetryButton] = useState(false);
-  const mountedRef = useRef(false);
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryTimer, setRetryTimer] = useState<number | null>(null);
 
-  // Track component mount
+  // Check payment status once on mount
   useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true;
+    if (orderId) {
+      checkPaymentStatus();
+    } else {
+      setPaymentStatus({
+        success: false,
+        message: 'No order ID provided'
+      });
+      setLoading(false);
     }
-  }, [orderId, jobId]);
-
-  // Start polling when component mounts
-  useEffect(() => {
-    try {
-      if (orderId) {
-        startPollingPaymentStatus(orderId);
-      } else {
-        setPaymentStatus({
-          success: false,
-          message: 'No order ID provided'
-        });
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Error in payment success page:', error);
-      setHasError(true);
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   // Cleanup blob URL on unmount
@@ -103,26 +60,18 @@ function PaymentSuccessContent() {
     };
   }, [imageBlobUrl]);
 
-  // Track purchase event - fires ONLY when payment succeeds
+  // Track purchase event when payment succeeds
   useEffect(() => {
-    // Don't track if already tracked
-    if (purchaseTracked) {
-      return;
-    }
+    if (!paymentStatus?.success || !paymentStatus?.jobId) return;
 
-    // Get jobId from payment status or URL params
-    const trackingJobId = paymentStatus?.jobId || jobId;
+    const trackingJobId = paymentStatus.jobId || jobId;
+    if (!trackingJobId) return;
     
-    // Only track if we have a jobId AND payment was successful
-    if (!trackingJobId || !paymentStatus?.success) {
-      return;
-    }
-    
-    // Generate event_id for deduplication with server-side tracking
+    // Generate event_id for deduplication
     const eventId = `${paymentStatus.orderId || orderId}_${trackingJobId}`;
     
-    // Function to track purchase with retries
-    const trackPurchaseWithRetry = (attempts = 0, maxAttempts = 20): ReturnType<typeof setTimeout> | null => {
+    // Track purchase with retries
+    const trackPurchaseWithRetry = (attempts = 0, maxAttempts = 10): ReturnType<typeof setTimeout> | null => {
       if (typeof window !== 'undefined' && window.fbq) {
         try {
           window.fbq('track', 'Purchase', {
@@ -132,113 +81,88 @@ function PaymentSuccessContent() {
           }, {
             eventID: eventId
           });
-          setPurchaseTracked(true);
           return null;
         } catch (error) {
           return null;
         }
       } else if (attempts < maxAttempts) {
-        return setTimeout(() => trackPurchaseWithRetry(attempts + 1, maxAttempts), 300);
+        return setTimeout(() => trackPurchaseWithRetry(attempts + 1, maxAttempts), 500);
       } else {
         return null;
       }
     };
 
     const cleanupTimer = trackPurchaseWithRetry();
-    
     return () => {
       if (cleanupTimer) clearTimeout(cleanupTimer);
     };
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId, paymentStatus]);
+  }, [paymentStatus, jobId, orderId]);
 
-  // Poll payment status with exponential backoff (cost-efficient)
-  const startPollingPaymentStatus = async (orderId: string) => {
-    const maxAttempts = 10; // 10 attempts over ~30 seconds (faster verification)
-    let attempt = 0;
-
-    const poll = async () => {
-      try {
-        attempt++;
-        setPollingAttempts(attempt);
-        console.log(`[POLL] Attempt ${attempt}/${maxAttempts} for order ${orderId}`);
-
-        const response = await fetch(`/api/payments/status?order_id=${orderId}`);
-        const data = await response.json();
-        
-        console.log(`[POLL] Response:`, data);
-
-        if (data.success) {
-          // Payment successful!
-          const statusWithJobId = { ...data, jobId: data.jobId || jobId };
-          setPaymentStatus(statusWithJobId);
-          setLoading(false);
-
-          // Load image securely via download API
-          const finalJobId = data.jobId || jobId;
-          if (finalJobId) {
-            await loadImageSecurely(finalJobId);
+  // Retry timer countdown
+  useEffect(() => {
+    if (retryTimer && retryTimer > 0) {
+      const interval = setInterval(() => {
+        setRetryTimer(prev => {
+          if (prev && prev <= 1) {
+            clearInterval(interval);
+            return null;
           }
-          return; // Stop polling
-        } else if (data.status === 'FAILED') {
-          // Payment failed
-          setPaymentStatus(data);
-          setLoading(false);
-          return; // Stop polling
-        } else if (attempt >= maxAttempts) {
-          // Max attempts reached - show retry option
-          console.error(`[POLL] Max attempts reached for order ${orderId}`);
-          setPaymentStatus({
-            success: false,
-            message: 'Payment verification is taking longer than expected. Click Retry to check again.',
-            orderId,
-            jobId: jobId || undefined,
-            status: 'PENDING'
-          });
-          setLoading(false);
-          setShowRetryButton(true); // Show retry button instead of immediate support message
-          return;
-        } else {
-          // Still pending, schedule next poll with exponential backoff
-          const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 5000); // 1s, 1.5s, 2.25s, ... max 5s
-          console.log(`[POLL] Payment still pending, retrying in ${delay}ms...`);
-          pollingTimeoutRef.current = setTimeout(poll, delay);
-        }
-      } catch (error) {
-        console.error(`[POLL] Error checking payment status:`, error);
-        
-        if (attempt >= maxAttempts) {
-          setPaymentStatus({
-            success: false,
-            message: 'Failed to verify payment status. Please contact support.'
-          });
-          setLoading(false);
-          setShowSupportMessage(true);
-          return;
-        }
+          return prev ? prev - 1 : null;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [retryTimer]);
 
-        // Retry on error
-        const delay = Math.min(2000 * Math.pow(1.5, attempt - 1), 5000);
-        pollingTimeoutRef.current = setTimeout(poll, delay);
+  const checkPaymentStatus = async () => {
+    try {
+      setLoading(true);
+      console.log(`[SIMPLE-CHECK] Checking payment status for order ${orderId}`);
+
+      const response = await fetch(`/api/payments/status?order_id=${orderId}`);
+      const data = await response.json();
+      
+      console.log(`[SIMPLE-CHECK] Response:`, data);
+      console.log(`[SIMPLE-CHECK] Payment success:`, data.success);
+      console.log(`[SIMPLE-CHECK] Payment status:`, data.status);
+      console.log(`[SIMPLE-CHECK] PhonePe state:`, data.phonePeState);
+
+      setPaymentStatus(data);
+
+      if (data.success) {
+        console.log(`[SIMPLE-CHECK] ✅ Payment successful - loading image`);
+        // Payment successful - load image
+        const finalJobId = data.jobId || jobId;
+        if (finalJobId) {
+          await loadImageSecurely(finalJobId);
+        }
+      } else {
+        console.log(`[SIMPLE-CHECK] ❌ Payment failed or pending`);
+        if (data.retryAfter && retryCount < 3) {
+          console.log(`[SIMPLE-CHECK] Setting retry timer: ${data.retryAfter}s`);
+          // Set retry timer
+          setRetryTimer(data.retryAfter);
+        }
       }
-    };
 
-    // Start polling
-    await poll();
-  };
-
-  // Retry payment verification
-  const handleRetryVerification = () => {
-    setLoading(true);
-    setShowRetryButton(false);
-    setPollingAttempts(0);
-    if (orderId) {
-      startPollingPaymentStatus(orderId);
+      setLoading(false);
+    } catch (error) {
+      console.error(`[SIMPLE-CHECK] Error checking payment status:`, error);
+      setPaymentStatus({
+        success: false,
+        message: 'Failed to verify payment status. Please contact support.',
+        error: true
+      });
+      setLoading(false);
     }
   };
 
-  // Load image securely via download API (not direct R2 URL)
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    setRetryTimer(null);
+    checkPaymentStatus();
+  };
+
   const loadImageSecurely = async (jobId: string) => {
     try {
       setImageLoading(true);
@@ -250,15 +174,11 @@ function PaymentSuccessContent() {
         const errorData = await response.json().catch(() => ({}));
         console.error(`[IMAGE] Failed to load image: ${response.status}`, errorData);
         
-        // Handle specific error cases
         if (response.status === 403) {
-          // Payment not confirmed - this shouldn't happen if payment status shows success
-          console.error('[IMAGE] Payment not confirmed error - this indicates a race condition');
+          console.error('[IMAGE] Payment not confirmed error');
           setShowSupportMessage(true);
         } else if (response.status === 404) {
-          // Image not ready
-          console.error('[IMAGE] Image not ready - may still be processing');
-          // Don't show support message immediately, might be processing
+          console.error('[IMAGE] Image not ready');
         } else {
           setShowSupportMessage(true);
         }
@@ -267,7 +187,6 @@ function PaymentSuccessContent() {
       
       const blob = await response.blob();
       
-      // Validate that we received an actual image
       if (blob.size === 0) {
         throw new Error('Received empty image blob');
       }
@@ -308,7 +227,6 @@ function PaymentSuccessContent() {
       
       const blob = await response.blob();
       
-      // Validate blob
       if (blob.size === 0) {
         throw new Error('Received empty image file');
       }
@@ -340,22 +258,19 @@ function PaymentSuccessContent() {
           <Card className="border shadow-lg bg-white">
             <CardContent className="p-8 sm:p-12">
               <div className="text-center space-y-6">
-                {/* Animated Icon */}
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-100 to-green-100 rounded-full mb-2">
                   <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
                 </div>
                 
-                {/* Main Message */}
                 <div className="space-y-3">
                   <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
                     Verifying Your Payment... ✨
                   </h2>
                   <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                    We're confirming your payment with the payment gateway. This usually takes just a few seconds.
+                    We're confirming your payment with PhonePe. This usually takes just a few seconds.
                   </p>
                 </div>
 
-                {/* Progress Steps */}
                 <div className="bg-gradient-to-r from-orange-50 to-green-50 border-2 border-orange-200 rounded-xl p-6 text-left space-y-3">
                   <div className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
@@ -367,8 +282,8 @@ function PaymentSuccessContent() {
                   <div className="flex items-start space-x-3">
                     <Loader2 className="h-5 w-5 text-orange-600 animate-spin mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-gray-900">Confirming with Payment Gateway</p>
-                      <p className="text-sm text-gray-600">Attempt {pollingAttempts} of 10...</p>
+                      <p className="font-semibold text-gray-900">Confirming with PhonePe</p>
+                      <p className="text-sm text-gray-600">Single verification check (10s timeout)</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
@@ -380,7 +295,6 @@ function PaymentSuccessContent() {
                   </div>
                 </div>
 
-                {/* Reassurance */}
                 <p className="text-sm text-gray-500 italic">
                   Please wait, do not refresh or close this page. This process is automatic. 🎨
                 </p>
@@ -411,6 +325,11 @@ function PaymentSuccessContent() {
                 <p className="text-sm sm:text-lg text-gray-600 max-w-2xl mx-auto">
                   Full HD quality • No watermark • Yours forever
                 </p>
+                {paymentStatus.transactionId && (
+                  <p className="text-xs text-gray-500">
+                    Transaction ID: {paymentStatus.transactionId}
+                  </p>
+                )}
               </div>
 
               {/* Colorized Image Card */}
@@ -524,30 +443,49 @@ function PaymentSuccessContent() {
               )}
             </div>
           ) : (
-            /* Payment Failed State */
+            /* Payment Failed/Pending State */
             <Card className="border shadow-lg bg-white">
               <CardHeader className="text-center space-y-4 pt-12">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto">
-                  <span className="text-red-600 text-3xl font-bold">✕</span>
+                  <AlertCircle className="h-8 w-8 text-red-600" />
                 </div>
                 <CardTitle className="text-3xl text-red-600">
-                  {paymentStatus?.status === 'PENDING' ? 'Payment Verification Timeout' : 'Payment Failed'}
+                  {paymentStatus?.timeout ? 'Payment Verification Timeout' : 
+                   paymentStatus?.status === 'PENDING' ? 'Payment Still Processing' :
+                   'Payment Failed'}
                 </CardTitle>
                 <CardDescription className="text-lg text-gray-600">
                   {paymentStatus?.message || 'There was an issue processing your payment.'}
                 </CardDescription>
+                {paymentStatus?.phonePeState && (
+                  <p className="text-sm text-gray-500">
+                    PhonePe Status: {paymentStatus.phonePeState}
+                  </p>
+                )}
               </CardHeader>
               
               <CardContent className="space-y-4 pb-12 px-6">
-                {/* Show Retry Button if polling timed out */}
-                {showRetryButton && (
-                  <Button 
-                    onClick={handleRetryVerification}
-                    className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700" 
-                    size="lg"
-                  >
-                    🔄 Retry Payment Verification
-                  </Button>
+                {/* Retry Button with countdown */}
+                {(paymentStatus?.retryAfter || paymentStatus?.timeout) && retryCount < 3 && (
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={handleRetry}
+                      disabled={retryTimer !== null && retryTimer > 0}
+                      className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-50" 
+                      size="lg"
+                    >
+                      {retryTimer && retryTimer > 0 ? (
+                        <>🔄 Retry in {retryTimer}s (Attempt {retryCount + 1}/3)</>
+                      ) : (
+                        <>🔄 Retry Payment Verification (Attempt {retryCount + 1}/3)</>
+                      )}
+                    </Button>
+                    {retryTimer && retryTimer > 0 && (
+                      <p className="text-center text-sm text-gray-500">
+                        Please wait {retryTimer} seconds before retrying...
+                      </p>
+                    )}
+                  </div>
                 )}
                 
                 <Button asChild className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700" size="lg">
@@ -643,7 +581,7 @@ export default function PaymentSuccessPage() {
           </div>
         </div>
       }>
-        <PaymentSuccessContent />
+        <SimplePaymentSuccessContent />
       </Suspense>
     </div>
   );
