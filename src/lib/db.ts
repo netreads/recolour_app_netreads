@@ -16,12 +16,9 @@ prisma.$connect().catch((error: any) => {
   console.error('Failed to connect to database:', error);
 });
 
-// Import Prisma types
-import type { Job as PrismaJob, User as PrismaUser } from '@prisma/client';
-
-// Export Prisma types
-export type Job = PrismaJob;
-export type User = PrismaUser;
+// Export Prisma types using the client's return types
+export type Job = Awaited<ReturnType<PrismaClient['job']['create']>>;
+export type User = Awaited<ReturnType<PrismaClient['user']['create']>>;
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
 
 // Database helper functions using Prisma
