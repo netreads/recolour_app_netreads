@@ -14,6 +14,7 @@ interface ServerEnv {
   
   // Gemini AI
   GEMINI_API_KEY: string;
+  GEMINI_PROMPT?: string; // Custom prompt for image colorization
   
   // PhonePe
   PHONEPE_CLIENT_ID: string;
@@ -90,6 +91,7 @@ class EnvValidator {
       R2_PUBLIC_URL: env.R2_PUBLIC_URL!,
       R2_ACCOUNT_ID: env.R2_ACCOUNT_ID,
       GEMINI_API_KEY: env.GEMINI_API_KEY!,
+      GEMINI_PROMPT: env.GEMINI_PROMPT,
       PHONEPE_CLIENT_ID: env.PHONEPE_CLIENT_ID!,
       PHONEPE_CLIENT_SECRET: env.PHONEPE_CLIENT_SECRET!,
       PHONEPE_CLIENT_VERSION: env.PHONEPE_CLIENT_VERSION,

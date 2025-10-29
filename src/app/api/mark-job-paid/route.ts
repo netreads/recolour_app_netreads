@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const env = getServerEnv();
-    const expectedSecret = env.MARK_PAID_SECRET || env.CRON_SECRET || 'default-secret-change-me';
+    const expectedSecret = env.CRON_SECRET || 'default-secret-change-me';
 
     // METHOD 1: Server-side authentication (for internal use)
     if (serverSecret) {

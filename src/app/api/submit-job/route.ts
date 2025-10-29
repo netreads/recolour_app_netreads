@@ -97,7 +97,8 @@ export async function POST(request: NextRequest) {
       const imageBase64 = Buffer.from(imageBuffer).toString("base64");
       const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
-      const prompt = `Fully restore and colorize the provided image, do not keep any part uncolored.`;
+      // Get prompt from environment variable or use default
+      const prompt = env.GEMINI_PROMPT || `Fully restore and colorize the provided image, do not keep any part uncolored.`;
 
       const config = {
         temperature: 1.0,
