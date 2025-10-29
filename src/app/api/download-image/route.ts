@@ -30,10 +30,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Zero-Polling Architecture: Enhanced fallback logic
+    // Zero-Polling Architecture: Enhanced fallback logic with PhonePe verification
     let isPaid = job.isPaid;
     
-    // FALLBACK 1: If job is not marked as paid, check for recent orders (last 24 hours)
+    // FALLBACK 1: If job is not marked as paid, check for recent orders and verify with PhonePe
     if (!isPaid) {
       console.log(`[DOWNLOAD] Job ${jobId} not marked as paid, checking for recent orders...`);
       
@@ -57,17 +57,67 @@ export async function GET(request: NextRequest) {
         if (recentOrder) {
           console.log(`[DOWNLOAD] ✅ Found recent order ${recentOrder.id} for job ${jobId} (status: ${recentOrder.status})`);
           
-          // Mark job as paid and allow download (optimistic approach)
-          isPaid = true;
-          
-          try {
-            await prisma.job.update({
-              where: { id: jobId },
-              data: { isPaid: true },
-            });
-            console.log(`[DOWNLOAD] ✅ Job ${jobId} marked as paid via fallback`);
-          } catch (updateError) {
-            console.error(`[DOWNLOAD] ⚠️ Could not update job ${jobId} but allowing download anyway:`, updateError);
+          // CRITICAL: Verify payment status with PhonePe before allowing download
+          if (recentOrder.status === 'PENDING' && recentOrder.phonePeOrderId) {
+            console.log(`[DOWNLOAD] 🔄 Order is PENDING, verifying with PhonePe...`);
+            
+            try {
+              const { getPhonePeOrderStatus } = await import('@/lib/phonepe');
+              const { PAYMENT_STATUS } = await import('@/lib/constants');
+              
+              const phonePeStatus = await getPhonePeOrderStatus(recentOrder.id);
+              console.log(`[DOWNLOAD] PhonePe status: ${phonePeStatus.state}`);
+              
+              if (phonePeStatus.state === PAYMENT_STATUS.COMPLETED) {
+                // Payment confirmed! Update order and job
+                console.log(`[DOWNLOAD] ✅ PhonePe confirmed payment for order ${recentOrder.id}`);
+                
+                await prisma.$transaction(async (tx: any) => {
+                  // Update order
+                  await tx.order.update({
+                    where: { id: recentOrder.id },
+                    data: {
+                      status: 'PAID',
+                      paymentStatus: 'SUCCESS',
+                    },
+                  });
+                  
+                  // Update job
+                  await tx.job.update({
+                    where: { id: jobId },
+                    data: { isPaid: true },
+                  });
+                });
+                
+                isPaid = true;
+                console.log(`[DOWNLOAD] ✅ Order and job updated after PhonePe verification`);
+              } else if (phonePeStatus.state === PAYMENT_STATUS.FAILED) {
+                console.log(`[DOWNLOAD] ❌ PhonePe reports payment FAILED for order ${recentOrder.id}`);
+                // Don't allow download
+              } else {
+                console.log(`[DOWNLOAD] ⏳ PhonePe reports payment still PENDING for order ${recentOrder.id}`);
+                // Don't allow download yet
+              }
+            } catch (phonePeError) {
+              console.error(`[DOWNLOAD] ⚠️ Error checking PhonePe status:`, phonePeError);
+              // Don't allow download if we can't verify
+            }
+          } else if (recentOrder.status === 'PAID') {
+            // Order is already paid, just mark job as paid
+            console.log(`[DOWNLOAD] ✅ Order is PAID, marking job as paid`);
+            
+            try {
+              await prisma.job.update({
+                where: { id: jobId },
+                data: { isPaid: true },
+              });
+              isPaid = true;
+              console.log(`[DOWNLOAD] ✅ Job ${jobId} marked as paid via fallback`);
+            } catch (updateError) {
+              console.error(`[DOWNLOAD] ⚠️ Could not update job ${jobId}:`, updateError);
+              // Still allow download since order is PAID
+              isPaid = true;
+            }
           }
         } else {
           console.log(`[DOWNLOAD] ❌ No recent order found for job ${jobId}`);

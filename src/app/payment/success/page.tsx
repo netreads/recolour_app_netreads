@@ -78,10 +78,11 @@ function PaymentSuccessContent() {
       console.log(`[VERIFY] Payment status response:`, data);
       
       if (data.success) {
-        // Payment successful! Mark job as paid and load image
+        // Payment successful! Status API already marked job as paid
         console.log(`[VERIFY] ✅ Payment verified successful for order ${orderId}`);
         
-        await markJobAsPaid(jobId);
+        // Note: Job is marked as paid by the status API after PhonePe verification
+        // No need to call mark-job-paid separately (removes race condition)
         
         setPaymentStatus({
           success: true,
@@ -160,8 +161,8 @@ function PaymentSuccessContent() {
 
   // Better payment verification with timeout and circuit breaker
   const startPaymentVerification = async (orderId: string, jobId: string) => {
-    const maxAttempts = 6; // Reduced attempts for 12 seconds
-    const maxDuration = 12000; // 12 seconds total timeout
+    const maxAttempts = 12; // Increased for better coverage
+    const maxDuration = 30000; // 30 seconds total timeout (increased from 12s)
     const startTime = Date.now();
     let attempt = 0;
     let consecutiveErrors = 0;
@@ -201,10 +202,11 @@ function PaymentSuccessContent() {
         consecutiveErrors = 0;
 
         if (data.success) {
-          // Payment successful!
+          // Payment successful! Status API already marked job as paid
           console.log(`[VERIFY-POLL] ✅ Payment verified successful for order ${orderId}`);
           
-          await markJobAsPaid(jobId);
+          // Note: Job is marked as paid by the status API after PhonePe verification
+          // No need to call mark-job-paid separately (removes race condition)
           
           setPaymentStatus({
             success: true,
@@ -344,10 +346,10 @@ function PaymentSuccessContent() {
         // Step 1: Verify payment status first
         verifyPaymentAndMarkAsPaid(orderId, jobId);
         
-        // Safety timeout: Force clear loading after 15 seconds
+        // Safety timeout: Force clear loading after 35 seconds (increased from 15s)
         const safetyTimeout = setTimeout(() => {
           if (loading) {
-            console.log(`[SAFETY] 🛡️ Force clearing loading state after 15 seconds`);
+            console.log(`[SAFETY] 🛡️ Force clearing loading state after 35 seconds`);
             setLoading(false);
             setPaymentStatus({
               success: false,
@@ -358,7 +360,7 @@ function PaymentSuccessContent() {
             });
             setShowSupportMessage(true);
           }
-        }, 15000);
+        }, 35000);
         
         // Cleanup safety timeout
         return () => {
@@ -554,12 +556,12 @@ function PaymentSuccessContent() {
   };
 
   if (loading) {
-    // Safety check: If loading for more than 15 seconds, show error
+    // Safety check: If loading for more than 35 seconds, show error (increased from 15s)
     if (loadingStartTimeRef.current) {
       const loadingDuration = Date.now() - loadingStartTimeRef.current;
       
-      if (loadingDuration > 15000) {
-        console.log(`[SAFETY] 🛡️ Loading duration exceeded 15 seconds (${loadingDuration}ms), forcing error state`);
+      if (loadingDuration > 35000) {
+        console.log(`[SAFETY] 🛡️ Loading duration exceeded 35 seconds (${loadingDuration}ms), forcing error state`);
         setLoading(false);
         setPaymentStatus({
           success: false,
