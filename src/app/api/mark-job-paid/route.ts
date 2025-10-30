@@ -10,6 +10,16 @@ export const maxDuration = 10;
 /**
  * SECURED API: Mark job as paid after verifying payment with PhonePe
  * 
+ * ⚠️ NOTE (NEW ARCHITECTURE): This endpoint is now OPTIONAL and rarely used.
+ * The download-image API is the single source of truth for payment verification.
+ * 
+ * This endpoint is kept for:
+ * 1. Manual admin intervention (with server secret)
+ * 2. Legacy/backup verification path
+ * 3. Cron jobs or webhooks (if ever enabled)
+ * 
+ * Normal users should NOT call this endpoint - the download API handles everything.
+ * 
  * This endpoint requires either:
  * 1. Server-side secret token for internal calls
  * 2. Valid order ID that can be verified with PhonePe

@@ -66,24 +66,24 @@ function PaymentSuccessContent() {
     }
   }, [orderId, jobId]);
 
-  // Verify payment and mark as paid - Fixed Architecture
-  const verifyPaymentAndMarkAsPaid = async (orderId: string, jobId: string) => {
+  // NEW ARCHITECTURE: Smart delayed verification via download attempt
+  const verifyPaymentViaDownload = async (orderId: string, jobId: string, attempt: number = 1) => {
     try {
-      console.log(`[VERIFY] Verifying payment for order ${orderId}`);
+      console.log(`[VERIFY] Attempt ${attempt}: Loading image for job ${jobId}...`);
       
-      // Step 1: Check payment status via API
-      const response = await fetch(`/api/payments/status?order_id=${orderId}`);
-      const data = await response.json();
+      // Try to download/load the image - this triggers payment verification
+      const response = await fetch(`/api/download-image?jobId=${jobId}&type=output`, {
+        signal: AbortSignal.timeout(15000), // 15 second timeout
+      });
       
-      console.log(`[VERIFY] Payment status response:`, data);
-      
-      if (data.success) {
-        // Payment successful! Status API already marked job as paid
-        console.log(`[VERIFY] ✅ Payment verified successful for order ${orderId}`);
+      if (response.ok) {
+        // ✅ SUCCESS! Payment verified and image ready
+        console.log(`[VERIFY] ✅ Payment verified, image ready!`);
         
-        // Note: Job is marked as paid by the status API after PhonePe verification
-        // No need to call mark-job-paid separately (removes race condition)
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
         
+        setImageBlobUrl(blobUrl);
         setPaymentStatus({
           success: true,
           orderId: orderId,
@@ -91,265 +91,146 @@ function PaymentSuccessContent() {
           message: 'Payment successful! Your image is ready.'
         });
         setLoading(false);
-        
-        // Load image immediately
-        loadImageSecurely(jobId);
-        
-      } else if (data.status === 'FAILED') {
-        // Payment failed
-        console.log(`[VERIFY] ❌ Payment failed for order ${orderId}`);
-        
-        setPaymentStatus({
-          success: false,
-          orderId: orderId,
-          jobId: jobId,
-          status: 'FAILED',
-          message: 'Payment failed. Please try again.'
-        });
-        setLoading(false);
+        setImageLoading(false);
         
       } else {
-        // Payment still pending - start polling
-        console.log(`[VERIFY] ⏳ Payment still pending for order ${orderId}, starting verification...`);
+        // Handle different error codes
+        const data = await response.json().catch(() => ({}));
+        console.log(`[VERIFY] Response ${response.status}:`, data);
         
-        setPaymentStatus({
-          success: false,
-          orderId: orderId,
-          jobId: jobId,
-          status: 'PENDING',
-          message: 'Verifying your payment...'
-        });
-        
-        // Start polling for verification
-        startPaymentVerification(orderId, jobId);
-      }
-      
-    } catch (error) {
-      console.error(`[VERIFY] ❌ Error verifying payment for order ${orderId}:`, error);
-      
-      setPaymentStatus({
-        success: false,
-        orderId: orderId,
-        jobId: jobId,
-        message: 'Failed to verify payment. Please contact support.'
-      });
-      setLoading(false);
-      setShowSupportMessage(true);
-    }
-  };
-
-  // Mark job as paid after verification
-  const markJobAsPaid = async (jobId: string) => {
-    try {
-      console.log(`[MARK-PAID] Marking job ${jobId} as paid`);
-      
-      const response = await fetch('/api/mark-job-paid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId })
-      });
-
-      if (response.ok) {
-        console.log(`[MARK-PAID] ✅ Job ${jobId} marked as paid successfully`);
-      } else {
-        console.error(`[MARK-PAID] ❌ Failed to mark job ${jobId} as paid`);
-      }
-    } catch (error) {
-      console.error(`[MARK-PAID] ❌ Error marking job ${jobId} as paid:`, error);
-    }
-  };
-
-  // Better payment verification with timeout and circuit breaker
-  const startPaymentVerification = async (orderId: string, jobId: string) => {
-    const maxAttempts = 12; // Increased for better coverage
-    const maxDuration = 30000; // 30 seconds total timeout (increased from 12s)
-    const startTime = Date.now();
-    let attempt = 0;
-    let consecutiveErrors = 0;
-    let timeoutId: NodeJS.Timeout | null = null;
-
-    const poll = async (): Promise<void> => {
-      try {
-        // Check if we've exceeded total time limit
-        if (Date.now() - startTime > maxDuration) {
-          console.log(`[VERIFY-POLL] ⏰ Total timeout reached for order ${orderId}`);
-          handleTimeout(orderId, jobId);
-          return;
-        }
-
-        attempt++;
-        console.log(`[VERIFY-POLL] Attempt ${attempt}/${maxAttempts} for order ${orderId}`);
-
-        // Circuit breaker: Stop if too many consecutive errors
-        if (consecutiveErrors >= 3) {
-          console.log(`[VERIFY-POLL] 🔴 Circuit breaker triggered for order ${orderId}`);
-          handleCircuitBreaker(orderId, jobId);
-          return;
-        }
-
-        const response = await fetch(`/api/payments/status?order_id=${orderId}`, {
-          signal: AbortSignal.timeout(10000) // 10 second timeout per request
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log(`[VERIFY-POLL] Response:`, data);
-
-        // Reset error counter on successful API call
-        consecutiveErrors = 0;
-
-        if (data.success) {
-          // Payment successful! Status API already marked job as paid
-          console.log(`[VERIFY-POLL] ✅ Payment verified successful for order ${orderId}`);
+        if (response.status === 402) {
+          // Payment pending or failed
+          if (data.code === 'PAYMENT_PENDING') {
+            // Payment still processing, retry after suggested delay
+            console.log(`[VERIFY] ⏳ Payment pending, will retry in ${data.retryAfter || 5}s...`);
+            
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              status: 'PENDING',
+              message: data.message || 'Verifying your payment with PhonePe...'
+            });
+            
+            // Smart retry with exponential backoff (max 5 attempts)
+            if (attempt < 5) {
+              const delay = (data.retryAfter || 5) * 1000;
+              setTimeout(() => {
+                verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+              }, delay);
+            } else {
+              // Max attempts reached
+              console.log(`[VERIFY] ⏰ Max retry attempts reached`);
+              setPaymentStatus({
+                success: false,
+                orderId: orderId,
+                jobId: jobId,
+                status: 'PENDING',
+                message: 'Payment verification is taking longer than expected. Please contact support.'
+              });
+              setLoading(false);
+              setShowSupportMessage(true);
+            }
+            
+          } else if (data.code === 'PAYMENT_FAILED') {
+            // Payment failed
+            console.log(`[VERIFY] ❌ Payment failed`);
+            
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              status: 'FAILED',
+              message: data.message || 'Payment failed. Please try again.'
+            });
+            setLoading(false);
+            
+          } else if (data.code === 'NO_PAYMENT') {
+            // No payment found
+            console.log(`[VERIFY] ❌ No payment found`);
+            
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              message: data.message || 'No payment found for this image.'
+            });
+            setLoading(false);
+            setShowSupportMessage(true);
+          }
           
-          // Note: Job is marked as paid by the status API after PhonePe verification
-          // No need to call mark-job-paid separately (removes race condition)
+        } else if (response.status === 503) {
+          // Service error, retry once more
+          console.log(`[VERIFY] ⚠️ Service error, will retry...`);
           
-          setPaymentStatus({
-            success: true,
-            orderId: orderId,
-            jobId: jobId,
-            message: 'Payment successful! Your image is ready.'
-          });
-          setLoading(false);
+          if (attempt < 3) {
+            setTimeout(() => {
+              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+            }, 10000); // Wait 10 seconds
+          } else {
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              message: 'Unable to verify payment. Please try again or contact support.'
+            });
+            setLoading(false);
+            setShowSupportMessage(true);
+          }
           
-          // Load image immediately
-          loadImageSecurely(jobId);
-          return; // Stop polling
-          
-        } else if (data.status === 'FAILED') {
-          // Payment failed
-          console.log(`[VERIFY-POLL] ❌ Payment failed for order ${orderId}`);
+        } else {
+          // Other errors
+          console.error(`[VERIFY] ❌ Unexpected error: ${response.status}`);
           
           setPaymentStatus({
             success: false,
             orderId: orderId,
             jobId: jobId,
-            status: 'FAILED',
-            message: 'Payment failed. Please try again.'
+            message: data.message || 'Unable to load image. Please contact support.'
           });
           setLoading(false);
-          return; // Stop polling
-          
-        } else if (attempt >= maxAttempts) {
-          // Max attempts reached
-          console.log(`[VERIFY-POLL] ⏰ Max attempts reached for order ${orderId}`);
-          handleMaxAttempts(orderId, jobId);
-          return;
-          
-        } else {
-          // Still pending, schedule next poll with smart delay
-          const delay = calculateDelay(attempt);
-          console.log(`[VERIFY-POLL] Payment still pending, retrying in ${delay}ms...`);
-          
-          timeoutId = setTimeout(poll, delay);
+          setShowSupportMessage(true);
         }
-        
-      } catch (error) {
-        consecutiveErrors++;
-        console.error(`[VERIFY-POLL] Error (${consecutiveErrors}/3):`, error);
-        
-        if (attempt >= maxAttempts || consecutiveErrors >= 3) {
-          handleMaxAttempts(orderId, jobId);
-          return;
-        }
-
-        // Retry on error with longer delay
-        const delay = calculateDelay(attempt) * 1.5; // 50% longer delay for errors
-        console.log(`[VERIFY-POLL] Retrying after error in ${delay}ms...`);
-        
-        timeoutId = setTimeout(poll, delay);
       }
-    };
-
-    // Smart delay calculation optimized for 12 seconds
-    const calculateDelay = (attempt: number): number => {
-      const baseDelay = 1500; // 1.5 seconds
-      const maxDelay = 3000; // 3 seconds max
-      const delay = Math.min(baseDelay * Math.pow(1.3, attempt - 1), maxDelay);
-      return Math.round(delay);
-    };
-
-    // Handle timeout scenarios - simplified messages for better UX
-    const handleTimeout = (orderId: string, jobId: string) => {
-      console.log(`[VERIFY-POLL] ⏰ Verification timeout for order ${orderId}`);
-      setPaymentStatus({
-        success: false,
-        orderId: orderId,
-        jobId: jobId,
-        status: 'PENDING',
-        message: 'Payment verification is taking longer than expected. Please contact support.'
-      });
-      setLoading(false);
-      setShowSupportMessage(true);
-      console.log(`[VERIFY-POLL] ✅ Loading state cleared for timeout`);
-    };
-
-    const handleMaxAttempts = (orderId: string, jobId: string) => {
-      console.log(`[VERIFY-POLL] ⏰ Max attempts reached for order ${orderId}`);
-      setPaymentStatus({
-        success: false,
-        orderId: orderId,
-        jobId: jobId,
-        status: 'PENDING',
-        message: 'Payment verification is taking longer than expected. Please contact support.'
-      });
-      setLoading(false);
-      setShowSupportMessage(true);
-      console.log(`[VERIFY-POLL] ✅ Loading state cleared for max attempts`);
-    };
-
-    const handleCircuitBreaker = (orderId: string, jobId: string) => {
-      console.log(`[VERIFY-POLL] 🔴 Circuit breaker activated for order ${orderId}`);
-      setPaymentStatus({
-        success: false,
-        orderId: orderId,
-        jobId: jobId,
-        status: 'PENDING',
-        message: 'Payment verification is taking longer than expected. Please contact support.'
-      });
-      setLoading(false);
-      setShowSupportMessage(true);
-      console.log(`[VERIFY-POLL] ✅ Loading state cleared for circuit breaker`);
-    };
-
-    // Cleanup function
-    const cleanup = () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
+      
+    } catch (error) {
+      console.error(`[VERIFY] ❌ Error on attempt ${attempt}:`, error);
+      
+      // Retry on network errors (up to 3 times)
+      if (attempt < 3) {
+        console.log(`[VERIFY] 🔄 Network error, retrying in 5s...`);
+        setTimeout(() => {
+          verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+        }, 5000);
+      } else {
+        setPaymentStatus({
+          success: false,
+          orderId: orderId,
+          jobId: jobId,
+          message: 'Failed to verify payment. Please contact support.'
+        });
+        setLoading(false);
+        setShowSupportMessage(true);
       }
-    };
-
-    // Start polling
-    try {
-      await poll();
-    } finally {
-      cleanup();
-      // Safety: Ensure loading is always cleared
-      setTimeout(() => {
-        if (loading) {
-          console.log(`[VERIFY-POLL] 🛡️ Safety: Force clearing loading state`);
-          setLoading(false);
-        }
-      }, 100);
     }
   };
 
-  // Fixed Architecture: Verify payment before marking as paid
+  // NEW ARCHITECTURE: Start verification after short delay
   useEffect(() => {
     try {
       if (orderId && jobId) {
-        // Step 1: Verify payment status first
-        verifyPaymentAndMarkAsPaid(orderId, jobId);
+        console.log(`[SUCCESS] Starting verification for order ${orderId}, job ${jobId}`);
         
-        // Safety timeout: Force clear loading after 35 seconds (increased from 15s)
+        // Give PhonePe a few seconds to process (they're usually fast)
+        // Then attempt to load image which triggers verification
+        const initialDelay = setTimeout(() => {
+          verifyPaymentViaDownload(orderId, jobId);
+        }, 3000); // 3 second delay
+        
+        // Safety timeout: Force clear loading after 60 seconds
         const safetyTimeout = setTimeout(() => {
           if (loading) {
-            console.log(`[SAFETY] 🛡️ Force clearing loading state after 35 seconds`);
+            console.log(`[SAFETY] 🛡️ Force clearing loading state after 60 seconds`);
             setLoading(false);
             setPaymentStatus({
               success: false,
@@ -360,10 +241,11 @@ function PaymentSuccessContent() {
             });
             setShowSupportMessage(true);
           }
-        }, 35000);
+        }, 60000);
         
-        // Cleanup safety timeout
+        // Cleanup
         return () => {
+          clearTimeout(initialDelay);
           clearTimeout(safetyTimeout);
         };
       } else {
@@ -374,7 +256,7 @@ function PaymentSuccessContent() {
         setLoading(false);
       }
     } catch (error) {
-      console.error('Error in payment success page:', error);
+      console.error('[SUCCESS] Error in payment success page:', error);
       setHasError(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -460,49 +342,16 @@ function PaymentSuccessContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, paymentStatus]);
 
-  // Load image securely via download API (not direct R2 URL)
-  const loadImageSecurely = async (jobId: string) => {
-    try {
-      setImageLoading(true);
-      console.log(`[IMAGE] Loading image for job ${jobId} via secure API`);
-
-      const response = await fetch(`/api/download-image?jobId=${jobId}&type=output`);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error(`[IMAGE] Failed to load image: ${response.status}`, errorData);
-        
-        // Handle specific error cases
-        if (response.status === 403) {
-          // Payment not confirmed - this shouldn't happen with zero-polling
-          console.error('[IMAGE] Payment not confirmed error - this indicates a system issue');
-          setShowSupportMessage(true);
-        } else if (response.status === 404) {
-          // Image not ready
-          console.error('[IMAGE] Image not ready - may still be processing');
-          // Don't show support message immediately, might be processing
-        } else {
-          setShowSupportMessage(true);
-        }
-        return;
-      }
-      
-      const blob = await response.blob();
-      
-      // Validate that we received an actual image
-      if (blob.size === 0) {
-        throw new Error('Received empty image blob');
-      }
-      
-      const blobUrl = URL.createObjectURL(blob);
-      setImageBlobUrl(blobUrl);
-      console.log(`[IMAGE] Image loaded successfully (${blob.size} bytes)`);
-    } catch (error) {
-      console.error('[IMAGE] Error loading image:', error);
-      setShowSupportMessage(true);
-    } finally {
-      setImageLoading(false);
-    }
+  // Manual retry button handler
+  const handleRetryVerification = () => {
+    if (!orderId || !jobId) return;
+    
+    console.log(`[RETRY] User manually retrying verification...`);
+    setLoading(true);
+    setShowSupportMessage(false);
+    
+    // Start verification again
+    verifyPaymentViaDownload(orderId, jobId);
   };
 
   const handleDownload = async () => {
@@ -556,25 +405,6 @@ function PaymentSuccessContent() {
   };
 
   if (loading) {
-    // Safety check: If loading for more than 35 seconds, show error (increased from 15s)
-    if (loadingStartTimeRef.current) {
-      const loadingDuration = Date.now() - loadingStartTimeRef.current;
-      
-      if (loadingDuration > 35000) {
-        console.log(`[SAFETY] 🛡️ Loading duration exceeded 35 seconds (${loadingDuration}ms), forcing error state`);
-        setLoading(false);
-        setPaymentStatus({
-          success: false,
-          orderId: orderId || undefined,
-          jobId: jobId || undefined,
-          status: 'PENDING',
-          message: 'Payment verification is taking longer than expected. Please contact support.'
-        });
-        setShowSupportMessage(true);
-        return null; // Don't render loading UI
-      }
-    }
-    
     return (
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto">
@@ -589,10 +419,10 @@ function PaymentSuccessContent() {
                 {/* Main Message */}
                 <div className="space-y-3">
                   <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    Verifying Your Payment... ✨
+                    {paymentStatus?.message || 'Verifying Your Payment... ✨'}
                   </h2>
                   <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                    We're confirming your payment with PhonePe. This usually takes just a few seconds.
+                    We're confirming your payment with PhonePe and loading your colorized image.
                   </p>
                 </div>
 
@@ -608,22 +438,15 @@ function PaymentSuccessContent() {
                   <div className="flex items-start space-x-3">
                     <Loader2 className="h-5 w-5 text-orange-600 animate-spin mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-gray-900">Verifying with PhonePe</p>
-                      <p className="text-sm text-gray-600">Confirming payment status...</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <div className="h-5 w-5 border-2 border-gray-300 rounded-full mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-gray-700">Loading Your HD Image</p>
-                      <p className="text-sm text-gray-500">Next step after verification</p>
+                      <p className="font-semibold text-gray-900">Verifying & Loading</p>
+                      <p className="text-sm text-gray-600">Confirming payment and preparing your image...</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Reassurance */}
                 <p className="text-sm text-gray-500 italic">
-                  Please wait while we verify your payment. This ensures security! 🔒
+                  This usually takes 5-10 seconds. Please don't close this page! 🔒
                 </p>
               </div>
             </CardContent>
@@ -690,29 +513,47 @@ function PaymentSuccessContent() {
                             <span className="text-orange-600 text-2xl">⚠️</span>
                             <div className="flex-1">
                               <h3 className="font-semibold text-orange-900 text-base sm:text-lg mb-2">
-                                Payment Received - Image Loading Issue
+                                Payment Verification Issue
                               </h3>
                               <p className="text-sm sm:text-base text-orange-800 leading-relaxed mb-3">
-                                We've confirmed your payment, but there's a temporary issue loading your colorized image. 
-                                Don't worry - your image is safe and we'll help you get it!
+                                We're having trouble verifying your payment. This is usually temporary. 
+                                Please try clicking "Retry" below, or contact support if the issue persists.
                               </p>
                               <p className="text-sm text-orange-700 mb-4">
                                 <strong>Order ID:</strong> {paymentStatus?.orderId}
                                 <br />
                                 <strong>Job ID:</strong> {paymentStatus?.jobId}
                               </p>
-                              <Button 
-                                asChild 
-                                size="lg" 
-                                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                <Link 
-                                  href={`https://wa.me/917984837468?text=Hi%2C%20my%20payment%20was%20successful%20but%20I%20can't%20see%20my%20image.%20Order%20ID%3A%20${encodeURIComponent(paymentStatus?.orderId || 'N/A')}%20%7C%20Job%20ID%3A%20${encodeURIComponent(paymentStatus?.jobId || 'N/A')}`} 
-                                  target="_blank"
+                              <div className="space-y-3">
+                                <Button 
+                                  onClick={handleRetryVerification}
+                                  disabled={loading}
+                                  size="lg" 
+                                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
                                 >
-                                  📱 Contact Support on WhatsApp
-                                </Link>
-                              </Button>
+                                  {loading ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                      Retrying...
+                                    </>
+                                  ) : (
+                                    <>🔄 Retry Verification</>
+                                  )}
+                                </Button>
+                                <Button 
+                                  asChild 
+                                  size="lg" 
+                                  variant="outline"
+                                  className="w-full border-2 border-green-600 text-green-700 hover:bg-green-50"
+                                >
+                                  <Link 
+                                    href={`https://wa.me/917984837468?text=Hi%2C%20my%20payment%20was%20successful%20but%20I%20can't%20see%20my%20image.%20Order%20ID%3A%20${encodeURIComponent(paymentStatus?.orderId || 'N/A')}%20%7C%20Job%20ID%3A%20${encodeURIComponent(paymentStatus?.jobId || 'N/A')}`} 
+                                    target="_blank"
+                                  >
+                                    📱 Contact Support on WhatsApp
+                                  </Link>
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>

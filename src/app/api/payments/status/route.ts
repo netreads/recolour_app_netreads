@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getPhonePeOrderStatus } from '@/lib/phonepe';
-import { PAYMENT_STATUS, ORDER_STATUS, API_CONFIG } from '@/lib/constants';
-import { getServerEnv } from '@/lib/env';
-import { trackPurchaseServerSide } from '@/lib/facebookConversionsAPI';
+import { ORDER_STATUS } from '@/lib/constants';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60; // Extended to handle slow PhonePe confirmations during high load
+export const maxDuration = 10; // Reduced since we're not calling PhonePe
 
 interface OrderMetadata {
   jobId?: string;
@@ -20,6 +17,19 @@ interface OrderMetadata {
   };
 }
 
+/**
+ * SIMPLIFIED STATUS API (NEW ARCHITECTURE)
+ * 
+ * This endpoint now ONLY checks the database status without calling PhonePe.
+ * Payment verification is handled by the download-image API when user attempts download.
+ * 
+ * This reduces:
+ * - PhonePe API calls (cost & rate limits)
+ * - Race conditions from concurrent polling
+ * - Response time (faster API calls)
+ * 
+ * The download API is the single source of truth for payment verification.
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -29,15 +39,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
-    const env = getServerEnv();
-
-    // Get order details (allow anonymous orders)
-    let order = await prisma.order.findFirst({
+    // Get order details from database only
+    const order = await prisma.order.findFirst({
       where: {
         id: orderId,
-      },
-      include: {
-        transactions: true,
       },
     });
 
@@ -45,148 +50,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    let success = order.status === ORDER_STATUS.PAID;
-    let transaction = order.transactions.find((t: { status: string }) => t.status === 'SUCCESS');
-
-    // FIXED ARCHITECTURE: Always check PhonePe for accurate status
-    // This prevents failed payments from being treated as successful
-    if (order.phonePeOrderId) {
-      console.log(`[STATUS] Checking PhonePe for order ${orderId}`);
-      try {
-        const paymentStatus = await getPhonePeOrderStatus(order.id);
-        console.log(`[STATUS] PhonePe status for ${orderId}: ${paymentStatus.state}`);
-        
-        if (paymentStatus.state === PAYMENT_STATUS.COMPLETED) {
-          const paymentDetails = Array.isArray(paymentStatus.payment_details) ? paymentStatus.payment_details : [];
-          const transactionId = paymentDetails[0]?.transactionId || order.paymentId || null;
-          
-          console.log(`[STATUS] ✅ Payment COMPLETED for order ${orderId}`);
-          
-          // Update order status with transaction
-          await prisma.$transaction(async (tx: any) => {
-            // Update order status
-            const updated = await tx.order.update({
-              where: { id: order.id },
-              data: {
-                status: ORDER_STATUS.PAID,
-                paymentId: transactionId,
-                paymentStatus: 'SUCCESS',
-              },
-              include: { transactions: true },
-            });
-
-            console.log(`[STATUS] ✅ Order ${orderId} marked as PAID`);
-
-            // Create success transaction if not exists
-            const hasSuccessTxn = updated.transactions.some((t: { status: string }) => t.status === 'SUCCESS');
-            if (!hasSuccessTxn) {
-              await tx.transaction.create({
-                data: {
-                  orderId: updated.id,
-                  userId: updated.userId,
-                  credits: 0,
-                  amount: updated.amount,
-                  type: 'CREDIT_PURCHASE',
-                  status: 'SUCCESS',
-                  phonePeOrderId: updated.phonePeOrderId,
-                  paymentId: updated.paymentId || undefined,
-                },
-              });
-              console.log(`[STATUS] ✅ Transaction record created`);
-            }
-
-            // Mark job as paid - critical for download access
-            const metadata = (updated as any).metadata as OrderMetadata;
-            if (metadata?.jobId) {
-              const job = await tx.job.findUnique({
-                where: { id: metadata.jobId },
-              });
-              
-              if (!job) {
-                console.error(`[STATUS] ❌ Job ${metadata.jobId} not found!`);
-              } else if (!job.isPaid) {
-                await tx.job.update({
-                  where: { id: metadata.jobId },
-                  data: { isPaid: true },
-                });
-                console.log(`[STATUS] ✅ Job ${metadata.jobId} marked as PAID`);
-              } else {
-                console.log(`[STATUS] ℹ️ Job ${metadata.jobId} already marked as PAID`);
-              }
-            }
-
-            return updated;
-          });
-
-          // Track purchase in Facebook Conversions API (outside transaction)
-          try {
-            const metadata = (order as any).metadata as OrderMetadata;
-            const tracking = metadata?.tracking as any;
-            const amountInRupees = order.amount / 100;
-            
-            await trackPurchaseServerSide({
-              orderId: order.id,
-              jobId: metadata?.jobId,
-              amount: amountInRupees,
-              currency: 'INR',
-              userId: order.userId || undefined,
-              ipAddress: tracking?.ipAddress,
-              userAgent: tracking?.userAgent,
-              fbc: tracking?.fbc,
-              fbp: tracking?.fbp,
-              eventSourceUrl: tracking?.eventSourceUrl,
-            });
-            
-            console.log(`[STATUS] ✅ Facebook conversion tracked (amount: ₹${amountInRupees})`);
-          } catch (fbError) {
-            console.error('[STATUS] ⚠️ Facebook tracking failed:', fbError);
-            // Non-critical, continue
-          }
-
-          // Update order status in memory for response
-          order.status = ORDER_STATUS.PAID;
-          success = true;
-          
-        } else if (paymentStatus.state === PAYMENT_STATUS.FAILED) {
-          console.log(`[STATUS] ❌ Payment FAILED for order ${orderId}`);
-          
-          // Update order status to failed
-          await prisma.order.update({
-            where: { id: order.id },
-            data: {
-              status: ORDER_STATUS.FAILED,
-              paymentStatus: 'FAILED',
-            },
-          });
-          
-          // Unmark job as paid if it was marked
-          const metadata = (order as any).metadata as OrderMetadata;
-          if (metadata?.jobId) {
-            await prisma.job.update({
-              where: { id: metadata.jobId },
-              data: { isPaid: false },
-            });
-            console.log(`[STATUS] ❌ Job ${metadata.jobId} unmarked as paid due to failed payment`);
-          }
-          
-          order.status = ORDER_STATUS.FAILED;
-          success = false;
-          
-        } else if (paymentStatus.state === PAYMENT_STATUS.PENDING) {
-          console.log(`[STATUS] ⏳ Order ${orderId} still PENDING at PhonePe`);
-          // Keep current status, don't change success flag
-        }
-      } catch (e) {
-        console.error('[STATUS] ❌ Error checking PhonePe payment status:', e);
-        // Return current DB status as fallback
-      }
-    } else if (success) {
-      console.log(`[STATUS] ✅ Order ${orderId} already PAID`);
-    }
-
-    // Extract jobId from metadata if it's a single image purchase
+    const success = order.status === ORDER_STATUS.PAID;
     const metadata = (order as any).metadata as OrderMetadata;
     const jobId = metadata?.jobId || null;
+    
+    console.log(`[STATUS] Order ${orderId}: ${order.status} (jobId: ${jobId || 'none'})`);
     
     return NextResponse.json({
       success,
@@ -196,11 +64,12 @@ export async function GET(request: NextRequest) {
       jobId: jobId,
       message: success 
         ? 'Payment successful! Your image is ready.'
-        : `Payment ${order.status.toLowerCase()}`,
+        : order.status === ORDER_STATUS.FAILED
+          ? 'Payment failed. Please try again.'
+          : 'Payment is being processed.',
     });
 
   } catch (error) {
-    const env = getServerEnv();
     console.error('[STATUS] Error checking payment status:', error);
     return NextResponse.json(
       { error: 'Failed to check payment status' },
