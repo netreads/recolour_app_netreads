@@ -173,7 +173,7 @@ export default function AboutPage() {
                     <h4 className="font-medium mb-1">Instant Preview Before Payment</h4>
                     <p className="text-sm text-muted-foreground">
                       See your colorized photo before you pay. No surprises, no regrets. 
-                      Only pay ₹49 when you're completely satisfied with the result.
+                      Only pay ₹79 when you're completely satisfied with the result.
                     </p>
                   </div>
                 </div>
@@ -380,7 +380,7 @@ export default function AboutPage() {
                 <div className="flex-1">
                   <h4 className="font-medium mb-1">Pay & Download</h4>
                   <p className="text-sm text-muted-foreground">
-                    If you love the result, pay just ₹49 via UPI, PhonePe, or GPay and 
+                    If you love the result, pay just ₹79 via UPI, PhonePe, or GPay and 
                     instantly download your high-resolution, watermark-free colorized photo.
                   </p>
                 </div>

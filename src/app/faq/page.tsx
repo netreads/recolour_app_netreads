@@ -13,7 +13,7 @@ export default function FaqPage() {
       questions: [
         {
           question: "How do I get started with ReColor AI?",
-          answer: "Simply visit our homepage and upload a black and white photo. Our AI will colorize it and show you a preview. Pay ₹49 to download the full HD version - no sign up required!"
+          answer: "Simply visit our homepage and upload a black and white photo. Our AI will colorize it and show you a preview. Pay ₹79 to download the full HD version - no sign up required!"
         },
         {
           question: "What file formats are supported?",
@@ -39,11 +39,11 @@ export default function FaqPage() {
       questions: [
         {
           question: "How does pricing work?",
-          answer: "Each colorized image costs ₹49. You upload your photo, preview the colorized result for free, and only pay when you're happy with it and want to download the HD version."
+          answer: "Each colorized image costs ₹79. You upload your photo, preview the colorized result for free, and only pay when you're happy with it and want to download the HD version."
         },
         {
           question: "Can I preview before paying?",
-          answer: "Yes! Upload your photo and see a preview of the colorized result for free. You only pay ₹49 when you want to download the full HD version."
+          answer: "Yes! Upload your photo and see a preview of the colorized result for free. You only pay ₹79 when you want to download the full HD version."
         },
         {
           question: "Do you offer refunds?",
@@ -55,7 +55,7 @@ export default function FaqPage() {
         },
         {
           question: "Are there any bulk discounts?",
-          answer: "Currently, each image costs ₹49. For bulk orders or enterprise needs, please contact our support team for special pricing."
+          answer: "Currently, each image costs ₹79. For bulk orders or enterprise needs, please contact our support team for special pricing."
         }
       ]
     },

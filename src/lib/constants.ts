@@ -3,8 +3,8 @@
 // Pricing (in paise - multiply by 100 to convert rupees to paise)
 export const PRICING = {
   SINGLE_IMAGE: {
-    RUPEES: 49,
-    PAISE: 4900,
+    RUPEES: 79,
+    PAISE: 7900,
     NAME: 'Single Image Colorization',
     DESCRIPTION: 'Try It Once',
   },

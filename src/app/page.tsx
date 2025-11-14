@@ -339,7 +339,7 @@ export default function HomePage() {
                 </span>
               </h1>
               <p className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
-                Upload → Preview → Pay ₹49 → Download HD
+                Upload → Preview → Pay ₹79 → Download HD
                 <br className="hidden sm:block" />
                 <span className="sm:hidden"> </span>No signup required • Instant results
               </p>

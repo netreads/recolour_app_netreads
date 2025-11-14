@@ -88,7 +88,7 @@ model Order {
   userId         String?       @map("user_id")
   packageName    String        @map("package_name")
   credits        Int
-  amount         Int           // Amount in paise (e.g., 4900 for ₹49)
+  amount         Int           // Amount in paise (e.g., 7900 for ₹79)
   currency       String        @default("INR")
   status         OrderStatus   @default(PENDING)
   phonePeOrderId String?       @map("phonepe_order_id")
