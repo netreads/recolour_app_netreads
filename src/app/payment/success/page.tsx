@@ -58,6 +58,10 @@ function PaymentSuccessContent() {
   const [showSupportMessage, setShowSupportMessage] = useState(false);
   const mountedRef = useRef(false);
   const loadingStartTimeRef = useRef<number | null>(null);
+  // Ref to track if verification succeeded - prevents stale closure issues with timeouts
+  const verificationSucceededRef = useRef(false);
+  // Ref to store the safety timeout ID so we can clear it when verification succeeds
+  const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Track component mount
   useEffect(() => {
@@ -69,16 +73,26 @@ function PaymentSuccessContent() {
   // NEW ARCHITECTURE: Smart delayed verification via download attempt
   const verifyPaymentViaDownload = async (orderId: string, jobId: string, attempt: number = 1) => {
     try {
-      console.log(`[VERIFY] Attempt ${attempt}: Loading image for job ${jobId}...`);
+      console.log(`[VERIFY] Attempt ${attempt}: Loading image for job ${jobId}, order ${orderId}...`);
       
       // Try to download/load the image - this triggers payment verification
-      const response = await fetch(`/api/download-image?jobId=${jobId}&type=output`, {
-        signal: AbortSignal.timeout(15000), // 15 second timeout
+      // Include orderId for more reliable order lookup (Bug 6 & 9 fix)
+      const response = await fetch(`/api/download-image?jobId=${jobId}&orderId=${orderId}&type=output`, {
+        signal: AbortSignal.timeout(20000), // 20 second timeout (increased for retries)
       });
       
       if (response.ok) {
         // ✅ SUCCESS! Payment verified and image ready
         console.log(`[VERIFY] ✅ Payment verified, image ready!`);
+        
+        // Mark verification as successful to prevent safety timeout from overwriting state
+        verificationSucceededRef.current = true;
+        
+        // Clear the safety timeout since verification succeeded
+        if (safetyTimeoutRef.current) {
+          clearTimeout(safetyTimeoutRef.current);
+          safetyTimeoutRef.current = null;
+        }
         
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -159,14 +173,45 @@ function PaymentSuccessContent() {
             setShowSupportMessage(true);
           }
           
-        } else if (response.status === 503) {
-          // Service error, retry once more
-          console.log(`[VERIFY] ⚠️ Service error, will retry...`);
+        } else if (response.status === 202) {
+          // Job still processing (Bug 10 fix: proper handling of job status)
+          console.log(`[VERIFY] ⏳ Job still processing, will retry...`);
           
-          if (attempt < 3) {
+          setPaymentStatus({
+            success: false,
+            orderId: orderId,
+            jobId: jobId,
+            status: 'PROCESSING',
+            message: data.message || 'Your image is being colorized. Please wait...'
+          });
+          
+          // Retry - job processing usually takes a few seconds
+          if (attempt < 8) {
+            const delay = (data.retryAfter || 3) * 1000;
             setTimeout(() => {
               verifyPaymentViaDownload(orderId, jobId, attempt + 1);
-            }, 10000); // Wait 10 seconds
+            }, delay);
+          } else {
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              message: 'Image processing is taking longer than expected. Please refresh or contact support.'
+            });
+            setLoading(false);
+            setShowSupportMessage(true);
+          }
+          
+        } else if (response.status === 503) {
+          // Service error, retry with backoff
+          console.log(`[VERIFY] ⚠️ Service error, will retry...`);
+          
+          if (attempt < 5) {
+            // Exponential backoff: 5s, 10s, 15s, 20s
+            const delay = Math.min(5000 * attempt, 20000);
+            setTimeout(() => {
+              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+            }, delay);
           } else {
             setPaymentStatus({
               success: false,
@@ -178,18 +223,39 @@ function PaymentSuccessContent() {
             setShowSupportMessage(true);
           }
           
-        } else {
-          // Other errors
-          console.error(`[VERIFY] ❌ Unexpected error: ${response.status}`);
+        } else if (response.status === 500 && data.code === 'JOB_FAILED') {
+          // Job processing failed (Bug 10 fix)
+          console.log(`[VERIFY] ❌ Job processing failed`);
           
           setPaymentStatus({
             success: false,
             orderId: orderId,
             jobId: jobId,
-            message: data.message || 'Unable to load image. Please contact support.'
+            status: 'FAILED',
+            message: data.message || 'Image processing failed. Please contact support for a refund.'
           });
           setLoading(false);
           setShowSupportMessage(true);
+          
+        } else {
+          // Other errors
+          console.error(`[VERIFY] ❌ Unexpected error: ${response.status}`);
+          
+          // Retry once for unknown errors
+          if (attempt < 2) {
+            setTimeout(() => {
+              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+            }, 3000);
+          } else {
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              message: data.message || 'Unable to load image. Please contact support.'
+            });
+            setLoading(false);
+            setShowSupportMessage(true);
+          }
         }
       }
       
@@ -228,8 +294,10 @@ function PaymentSuccessContent() {
         }, 3000); // 3 second delay
         
         // Safety timeout: Force clear loading after 60 seconds
-        const safetyTimeout = setTimeout(() => {
-          if (loading) {
+        // Use ref to avoid stale closure issue - check if verification already succeeded
+        safetyTimeoutRef.current = setTimeout(() => {
+          // Only trigger if verification hasn't succeeded yet
+          if (!verificationSucceededRef.current) {
             console.log(`[SAFETY] 🛡️ Force clearing loading state after 60 seconds`);
             setLoading(false);
             setPaymentStatus({
@@ -240,13 +308,18 @@ function PaymentSuccessContent() {
               message: 'Payment verification is taking longer than expected. Please contact support.'
             });
             setShowSupportMessage(true);
+          } else {
+            console.log(`[SAFETY] ✅ Verification already succeeded, safety timeout ignored`);
           }
         }, 60000);
         
         // Cleanup
         return () => {
           clearTimeout(initialDelay);
-          clearTimeout(safetyTimeout);
+          if (safetyTimeoutRef.current) {
+            clearTimeout(safetyTimeoutRef.current);
+            safetyTimeoutRef.current = null;
+          }
         };
       } else {
         setPaymentStatus({
@@ -350,6 +423,31 @@ function PaymentSuccessContent() {
     setLoading(true);
     setShowSupportMessage(false);
     
+    // Reset the verification succeeded ref for the new attempt
+    verificationSucceededRef.current = false;
+    
+    // Clear any existing safety timeout
+    if (safetyTimeoutRef.current) {
+      clearTimeout(safetyTimeoutRef.current);
+      safetyTimeoutRef.current = null;
+    }
+    
+    // Set a new safety timeout for this retry attempt
+    safetyTimeoutRef.current = setTimeout(() => {
+      if (!verificationSucceededRef.current) {
+        console.log(`[SAFETY] 🛡️ Force clearing loading state after 60 seconds (retry)`);
+        setLoading(false);
+        setPaymentStatus({
+          success: false,
+          orderId: orderId,
+          jobId: jobId,
+          status: 'PENDING',
+          message: 'Payment verification is taking longer than expected. Please contact support.'
+        });
+        setShowSupportMessage(true);
+      }
+    }, 60000);
+    
     // Start verification again
     verifyPaymentViaDownload(orderId, jobId);
   };
@@ -359,18 +457,31 @@ function PaymentSuccessContent() {
     
     setDownloading(true);
     try {
-      console.log(`[DOWNLOAD] Downloading image for job ${paymentStatus.jobId}`);
+      console.log(`[DOWNLOAD] Downloading image for job ${paymentStatus.jobId}, order ${paymentStatus.orderId}`);
       
-      const response = await fetch(`/api/download-image?jobId=${paymentStatus.jobId}&type=output`);
+      // Include orderId for more reliable order lookup (Bug 6 & 9 fix)
+      const downloadUrl = paymentStatus.orderId 
+        ? `/api/download-image?jobId=${paymentStatus.jobId}&orderId=${paymentStatus.orderId}&type=output`
+        : `/api/download-image?jobId=${paymentStatus.jobId}&type=output`;
+      
+      const response = await fetch(downloadUrl);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error(`[DOWNLOAD] Failed to download image: ${response.status}`, errorData);
         
-        if (response.status === 403) {
-          alert('Payment verification is still in progress. Please wait a moment and try again.');
+        if (response.status === 402) {
+          // Payment required or pending
+          if (errorData.code === 'PAYMENT_PENDING') {
+            alert('Payment verification is still in progress. Please wait a moment and try again.');
+          } else {
+            alert('Payment issue detected. Please contact support with your Order ID: ' + (paymentStatus.orderId || 'N/A'));
+          }
         } else if (response.status === 404) {
           alert('Image is still being processed. Please wait a moment and try again.');
+        } else if (response.status === 202) {
+          // Job still processing
+          alert('Your image is still being colorized. Please wait a moment and try again.');
         } else {
           alert('Failed to download image. Please try again or contact support.');
         }
@@ -621,10 +732,20 @@ function PaymentSuccessContent() {
               </CardHeader>
               
               <CardContent className="space-y-4 pb-12 px-6">
-                <Button asChild className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700" size="lg">
-                  <Link href="/">
-                    Try Again
-                  </Link>
+                <Button 
+                  onClick={handleRetryVerification}
+                  disabled={loading}
+                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700" 
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Verifying Payment...
+                    </>
+                  ) : (
+                    <>🔄 Retry Payment Verification</>
+                  )}
                 </Button>
                 
                 {/* Payment Deducted Notice */}
