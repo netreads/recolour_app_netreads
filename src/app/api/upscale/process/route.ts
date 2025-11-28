@@ -30,7 +30,7 @@ function getReplicateUpscaleFactor(tier: string): string {
     case '4K':
       return '4x';
     case '6K':
-      return '6x'; // Replicate max is 4x, we'll upscale twice for 6K
+      return '6x';
     default:
       return '2x';
   }
@@ -166,28 +166,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[UPSCALE] Calling Replicate API with factor: ${upscaleFactor}`);
 
-    let output: any;
-    
-    // For 6K, we need to upscale twice (4x first, then another pass)
-    if (metadata.tier === '6K') {
-      // First pass: 4x upscale
-      output = await replicate.run('topazlabs/image-upscale', { input });
-      
-      // If we got a result, do second pass with 2x to approximate 6K
-      if (output) {
-        const firstPassUrl = typeof output === 'string' ? output : (output as any).url?.();
-        if (firstPassUrl) {
-          const secondPassInput = {
-            ...input,
-            image: firstPassUrl,
-            upscale_factor: '2x', // This will give us approximately 8x total, which exceeds 6K
-          };
-          output = await replicate.run('topazlabs/image-upscale', { input: secondPassInput });
-        }
-      }
-    } else {
-      output = await replicate.run('topazlabs/image-upscale', { input });
-    }
+    const output = await replicate.run('topazlabs/image-upscale', { input });
 
     if (!output) {
       throw new Error('No output from Replicate API');
