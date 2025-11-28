@@ -4,9 +4,9 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, Sparkles, Zap, Crown, ArrowRight, Download } from 'lucide-react';
 import Link from 'next/link';
-import { PRICING } from '@/lib/constants';
+import { PRICING, UpscaleTier } from '@/lib/constants';
 
 interface PaymentStatus {
   success: boolean;
@@ -16,6 +16,12 @@ interface PaymentStatus {
   message?: string;
   jobId?: string;
   status?: string;
+}
+
+interface UpscaleState {
+  selectedTier: UpscaleTier | null;
+  isProcessingPayment: boolean;
+  error: string | null;
 }
 
 function PaymentSuccessContent() {
@@ -57,6 +63,13 @@ function PaymentSuccessContent() {
   const [imageLoading, setImageLoading] = useState(false);
   const [showSupportMessage, setShowSupportMessage] = useState(false);
   const mountedRef = useRef(false);
+  
+  // Upscale upsell state
+  const [upscaleState, setUpscaleState] = useState<UpscaleState>({
+    selectedTier: null,
+    isProcessingPayment: false,
+    error: null,
+  });
   const loadingStartTimeRef = useRef<number | null>(null);
   // Ref to track if verification succeeded - prevents stale closure issues with timeouts
   const verificationSucceededRef = useRef(false);
@@ -515,6 +528,44 @@ function PaymentSuccessContent() {
     }
   };
 
+  // Handle upscale purchase
+  const handleUpscalePurchase = async (tier: UpscaleTier) => {
+    if (!paymentStatus?.jobId) return;
+    
+    setUpscaleState(prev => ({
+      ...prev,
+      selectedTier: tier,
+      isProcessingPayment: true,
+      error: null,
+    }));
+
+    try {
+      const response = await fetch('/api/upscale/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: paymentStatus.jobId,
+          tier,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create upscale order');
+      }
+
+      const { redirectUrl } = await response.json();
+      window.location.href = redirectUrl;
+    } catch (error) {
+      console.error('[UPSCALE] Purchase error:', error);
+      setUpscaleState(prev => ({
+        ...prev,
+        isProcessingPayment: false,
+        error: error instanceof Error ? error.message : 'Failed to initiate upscale purchase',
+      }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-16">
@@ -692,6 +743,110 @@ function PaymentSuccessContent() {
                           </>
                         )}
                       </Button>
+
+                      {/* Upscale Upsell Section */}
+                      <div className="border-t border-gray-100 pt-6 sm:pt-8 mt-2">
+                          {/* Header */}
+                          <div className="text-center mb-4 sm:mb-5">
+                            <p className="text-xs sm:text-sm text-orange-600 font-semibold mb-1">✨ ENHANCE YOUR PHOTO</p>
+                            <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                              Want Print-Ready Quality?
+                            </h3>
+                          </div>
+
+                          {/* Options */}
+                          <div className="space-y-2 sm:space-y-3">
+                            {/* 4K - Recommended */}
+                            <button
+                              onClick={() => handleUpscalePurchase('4K')}
+                              disabled={upscaleState.isProcessingPayment}
+                              className="w-full bg-gradient-to-r from-orange-50 to-green-50 border-2 border-orange-200 hover:border-orange-400 rounded-xl p-3 sm:p-4 flex items-center justify-between transition-all disabled:opacity-60 group relative overflow-hidden"
+                            >
+                              <div className="absolute top-0 right-0 bg-gradient-to-r from-orange-500 to-green-600 text-white text-[9px] sm:text-[10px] font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-bl-lg">
+                                RECOMMENDED
+                              </div>
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-orange-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <Sparkles className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="text-left">
+                                  <span className="font-bold text-gray-900 text-sm sm:text-base block">4K Ultra HD</span>
+                                  <span className="text-gray-500 text-xs sm:text-sm">Perfect for framing & prints</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 sm:gap-2 mt-3 sm:mt-0">
+                                <span className="text-lg sm:text-xl font-bold text-gray-900">₹{PRICING.UPSCALE['4K'].RUPEES}</span>
+                                {upscaleState.isProcessingPayment && upscaleState.selectedTier === '4K' ? (
+                                  <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-orange-500" />
+                                ) : (
+                                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 group-hover:translate-x-0.5 transition-transform" />
+                                )}
+                              </div>
+                            </button>
+
+                            {/* 2K and 6K Row */}
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                              {/* 2K */}
+                              <button
+                                onClick={() => handleUpscalePurchase('2K')}
+                                disabled={upscaleState.isProcessingPayment}
+                                className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl p-3 sm:p-4 text-left transition-all disabled:opacity-60"
+                              >
+                                <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                                  <Zap className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">2K HD</span>
+                                </div>
+                                <p className="text-gray-500 text-[10px] sm:text-xs mb-2 sm:mb-3">Social & digital</p>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-base sm:text-lg font-bold text-gray-900">₹{PRICING.UPSCALE['2K'].RUPEES}</span>
+                                  {upscaleState.isProcessingPayment && upscaleState.selectedTier === '2K' ? (
+                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-blue-500" />
+                                  ) : (
+                                    <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
+                                  )}
+                                </div>
+                              </button>
+
+                              {/* 6K */}
+                              <button
+                                onClick={() => handleUpscalePurchase('6K')}
+                                disabled={upscaleState.isProcessingPayment}
+                                className="bg-white border border-gray-200 hover:border-amber-300 rounded-xl p-3 sm:p-4 text-left transition-all disabled:opacity-60"
+                              >
+                                <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                                  <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">6K Premium</span>
+                                </div>
+                                <p className="text-gray-500 text-[10px] sm:text-xs mb-2 sm:mb-3">Wall art quality</p>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-base sm:text-lg font-bold text-gray-900">₹{PRICING.UPSCALE['6K'].RUPEES}</span>
+                                  {upscaleState.isProcessingPayment && upscaleState.selectedTier === '6K' ? (
+                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-amber-500" />
+                                  ) : (
+                                    <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
+                                  )}
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+
+                          {upscaleState.error && (
+                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs sm:text-sm">
+                              {upscaleState.error}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-gray-400 mt-3 sm:mt-4">
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              UPI Payment
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              AI Enhanced
+                            </span>
+                          </div>
+                        </div>
 
                       {/* Bulk Order WhatsApp Button */}
                       <Button 
