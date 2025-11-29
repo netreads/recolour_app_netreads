@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Sparkles, Download, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { PRICING, UpscaleTier } from '@/lib/constants';
+import { trackUpscalePurchase } from '@/lib/facebookTracking';
 
 const UPSCALE_TIPS = [
   "🎨 AI is analyzing your image for optimal enhancement",
@@ -34,6 +35,7 @@ function UpscaleSuccessContent() {
   const [upscaledImageUrl, setUpscaledImageUrl] = useState<string | null>(null);
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [purchaseTracked, setPurchaseTracked] = useState(false);
   const processStartedRef = useRef(false);
 
   // Rotate tips
@@ -132,6 +134,56 @@ function UpscaleSuccessContent() {
       }
     };
   }, [imageBlobUrl]);
+
+  // Track upscale Purchase event when upscale completes successfully
+  useEffect(() => {
+    // Only track if:
+    // 1. Not already tracked
+    // 2. Status is completed (upscale was successful)
+    // 3. We have all required params (orderId, jobId, tier)
+    if (purchaseTracked || status !== 'completed' || !orderId || !jobId || !tier) {
+      return;
+    }
+
+    // Get the pricing for this tier
+    const tierConfig = PRICING.UPSCALE[tier];
+    if (!tierConfig) {
+      return;
+    }
+
+    // Track with retry (wait for fbq to be available)
+    const trackWithRetry = (attempts = 0, maxAttempts = 20): ReturnType<typeof setTimeout> | null => {
+      if (typeof window !== 'undefined' && window.fbq) {
+        try {
+          trackUpscalePurchase({
+            tier,
+            value: tierConfig.RUPEES,
+            jobId,
+            orderId,
+            currency: 'INR',
+          });
+          console.log(`[UPSCALE PIXEL] ✅ Tracked Purchase for ${tier} upscale - ₹${tierConfig.RUPEES}`);
+          setPurchaseTracked(true);
+          return null;
+        } catch (error) {
+          console.error('[UPSCALE PIXEL] Error tracking purchase:', error);
+          return null;
+        }
+      } else if (attempts < maxAttempts) {
+        // Retry after 300ms if fbq not ready
+        return setTimeout(() => trackWithRetry(attempts + 1, maxAttempts), 300);
+      } else {
+        console.warn('[UPSCALE PIXEL] Failed to track - fbq not available after retries');
+        return null;
+      }
+    };
+
+    const cleanupTimer = trackWithRetry();
+    
+    return () => {
+      if (cleanupTimer) clearTimeout(cleanupTimer);
+    };
+  }, [status, orderId, jobId, tier, purchaseTracked]);
 
   const handleDownload = async () => {
     if (!orderId || !jobId) return;
