@@ -61,6 +61,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not an upscale order' }, { status: 400 });
     }
 
+    // CRITICAL: Fail fast if order is already marked as FAILED (payment cancelled/failed)
+    if (order.status === 'FAILED') {
+      console.log(`[UPSCALE] ❌ Order ${orderId} is already marked as FAILED - payment was not completed`);
+      return NextResponse.json({ 
+        error: 'Payment was not completed', 
+        code: 'PAYMENT_CANCELLED',
+        message: 'Your payment was cancelled or failed. Please try again.',
+      }, { status: 402 });
+    }
+
     // Check if already processed
     if (metadata.upscaledImageUrl) {
       return NextResponse.json({
@@ -71,7 +81,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Verify payment if order is still pending
+    // CRITICAL: Verify payment if order is still pending (shouldn't happen if frontend verified, but double-check for security)
     if (order.status === 'PENDING') {
       console.log(`[UPSCALE] Order ${orderId} is PENDING, verifying payment...`);
       
@@ -146,16 +156,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Re-check order status after potential update
+    // CRITICAL: Re-check order status after potential update - MUST be PAID to proceed
     const updatedOrder = await prisma.order.findUnique({
       where: { id: orderId },
     });
 
-    if (!updatedOrder || updatedOrder.status !== 'PAID') {
+    if (!updatedOrder) {
+      console.log(`[UPSCALE] ❌ Order ${orderId} not found after verification`);
       return NextResponse.json({ 
-        error: 'Order not paid',
+        error: 'Order not found', 
+        code: 'ORDER_NOT_FOUND',
+        message: 'Order could not be found.',
+      }, { status: 404 });
+    }
+
+    // CRITICAL: Only proceed if order is PAID - fail for any other status
+    if (updatedOrder.status !== 'PAID') {
+      console.log(`[UPSCALE] ❌ Order ${orderId} status is ${updatedOrder.status}, not PAID - cannot proceed`);
+      
+      // Provide specific error message based on status
+      if (updatedOrder.status === 'FAILED') {
+        return NextResponse.json({ 
+          error: 'Payment was not completed', 
+          code: 'PAYMENT_CANCELLED',
+          message: 'Your payment was cancelled or failed. Please try again.',
+        }, { status: 402 });
+      }
+      
+      return NextResponse.json({ 
+        error: 'Payment not confirmed', 
         code: 'PAYMENT_REQUIRED',
-        message: 'Payment was not completed for this order.',
+        message: 'Payment was not completed for this order. Please complete the payment first.',
       }, { status: 402 });
     }
 

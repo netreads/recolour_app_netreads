@@ -61,11 +61,114 @@ function UpscaleSuccessContent() {
     }
   }, [status]);
 
-  // Track retry attempts
-  const retryCountRef = useRef(0);
-  const MAX_RETRY_ATTEMPTS = 10; // Max 10 retries (50 seconds total)
+  // Track retry attempts for payment verification
+  const paymentVerificationRetryRef = useRef(0);
+  const MAX_PAYMENT_VERIFICATION_RETRIES = 10; // Max 10 retries (50 seconds total)
+  
+  // Track retry attempts for upscale processing
+  const upscaleRetryRef = useRef(0);
+  const MAX_UPSCALE_RETRIES = 3;
 
-  // Process upscale
+  // Verify payment status first (CRITICAL: Only start upscale if payment confirmed)
+  const verifyPayment = async (attempt: number = 1): Promise<boolean> => {
+    if (!orderId) return false;
+
+    try {
+      console.log(`[UPSCALE VERIFY] Attempt ${attempt}: Verifying payment for order ${orderId}...`);
+      
+      // Check payment status via the status API
+      const statusResponse = await fetch(`/api/payments/status?order_id=${orderId}`, {
+        signal: AbortSignal.timeout(20000), // 20 second timeout
+      });
+
+      if (!statusResponse.ok) {
+        const errorData = await statusResponse.json().catch(() => ({}));
+        console.log(`[UPSCALE VERIFY] Status API returned ${statusResponse.status}:`, errorData);
+        
+        // Don't retry on client errors (4xx) - these are permanent failures
+        if (statusResponse.status >= 400 && statusResponse.status < 500) {
+          if (statusResponse.status === 404) {
+            setError('Order not found. Please contact support.');
+          } else {
+            setError(errorData.error || 'Invalid request. Please try again.');
+          }
+          setStatus('failed');
+          return false;
+        }
+        
+        // Retry on server errors (5xx)
+        if (statusResponse.status >= 500 && attempt < MAX_PAYMENT_VERIFICATION_RETRIES) {
+          console.log(`[UPSCALE VERIFY] Server error, retrying in 5s...`);
+          setTimeout(() => verifyPayment(attempt + 1), 5000);
+          return false;
+        }
+        
+        // Unknown error - retry if we have attempts left
+        if (attempt < MAX_PAYMENT_VERIFICATION_RETRIES) {
+          console.log(`[UPSCALE VERIFY] Unknown error, retrying in 5s...`);
+          setTimeout(() => verifyPayment(attempt + 1), 5000);
+          return false;
+        }
+        
+        throw new Error(errorData.error || 'Failed to verify payment status');
+      }
+
+      const statusData = await statusResponse.json();
+      console.log(`[UPSCALE VERIFY] Payment status: ${statusData.status}, success: ${statusData.success}`);
+
+      // Payment confirmed - proceed to upscale
+      if (statusData.success && statusData.status === 'PAID') {
+        console.log(`[UPSCALE VERIFY] ✅ Payment confirmed! Proceeding to upscale...`);
+        return true;
+      }
+
+      // Payment failed or cancelled
+      if (statusData.status === 'FAILED') {
+        console.log(`[UPSCALE VERIFY] ❌ Payment failed or cancelled`);
+        setError(statusData.message || 'Payment was not completed. Please try again.');
+        setStatus('failed');
+        return false;
+      }
+
+      // Payment still pending - retry
+      if (statusData.status === 'PENDING') {
+        paymentVerificationRetryRef.current = attempt;
+        
+        if (attempt >= MAX_PAYMENT_VERIFICATION_RETRIES) {
+          console.log(`[UPSCALE VERIFY] ⏰ Max retry attempts reached`);
+          setError('Payment verification is taking longer than expected. If your payment was deducted, please contact support.');
+          setStatus('failed');
+          return false;
+        }
+        
+        console.log(`[UPSCALE VERIFY] ⏳ Payment pending, retry ${attempt}/${MAX_PAYMENT_VERIFICATION_RETRIES}...`);
+        setTimeout(() => verifyPayment(attempt + 1), 5000);
+        return false;
+      }
+
+      // Unknown status - treat as failed
+      console.log(`[UPSCALE VERIFY] ❌ Unknown payment status: ${statusData.status}`);
+      setError('Payment status could not be determined. Please try again.');
+      setStatus('failed');
+      return false;
+
+    } catch (err) {
+      console.error(`[UPSCALE VERIFY] ❌ Error on attempt ${attempt}:`, err);
+      
+      // Retry on network errors
+      if (attempt < MAX_PAYMENT_VERIFICATION_RETRIES) {
+        console.log(`[UPSCALE VERIFY] 🔄 Network error, retrying in 5s...`);
+        setTimeout(() => verifyPayment(attempt + 1), 5000);
+        return false;
+      }
+      
+      setError('Failed to verify payment. Please contact support.');
+      setStatus('failed');
+      return false;
+    }
+  };
+
+  // Process upscale (only called after payment is verified)
   const processUpscale = async () => {
     if (!orderId || !jobId) return;
 
@@ -82,17 +185,16 @@ function UpscaleSuccessContent() {
       const data = await response.json();
 
       if (response.status === 402) {
+        // Payment verification failed during upscale (shouldn't happen if we verified first, but handle it)
         if (data.code === 'PAYMENT_PENDING') {
-          retryCountRef.current += 1;
+          upscaleRetryRef.current += 1;
           
-          // Check if max retries reached
-          if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
+          if (upscaleRetryRef.current >= MAX_UPSCALE_RETRIES) {
             console.log('[UPSCALE] Max retry attempts reached');
             throw new Error('Payment verification timed out. If your payment was deducted, please contact support.');
           }
           
-          // Retry after delay
-          console.log(`[UPSCALE] Payment pending, retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS}...`);
+          console.log(`[UPSCALE] Payment pending, retry ${upscaleRetryRef.current}/${MAX_UPSCALE_RETRIES}...`);
           setTimeout(() => processUpscale(), 5000);
           return;
         }
@@ -107,13 +209,13 @@ function UpscaleSuccessContent() {
 
       // Handle service unavailable (temporary error)
       if (response.status === 503) {
-        retryCountRef.current += 1;
+        upscaleRetryRef.current += 1;
         
-        if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
+        if (upscaleRetryRef.current >= MAX_UPSCALE_RETRIES) {
           throw new Error('Service temporarily unavailable. Please try again later.');
         }
         
-        console.log(`[UPSCALE] Service error, retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS}...`);
+        console.log(`[UPSCALE] Service error, retry ${upscaleRetryRef.current}/${MAX_UPSCALE_RETRIES}...`);
         setTimeout(() => processUpscale(), data.retryAfter ? data.retryAfter * 1000 : 5000);
         return;
       }
@@ -142,7 +244,7 @@ function UpscaleSuccessContent() {
     }
   };
 
-  // Start processing on mount
+  // Start payment verification on mount, then proceed to upscale only if payment confirmed
   useEffect(() => {
     if (!orderId || !jobId || !tier) {
       setError('Missing order details');
@@ -152,8 +254,23 @@ function UpscaleSuccessContent() {
 
     if (!processStartedRef.current) {
       processStartedRef.current = true;
-      // Small delay to let payment complete
-      setTimeout(() => processUpscale(), 2000);
+      
+      // First verify payment, then start upscale only if payment is confirmed
+      const startFlow = async () => {
+        // Small delay to let PhonePe process the redirect
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Verify payment first (CRITICAL)
+        const paymentConfirmed = await verifyPayment();
+        
+        if (paymentConfirmed) {
+          // Payment confirmed - proceed to upscale
+          await processUpscale();
+        }
+        // If payment not confirmed, verifyPayment already set error state
+      };
+      
+      startFlow();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, jobId, tier]);
@@ -442,27 +559,70 @@ function UpscaleSuccessContent() {
                   <span className="text-red-500 text-2xl">✕</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                  Upscale Failed
+                  {error?.toLowerCase().includes('payment') || error?.toLowerCase().includes('cancelled') 
+                    ? 'Payment Not Completed' 
+                    : 'Upscale Failed'}
                 </h2>
                 <p className="text-gray-600 mb-6">
                   {error || 'Something went wrong during upscaling.'}
                 </p>
+                
+                {/* Show payment-related error message */}
+                {(error?.toLowerCase().includes('payment') || error?.toLowerCase().includes('cancelled')) && (
+                  <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 mb-6 text-left">
+                    <p className="text-sm text-orange-800 mb-2">
+                      <strong>What happened?</strong>
+                    </p>
+                    <p className="text-sm text-orange-700">
+                      Your payment was not completed. This usually happens if you cancelled the payment or the payment failed.
+                    </p>
+                    {orderId && (
+                      <p className="text-xs text-orange-600 mt-2">
+                        <strong>Order ID:</strong> {orderId}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
                 <div className="space-y-3">
-                  <Button
-                    onClick={() => {
-                      processStartedRef.current = false;
-                      setError(null);
-                      setStatus('verifying');
-                      setProgress(0);
-                      setTimeout(() => processUpscale(), 1000);
-                    }}
-                    className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700"
-                  >
-                    🔄 Try Again
-                  </Button>
+                  {/* Only show "Try Again" if it's not a payment cancellation error */}
+                  {!(error?.toLowerCase().includes('payment') || error?.toLowerCase().includes('cancelled')) && (
+                    <Button
+                      onClick={() => {
+                        processStartedRef.current = false;
+                        paymentVerificationRetryRef.current = 0;
+                        upscaleRetryRef.current = 0;
+                        setError(null);
+                        setStatus('verifying');
+                        setProgress(0);
+                        // Restart the flow
+                        const startFlow = async () => {
+                          await new Promise(resolve => setTimeout(resolve, 1000));
+                          const paymentConfirmed = await verifyPayment();
+                          if (paymentConfirmed) {
+                            await processUpscale();
+                          }
+                        };
+                        startFlow();
+                      }}
+                      className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700"
+                    >
+                      🔄 Try Again
+                    </Button>
+                  )}
+                  
+                  {/* Show "Go Back" for payment cancellation */}
+                  {(error?.toLowerCase().includes('payment') || error?.toLowerCase().includes('cancelled')) && (
+                    <Button asChild className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700">
+                      <Link href="/">
+                        ← Go Back to Home
+                      </Link>
+                    </Button>
+                  )}
+                  
                   <Button asChild variant="outline" className="w-full border-2 border-green-600 text-green-700">
                     <Link 
-                      href={`https://wa.me/917984837468?text=Hi%2C%20my%20upscale%20failed.%20Order%20ID%3A%20${encodeURIComponent(orderId || 'N/A')}`}
+                      href={`https://wa.me/917984837468?text=Hi%2C%20my%20upscale%20${error?.toLowerCase().includes('payment') || error?.toLowerCase().includes('cancelled') ? 'payment was not completed' : 'failed'}.%20Order%20ID%3A%20${encodeURIComponent(orderId || 'N/A')}`}
                       target="_blank"
                     >
                       📱 Contact Support
