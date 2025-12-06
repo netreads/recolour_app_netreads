@@ -62,6 +62,8 @@ function PaymentSuccessContent() {
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [showSupportMessage, setShowSupportMessage] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
   const mountedRef = useRef(false);
   
   // Upscale upsell state
@@ -84,9 +86,14 @@ function PaymentSuccessContent() {
   }, [orderId, jobId]);
 
   // NEW ARCHITECTURE: Smart delayed verification via download attempt
+  // MAX_RETRIES: Only allow 3 total retry attempts for normal recolor verification
+  const MAX_VERIFICATION_RETRIES = 3;
   const verifyPaymentViaDownload = async (orderId: string, jobId: string, attempt: number = 1) => {
     try {
-      console.log(`[VERIFY] Attempt ${attempt}: Loading image for job ${jobId}, order ${orderId}...`);
+      console.log(`[VERIFY] Attempt ${attempt}/${MAX_VERIFICATION_RETRIES}: Loading image for job ${jobId}, order ${orderId}...`);
+      
+      // Update verification attempts counter
+      setVerificationAttempts(attempt);
       
       // Try to download/load the image - this triggers payment verification
       // Include orderId for more reliable order lookup (Bug 6 & 9 fix)
@@ -100,6 +107,9 @@ function PaymentSuccessContent() {
         
         // Mark verification as successful to prevent safety timeout from overwriting state
         verificationSucceededRef.current = true;
+        
+        // Reset verification attempts on success
+        setVerificationAttempts(0);
         
         // Clear the safety timeout since verification succeeded
         if (safetyTimeoutRef.current) {
@@ -125,6 +135,21 @@ function PaymentSuccessContent() {
         const data = await response.json().catch(() => ({}));
         console.log(`[VERIFY] Response ${response.status}:`, data);
         
+        // Check if we've exceeded max retries
+        if (attempt >= MAX_VERIFICATION_RETRIES) {
+          console.log(`[VERIFY] ⏰ Max retry attempts (${MAX_VERIFICATION_RETRIES}) reached`);
+          setPaymentStatus({
+            success: false,
+            orderId: orderId,
+            jobId: jobId,
+            status: response.status === 402 ? 'PENDING' : 'FAILED',
+            message: 'Payment verification failed after multiple attempts. Please try paying again or contact support.'
+          });
+          setLoading(false);
+          setShowSupportMessage(true);
+          return;
+        }
+        
         if (response.status === 402) {
           // Payment pending or failed
           if (data.code === 'PAYMENT_PENDING') {
@@ -139,25 +164,11 @@ function PaymentSuccessContent() {
               message: data.message || 'Verifying your payment with PhonePe...'
             });
             
-            // Smart retry with exponential backoff (max 5 attempts)
-            if (attempt < 5) {
-              const delay = (data.retryAfter || 5) * 1000;
-              setTimeout(() => {
-                verifyPaymentViaDownload(orderId, jobId, attempt + 1);
-              }, delay);
-            } else {
-              // Max attempts reached
-              console.log(`[VERIFY] ⏰ Max retry attempts reached`);
-              setPaymentStatus({
-                success: false,
-                orderId: orderId,
-                jobId: jobId,
-                status: 'PENDING',
-                message: 'Payment verification is taking longer than expected. Please contact support.'
-              });
-              setLoading(false);
-              setShowSupportMessage(true);
-            }
+            // Retry with max 3 attempts total
+            const delay = (data.retryAfter || 5) * 1000;
+            setTimeout(() => {
+              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+            }, delay);
             
           } else if (data.code === 'PAYMENT_FAILED') {
             // Payment failed
@@ -211,43 +222,21 @@ function PaymentSuccessContent() {
             message: data.message || 'Your image is being colorized. Please wait...'
           });
           
-          // Retry - job processing usually takes a few seconds
-          if (attempt < 8) {
-            const delay = (data.retryAfter || 3) * 1000;
-            setTimeout(() => {
-              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
-            }, delay);
-          } else {
-            setPaymentStatus({
-              success: false,
-              orderId: orderId,
-              jobId: jobId,
-              message: 'Image processing is taking longer than expected. Please refresh or contact support.'
-            });
-            setLoading(false);
-            setShowSupportMessage(true);
-          }
+          // Retry with max 3 attempts total
+          const delay = (data.retryAfter || 3) * 1000;
+          setTimeout(() => {
+            verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+          }, delay);
           
         } else if (response.status === 503) {
           // Service error, retry with backoff
           console.log(`[VERIFY] ⚠️ Service error, will retry...`);
           
-          if (attempt < 5) {
-            // Exponential backoff: 5s, 10s, 15s, 20s
-            const delay = Math.min(5000 * attempt, 20000);
-            setTimeout(() => {
-              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
-            }, delay);
-          } else {
-            setPaymentStatus({
-              success: false,
-              orderId: orderId,
-              jobId: jobId,
-              message: 'Unable to verify payment. Please try again or contact support.'
-            });
-            setLoading(false);
-            setShowSupportMessage(true);
-          }
+          // Retry with max 3 attempts total
+          const delay = Math.min(5000 * attempt, 20000);
+          setTimeout(() => {
+            verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+          }, delay);
           
         } else if (response.status === 500 && data.code === 'JOB_FAILED') {
           // Job processing failed (Bug 10 fix)
@@ -264,32 +253,20 @@ function PaymentSuccessContent() {
           setShowSupportMessage(true);
           
         } else {
-          // Other errors
+          // Other errors - retry with max 3 attempts total
           console.error(`[VERIFY] ❌ Unexpected error: ${response.status}`);
           
-          // Retry once for unknown errors
-          if (attempt < 2) {
-            setTimeout(() => {
-              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
-            }, 3000);
-          } else {
-            setPaymentStatus({
-              success: false,
-              orderId: orderId,
-              jobId: jobId,
-              message: data.message || 'Unable to load image. Please contact support.'
-            });
-            setLoading(false);
-            setShowSupportMessage(true);
-          }
+          setTimeout(() => {
+            verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+          }, 3000);
         }
       }
       
     } catch (error) {
       console.error(`[VERIFY] ❌ Error on attempt ${attempt}:`, error);
       
-      // Retry on network errors (up to 3 times)
-      if (attempt < 3) {
+      // Retry on network errors with max 3 attempts total
+      if (attempt < MAX_VERIFICATION_RETRIES) {
         console.log(`[VERIFY] 🔄 Network error, retrying in 5s...`);
         setTimeout(() => {
           verifyPaymentViaDownload(orderId, jobId, attempt + 1);
@@ -445,7 +422,13 @@ function PaymentSuccessContent() {
   const handleRetryVerification = () => {
     if (!orderId || !jobId) return;
     
-    console.log(`[RETRY] User manually retrying verification...`);
+    // Check if we've exceeded max retries
+    if (verificationAttempts >= MAX_VERIFICATION_RETRIES) {
+      console.log(`[RETRY] Max retry attempts (${MAX_VERIFICATION_RETRIES}) reached, cannot retry`);
+      return;
+    }
+    
+    console.log(`[RETRY] User manually retrying verification (attempt ${verificationAttempts + 1}/${MAX_VERIFICATION_RETRIES})...`);
     setLoading(true);
     setShowSupportMessage(false);
     
@@ -474,8 +457,40 @@ function PaymentSuccessContent() {
       }
     }, 60000);
     
-    // Start verification again
-    verifyPaymentViaDownload(orderId, jobId);
+    // Start verification again with incremented attempt count
+    verifyPaymentViaDownload(orderId, jobId, verificationAttempts + 1);
+  };
+
+  // Handle "Go Back & Pay Again" - creates new order and redirects to payment
+  const handlePayAgain = async () => {
+    if (!jobId) return;
+    
+    // Reset verification attempts when starting a new payment
+    setVerificationAttempts(0);
+    
+    setIsProcessingPayment(true);
+    try {
+      const orderResponse = await fetch('/api/payments/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: jobId,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const { redirectUrl } = await orderResponse.json();
+      
+      // Redirect to payment page
+      window.location.href = redirectUrl;
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Failed to initiate payment. Please try again.');
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleDownload = async () => {
@@ -900,19 +915,48 @@ function PaymentSuccessContent() {
               </CardHeader>
               
               <CardContent className="space-y-4 pb-12 px-6">
+                {/* Only show retry button if attempts < 3 */}
+                {verificationAttempts < MAX_VERIFICATION_RETRIES && (
+                  <Button 
+                    onClick={handleRetryVerification}
+                    disabled={loading}
+                    className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700" 
+                    size="lg"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Verifying Payment...
+                      </>
+                    ) : (
+                      <>🔄 Retry Payment Verification ({verificationAttempts}/{MAX_VERIFICATION_RETRIES})</>
+                    )}
+                  </Button>
+                )}
+                
+                {/* Show message when max retries reached */}
+                {verificationAttempts >= MAX_VERIFICATION_RETRIES && (
+                  <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-orange-800 text-center">
+                      <strong>Maximum verification attempts reached.</strong> Please use "Go Back & Pay Again" to create a new payment order.
+                    </p>
+                  </div>
+                )}
+
+                {/* Go Back & Pay Again Button */}
                 <Button 
-                  onClick={handleRetryVerification}
-                  disabled={loading}
-                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700" 
+                  onClick={handlePayAgain}
+                  disabled={isProcessingPayment || !jobId}
+                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white" 
                   size="lg"
                 >
-                  {loading ? (
+                  {isProcessingPayment ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Verifying Payment...
+                      Creating New Order...
                     </>
                   ) : (
-                    <>🔄 Retry Payment Verification</>
+                    <>💳 Go Back & Pay Again</>
                   )}
                 </Button>
                 

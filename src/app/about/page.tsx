@@ -460,7 +460,7 @@ export default function AboutPage() {
                 asChild
               >
                 <Link href="/#upload">
-                  Start Colorizing Free
+                  Start Colorizing Today
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>

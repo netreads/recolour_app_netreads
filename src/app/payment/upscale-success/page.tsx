@@ -36,6 +36,7 @@ function UpscaleSuccessContent() {
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [purchaseTracked, setPurchaseTracked] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const processStartedRef = useRef(false);
 
   // Rotate tips
@@ -367,6 +368,36 @@ function UpscaleSuccessContent() {
     }
   };
 
+  // Handle "Go Back & Pay Again" - creates new upscale order and redirects to payment
+  const handlePayAgain = async () => {
+    if (!jobId || !tier) return;
+    
+    setIsProcessingPayment(true);
+    try {
+      const orderResponse = await fetch('/api/upscale/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: jobId,
+          tier: tier,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const { redirectUrl } = await orderResponse.json();
+      
+      // Redirect to payment page
+      window.location.href = redirectUrl;
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Failed to initiate payment. Please try again.');
+      setIsProcessingPayment(false);
+    }
+  };
+
   // No params provided
   if (!orderId || !jobId || !tier) {
     return (
@@ -611,13 +642,29 @@ function UpscaleSuccessContent() {
                     </Button>
                   )}
                   
-                  {/* Show "Go Back" for payment cancellation */}
+                  {/* Show "Go Back & Pay Again" for payment cancellation */}
                   {(error?.toLowerCase().includes('payment') || error?.toLowerCase().includes('cancelled')) && (
-                    <Button asChild className="w-full bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700">
-                      <Link href="/">
-                        ← Go Back to Home
-                      </Link>
-                    </Button>
+                    <>
+                      <Button 
+                        onClick={handlePayAgain}
+                        disabled={isProcessingPayment || !jobId || !tier}
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                      >
+                        {isProcessingPayment ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Creating New Order...
+                          </>
+                        ) : (
+                          <>💳 Go Back & Pay Again</>
+                        )}
+                      </Button>
+                      <Button asChild variant="outline" className="w-full border-2 hover:bg-gray-50">
+                        <Link href="/">
+                          ← Go Back to Home
+                        </Link>
+                      </Button>
+                    </>
                   )}
                   
                   <Button asChild variant="outline" className="w-full border-2 border-green-600 text-green-700">
