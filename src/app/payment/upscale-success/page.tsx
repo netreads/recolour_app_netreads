@@ -368,7 +368,7 @@ function UpscaleSuccessContent() {
     }
   };
 
-  // Handle "Go Back & Pay Again" - creates new upscale order and redirects to payment
+  // Handle "Retry Payment" - creates new upscale order and redirects to payment
   const handlePayAgain = async () => {
     if (!jobId || !tier) return;
     
@@ -642,7 +642,7 @@ function UpscaleSuccessContent() {
                     </Button>
                   )}
                   
-                  {/* Show "Go Back & Pay Again" for payment cancellation */}
+                  {/* Show "Retry Payment" for payment cancellation */}
                   {(error?.toLowerCase().includes('payment') || error?.toLowerCase().includes('cancelled')) && (
                     <>
                       <Button 
@@ -656,7 +656,7 @@ function UpscaleSuccessContent() {
                             Creating New Order...
                           </>
                         ) : (
-                          <>💳 Go Back & Pay Again</>
+                          <>💳  Retry Payment</>
                         )}
                       </Button>
                       <Button asChild variant="outline" className="w-full border-2 hover:bg-gray-50">

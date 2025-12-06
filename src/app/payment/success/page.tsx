@@ -461,7 +461,7 @@ function PaymentSuccessContent() {
     verifyPaymentViaDownload(orderId, jobId, verificationAttempts + 1);
   };
 
-  // Handle "Go Back & Pay Again" - creates new order and redirects to payment
+  // Handle "Retry Payment" - creates new order and redirects to payment
   const handlePayAgain = async () => {
     if (!jobId) return;
     
@@ -938,12 +938,12 @@ function PaymentSuccessContent() {
                 {verificationAttempts >= MAX_VERIFICATION_RETRIES && (
                   <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 mb-4">
                     <p className="text-sm text-orange-800 text-center">
-                      <strong>Maximum verification attempts reached.</strong> Please use "Go Back & Pay Again" to create a new payment order.
+                      <strong>Maximum verification attempts reached.</strong> Please use "Retry Payment" to create a new payment order.
                     </p>
                   </div>
                 )}
 
-                {/* Go Back & Pay Again Button */}
+                {/* Retry Payment Button */}
                 <Button 
                   onClick={handlePayAgain}
                   disabled={isProcessingPayment || !jobId}
@@ -956,7 +956,7 @@ function PaymentSuccessContent() {
                       Creating New Order...
                     </>
                   ) : (
-                    <>💳 Go Back & Pay Again</>
+                    <>💳  Retry Payment</>
                   )}
                 </Button>
                 

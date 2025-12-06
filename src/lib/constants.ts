@@ -26,8 +26,8 @@ export const PRICING = {
       RESOLUTION: '4K',
     },
     '6K': {
-      RUPEES: 350,
-      PAISE: 35000,
+      RUPEES: 399,
+      PAISE: 39900,
       NAME: '6K Premium Upscale',
       DESCRIPTION: 'Upscale to 6K resolution',
       FACTOR: '6x' as const,
