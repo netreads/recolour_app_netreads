@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Sparkles, Zap, Crown, ArrowRight, Download } from 'lucide-react';
 import Link from 'next/link';
 import { PRICING, UpscaleTier } from '@/lib/constants';
+import { trackPurchase, trackPageView } from '@/lib/facebookTracking';
 
 interface PaymentStatus {
   success: boolean;
@@ -78,11 +79,33 @@ function PaymentSuccessContent() {
   // Ref to store the safety timeout ID so we can clear it when verification succeeds
   const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Track component mount
+  // Track component mount and pageview
   useEffect(() => {
     if (!mountedRef.current) {
       mountedRef.current = true;
     }
+    
+    // Track PageView for this success page
+    const trackPageViewWithRetry = (attempts = 0, maxAttempts = 10): ReturnType<typeof setTimeout> | null => {
+      if (typeof window !== 'undefined' && window.fbq) {
+        try {
+          trackPageView();
+          return null;
+        } catch (error) {
+          console.error('[PIXEL] Error tracking pageview:', error);
+          return null;
+        }
+      } else if (attempts < maxAttempts) {
+        return setTimeout(() => trackPageViewWithRetry(attempts + 1, maxAttempts), 300);
+      } else {
+        return null;
+      }
+    };
+    
+    const timer = trackPageViewWithRetry();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [orderId, jobId]);
 
   // NEW ARCHITECTURE: Smart delayed verification via download attempt
@@ -368,6 +391,68 @@ function PaymentSuccessContent() {
     };
   }, [imageBlobUrl]);
 
+  // Track if user is doing intentional navigation (like upscale purchase)
+  const isIntentionalNavigationRef = useRef(false);
+
+  // Prevent accidental back navigation when payment is successful
+  useEffect(() => {
+    // Only prevent back navigation when payment is successful
+    if (!paymentStatus?.success) {
+      return;
+    }
+
+    // Push current state to history to intercept back button
+    // Use a unique state object to track our interception
+    const stateKey = { preventBack: true, timestamp: Date.now() };
+    window.history.pushState(stateKey, '', window.location.href);
+
+    // Handle browser back/forward buttons
+    const handlePopState = (event: PopStateEvent) => {
+      // Check if this is intentional navigation
+      if (isIntentionalNavigationRef.current) {
+        isIntentionalNavigationRef.current = false;
+        return; // Allow navigation
+      }
+
+      // Immediately push state back to prevent navigation
+      window.history.pushState(stateKey, '', window.location.href);
+      
+      // Show confirmation dialog
+      const confirmed = window.confirm(
+        'Are you sure you want to go back? Your colorized image is ready to download!'
+      );
+      
+      if (confirmed) {
+        // User confirmed, allow navigation by going back
+        window.history.back();
+      }
+      // If not confirmed, we've already pushed the state back, so user stays on page
+    };
+
+    // Handle page refresh/close (but not programmatic navigation)
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Don't show warning if user is doing intentional navigation
+      if (isIntentionalNavigationRef.current) {
+        return;
+      }
+      
+      // Only show warning if image is loaded and ready
+      if (imageBlobUrl) {
+        event.preventDefault();
+        event.returnValue = 'Your colorized image is ready! Are you sure you want to leave?';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [paymentStatus?.success, imageBlobUrl]);
+
   // Track purchase event - fires ONLY when payment succeeds
   useEffect(() => {
     // Don't track if already tracked
@@ -377,34 +462,62 @@ function PaymentSuccessContent() {
 
     // Get jobId from payment status or URL params
     const trackingJobId = paymentStatus?.jobId || jobId;
+    const trackingOrderId = paymentStatus?.orderId || orderId;
     
     // Only track if we have a jobId AND payment was successful
-    if (!trackingJobId || !paymentStatus?.success) {
+    if (!trackingJobId || !paymentStatus?.success || !trackingOrderId) {
       return;
     }
     
     // Generate event_id for deduplication with server-side tracking
-    const eventId = `${paymentStatus.orderId || orderId}_${trackingJobId}`;
+    const eventId = `${trackingOrderId}_${trackingJobId}`;
+    
+    // Check localStorage to prevent duplicate tracking across page refreshes
+    const storageKey = `purchase_tracked_${eventId}`;
+    const alreadyTracked = typeof window !== 'undefined' && localStorage.getItem(storageKey) === 'true';
+    
+    if (alreadyTracked) {
+      console.log('[PIXEL] Purchase already tracked (localStorage check)');
+      setPurchaseTracked(true);
+      return;
+    }
     
     // Function to track purchase with retries
     const trackPurchaseWithRetry = (attempts = 0, maxAttempts = 20): ReturnType<typeof setTimeout> | null => {
       if (typeof window !== 'undefined' && window.fbq) {
         try {
-          window.fbq('track', 'Purchase', {
-            value: PRICING.SINGLE_IMAGE.RUPEES,
-            currency: 'INR',
-            content_ids: [trackingJobId],
-          }, {
-            eventID: eventId
-          });
+          trackPurchase(
+            PRICING.SINGLE_IMAGE.RUPEES,
+            'INR',
+            [trackingJobId],
+            eventId
+          );
+          
+          // Mark as tracked in localStorage to prevent duplicates
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(storageKey, 'true');
+            // Clean up old tracking keys (keep last 50)
+            try {
+              const keys = Object.keys(localStorage).filter(k => k.startsWith('purchase_tracked_'));
+              if (keys.length > 50) {
+                keys.slice(0, keys.length - 50).forEach(k => localStorage.removeItem(k));
+              }
+            } catch (e) {
+              // Ignore localStorage errors
+            }
+          }
+          
+          console.log(`[PIXEL] ✅ Tracked Purchase for recolor - ₹${PRICING.SINGLE_IMAGE.RUPEES}, EventID: ${eventId}`);
           setPurchaseTracked(true);
           return null;
         } catch (error) {
+          console.error('[PIXEL] Error tracking purchase:', error);
           return null;
         }
       } else if (attempts < maxAttempts) {
         return setTimeout(() => trackPurchaseWithRetry(attempts + 1, maxAttempts), 300);
       } else {
+        console.warn('[PIXEL] Failed to track purchase - fbq not available after retries');
         return null;
       }
     };
@@ -465,6 +578,9 @@ function PaymentSuccessContent() {
   const handlePayAgain = async () => {
     if (!jobId) return;
     
+    // Mark as intentional navigation to prevent back button dialog
+    isIntentionalNavigationRef.current = true;
+    
     // Reset verification attempts when starting a new payment
     setVerificationAttempts(0);
     
@@ -488,6 +604,8 @@ function PaymentSuccessContent() {
       window.location.href = redirectUrl;
     } catch (error) {
       console.error('Payment error:', error);
+      // Reset flag on error
+      isIntentionalNavigationRef.current = false;
       alert('Failed to initiate payment. Please try again.');
       setIsProcessingPayment(false);
     }
@@ -560,6 +678,9 @@ function PaymentSuccessContent() {
   const handleUpscalePurchase = async (tier: UpscaleTier) => {
     if (!paymentStatus?.jobId) return;
     
+    // Mark as intentional navigation to prevent back button dialog
+    isIntentionalNavigationRef.current = true;
+    
     setUpscaleState(prev => ({
       ...prev,
       selectedTier: tier,
@@ -586,6 +707,8 @@ function PaymentSuccessContent() {
       window.location.href = redirectUrl;
     } catch (error) {
       console.error('[UPSCALE] Purchase error:', error);
+      // Reset flag on error
+      isIntentionalNavigationRef.current = false;
       setUpscaleState(prev => ({
         ...prev,
         isProcessingPayment: false,

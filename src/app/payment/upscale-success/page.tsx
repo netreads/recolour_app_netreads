@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Sparkles, Download, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { PRICING, UpscaleTier } from '@/lib/constants';
-import { trackUpscalePurchase } from '@/lib/facebookTracking';
+import { trackUpscalePurchase, trackPageView } from '@/lib/facebookTracking';
 
 const UPSCALE_TIPS = [
   "🎨 AI is analyzing your image for optimal enhancement",
@@ -38,6 +38,7 @@ function UpscaleSuccessContent() {
   const [purchaseTracked, setPurchaseTracked] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const processStartedRef = useRef(false);
+  const isIntentionalNavigationRef = useRef(false);
 
   // Rotate tips
   useEffect(() => {
@@ -285,6 +286,89 @@ function UpscaleSuccessContent() {
     };
   }, [imageBlobUrl]);
 
+  // Prevent accidental back navigation when upscale is successful
+  useEffect(() => {
+    // Only prevent back navigation when upscale is completed
+    if (status !== 'completed') {
+      return;
+    }
+
+    // Push current state to history to intercept back button
+    // Use a unique state object to track our interception
+    const stateKey = { preventBack: true, timestamp: Date.now() };
+    window.history.pushState(stateKey, '', window.location.href);
+
+    // Handle browser back/forward buttons
+    const handlePopState = (event: PopStateEvent) => {
+      // Check if this is intentional navigation
+      if (isIntentionalNavigationRef.current) {
+        isIntentionalNavigationRef.current = false;
+        return; // Allow navigation
+      }
+
+      // Immediately push state back to prevent navigation
+      window.history.pushState(stateKey, '', window.location.href);
+      
+      // Show confirmation dialog
+      const confirmed = window.confirm(
+        `Are you sure you want to go back? Your ${tier} upscaled image is ready to download!`
+      );
+      
+      if (confirmed) {
+        // User confirmed, allow navigation by going back
+        window.history.back();
+      }
+      // If not confirmed, we've already pushed the state back, so user stays on page
+    };
+
+    // Handle page refresh/close (but not programmatic navigation)
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Don't show warning if user is doing intentional navigation
+      if (isIntentionalNavigationRef.current) {
+        return;
+      }
+      
+      // Only show warning if image is loaded and ready
+      if (imageBlobUrl) {
+        event.preventDefault();
+        event.returnValue = `Your ${tier} upscaled image is ready! Are you sure you want to leave?`;
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [status, imageBlobUrl, tier]);
+
+  // Track PageView when component mounts
+  useEffect(() => {
+    const trackPageViewWithRetry = (attempts = 0, maxAttempts = 10): ReturnType<typeof setTimeout> | null => {
+      if (typeof window !== 'undefined' && window.fbq) {
+        try {
+          trackPageView();
+          return null;
+        } catch (error) {
+          console.error('[UPSCALE PIXEL] Error tracking pageview:', error);
+          return null;
+        }
+      } else if (attempts < maxAttempts) {
+        return setTimeout(() => trackPageViewWithRetry(attempts + 1, maxAttempts), 300);
+      } else {
+        return null;
+      }
+    };
+    
+    const timer = trackPageViewWithRetry();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
   // Track upscale Purchase event when upscale completes successfully
   useEffect(() => {
     // Only track if:
@@ -301,6 +385,19 @@ function UpscaleSuccessContent() {
       return;
     }
 
+    // Generate event_id for deduplication
+    const eventId = `upscale_${orderId}_${jobId}`;
+    
+    // Check localStorage to prevent duplicate tracking across page refreshes
+    const storageKey = `upscale_purchase_tracked_${eventId}`;
+    const alreadyTracked = typeof window !== 'undefined' && localStorage.getItem(storageKey) === 'true';
+    
+    if (alreadyTracked) {
+      console.log('[UPSCALE PIXEL] Purchase already tracked (localStorage check)');
+      setPurchaseTracked(true);
+      return;
+    }
+
     // Track with retry (wait for fbq to be available)
     const trackWithRetry = (attempts = 0, maxAttempts = 20): ReturnType<typeof setTimeout> | null => {
       if (typeof window !== 'undefined' && window.fbq) {
@@ -312,7 +409,22 @@ function UpscaleSuccessContent() {
             orderId,
             currency: 'INR',
           });
-          console.log(`[UPSCALE PIXEL] ✅ Tracked Purchase for ${tier} upscale - ₹${tierConfig.RUPEES}`);
+          
+          // Mark as tracked in localStorage to prevent duplicates
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(storageKey, 'true');
+            // Clean up old tracking keys (keep last 50)
+            try {
+              const keys = Object.keys(localStorage).filter(k => k.startsWith('upscale_purchase_tracked_'));
+              if (keys.length > 50) {
+                keys.slice(0, keys.length - 50).forEach(k => localStorage.removeItem(k));
+              }
+            } catch (e) {
+              // Ignore localStorage errors
+            }
+          }
+          
+          console.log(`[UPSCALE PIXEL] ✅ Tracked Purchase for ${tier} upscale - ₹${tierConfig.RUPEES}, EventID: ${eventId}`);
           setPurchaseTracked(true);
           return null;
         } catch (error) {
@@ -372,6 +484,9 @@ function UpscaleSuccessContent() {
   const handlePayAgain = async () => {
     if (!jobId || !tier) return;
     
+    // Mark as intentional navigation to prevent back button dialog
+    isIntentionalNavigationRef.current = true;
+    
     setIsProcessingPayment(true);
     try {
       const orderResponse = await fetch('/api/upscale/create-order', {
@@ -393,6 +508,8 @@ function UpscaleSuccessContent() {
       window.location.href = redirectUrl;
     } catch (error) {
       console.error('Payment error:', error);
+      // Reset flag on error
+      isIntentionalNavigationRef.current = false;
       alert('Failed to initiate payment. Please try again.');
       setIsProcessingPayment(false);
     }
