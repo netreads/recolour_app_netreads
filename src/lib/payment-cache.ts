@@ -179,6 +179,8 @@ export function invalidatePaymentCache(orderId: string): void {
 }
 
 // Helper to create rate-limited PhonePe verification
+// Bug 5 fix: Only skip for final states (COMPLETED/FAILED), never for PENDING
+// This ensures fresh PhonePe calls for users who just completed payment
 export function shouldSkipVerification(orderId: string): {
   skip: boolean;
   cachedStatus?: string;
@@ -190,7 +192,7 @@ export function shouldSkipVerification(orderId: string): {
     return { skip: false };
   }
   
-  // If cached as COMPLETED or FAILED, skip verification (final states)
+  // If cached as COMPLETED or FAILED, skip verification (final states only)
   if (cached.status === 'COMPLETED' || cached.status === 'FAILED') {
     return {
       skip: true,
@@ -199,15 +201,9 @@ export function shouldSkipVerification(orderId: string): {
     };
   }
   
-  // If cached as PENDING and cache is fresh (< 10 seconds), skip
-  const age = Date.now() - cached.timestamp;
-  if (cached.status === 'PENDING' && age < 10000) {
-    return {
-      skip: true,
-      cachedStatus: cached.status,
-      reason: 'Recently verified as pending',
-    };
-  }
+  // Bug 5 fix: NEVER skip for PENDING status
+  // Even if recently checked, the payment might have completed at PhonePe
+  // The cost of an extra API call is worth preventing lost payments
   
   return { skip: false };
 }

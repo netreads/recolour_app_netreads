@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getPhonePeOrderStatus } from '@/lib/phonepe';
-import { PAYMENT_STATUS } from '@/lib/constants';
-import { getCachedPaymentStatus, setCachedPaymentStatus, shouldSkipVerification } from '@/lib/payment-cache';
+import { PAYMENT_STATUS, JOB_STATUS } from '@/lib/constants';
+import { setCachedPaymentStatus, shouldSkipVerification } from '@/lib/payment-cache';
 import { trackPurchaseServerSide } from '@/lib/facebookConversionsAPI';
+import { getServerEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
-export const maxDuration = 15; // Increased to handle PhonePe verification
+export const maxDuration = 25; // Increased to handle PhonePe verification with retries
 export const dynamic = 'force-dynamic';
 
 // Helper to extract transaction ID from PhonePe response
@@ -17,10 +18,101 @@ function extractTransactionId(phonePeStatus: any): string | null {
   return paymentDetails[0]?.transactionId || null;
 }
 
+// Helper to call PhonePe with retry logic (Bug 2 fix)
+async function verifyPhonePeWithRetry(orderId: string, maxRetries: number = 3): Promise<any> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[DOWNLOAD] 📞 PhonePe API call attempt ${attempt}/${maxRetries}...`);
+      const status = await getPhonePeOrderStatus(orderId);
+      return status;
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`[DOWNLOAD] ⚠️ PhonePe attempt ${attempt} failed:`, lastError.message);
+      
+      if (attempt < maxRetries) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, attempt - 1) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
+// Helper to update database with retry logic (Bug 3 fix)
+async function updatePaymentInDbWithRetry(
+  orderId: string, 
+  jobId: string, 
+  transactionId: string | null,
+  orderUserId: string | null,
+  orderAmount: number,
+  orderPhonePeId: string | null,
+  maxRetries: number = 3
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[DOWNLOAD] 💾 DB update attempt ${attempt}/${maxRetries}...`);
+      
+      await prisma.$transaction(async (tx: any) => {
+        // Update order
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: 'PAID',
+            paymentStatus: 'SUCCESS',
+            paymentId: transactionId,
+          },
+        });
+        
+        // Update job
+        await tx.job.update({
+          where: { id: jobId },
+          data: { isPaid: true },
+        });
+        
+        // Create transaction record if not exists
+        const existingTransaction = await tx.transaction.findFirst({
+          where: { orderId: orderId, status: 'SUCCESS' },
+        });
+        
+        if (!existingTransaction) {
+          await tx.transaction.create({
+            data: {
+              orderId: orderId,
+              userId: orderUserId,
+              credits: 0,
+              amount: orderAmount,
+              type: 'CREDIT_PURCHASE',
+              status: 'SUCCESS',
+              phonePeOrderId: orderPhonePeId,
+              paymentId: transactionId,
+            },
+          });
+        }
+      });
+      
+      console.log(`[DOWNLOAD] ✅ DB update successful on attempt ${attempt}`);
+      return true;
+    } catch (error) {
+      console.error(`[DOWNLOAD] ⚠️ DB update attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+  
+  return false;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const jobId = searchParams.get('jobId');
+    const orderId = searchParams.get('orderId'); // Bug 6 & 9 fix: Accept orderId from URL
     const type = searchParams.get('type') || 'output';
 
     if (!jobId) {
@@ -42,6 +134,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Bug 10 fix: Validate job status before serving
+    if (job.status === JOB_STATUS.FAILED) {
+      console.log(`[DOWNLOAD] ❌ Job ${jobId} processing failed`);
+      return NextResponse.json(
+        { 
+          error: 'Image processing failed',
+          code: 'JOB_FAILED',
+          message: 'Unfortunately, your image could not be processed. Please try uploading again or contact support for a refund.',
+          jobId: jobId,
+        },
+        { status: 500 }
+      );
+    }
+
+    if (job.status === JOB_STATUS.PROCESSING || job.status === JOB_STATUS.PENDING) {
+      console.log(`[DOWNLOAD] ⏳ Job ${jobId} still processing (status: ${job.status})`);
+      return NextResponse.json(
+        { 
+          error: 'Image still processing',
+          code: 'JOB_PROCESSING',
+          message: 'Your image is still being processed. Please wait a moment and try again.',
+          jobId: jobId,
+          retryAfter: 5,
+        },
+        { status: 202 } // 202 Accepted - processing
+      );
+    }
+
     // ✅ FAST PATH: If already marked as paid, serve immediately
     if (job.isPaid) {
       console.log(`[DOWNLOAD] ✅ Job ${jobId} already paid, serving image`);
@@ -51,21 +171,44 @@ export async function GET(request: NextRequest) {
     // 🔍 VERIFICATION PATH: Job not marked as paid, need to verify payment
     console.log(`[DOWNLOAD] 🔍 Job ${jobId} not marked as paid, verifying payment...`);
     
-    // Find associated order
-    const order = await prisma.order.findFirst({
-      where: {
-        metadata: {
-          path: ['jobId'],
-          equals: jobId,
+    // Bug 1 & 6 fix: Find order - prefer orderId if provided, remove 24-hour limit
+    let order = null;
+    
+    // First try to find by orderId if provided (most reliable)
+    if (orderId) {
+      console.log(`[DOWNLOAD] Looking up order by orderId: ${orderId}`);
+      order = await prisma.order.findFirst({
+        where: {
+          id: orderId,
+          metadata: {
+            path: ['jobId'],
+            equals: jobId,
+          },
         },
-        createdAt: {
-          gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+      });
+    }
+    
+    // Fallback: find by jobId without time limit (Bug 1 fix: removed 24-hour restriction)
+    if (!order) {
+      console.log(`[DOWNLOAD] Looking up order by jobId: ${jobId}`);
+      order = await prisma.order.findFirst({
+        where: {
+          metadata: {
+            path: ['jobId'],
+            equals: jobId,
+          },
+          // Bug 6 fix: Prefer PAID orders first, then most recent
+          OR: [
+            { status: 'PAID' },
+            { status: 'PENDING' },
+          ],
         },
-      },
-      orderBy: {
-        createdAt: 'desc', // Most recent first
-      },
-    });
+        orderBy: [
+          { status: 'asc' }, // PAID comes before PENDING alphabetically
+          { createdAt: 'desc' }, // Most recent first
+        ],
+      });
+    }
 
     if (!order) {
       console.log(`[DOWNLOAD] ❌ No order found for job ${jobId}`);
@@ -118,105 +261,65 @@ export async function GET(request: NextRequest) {
     if (order.status === 'PENDING') {
       console.log(`[DOWNLOAD] 🔄 Order ${order.id} is PENDING, checking with PhonePe...`);
       
-      // Check cache first to avoid redundant PhonePe calls
+      // Bug 5 fix: Check cache but ONLY skip for final states (COMPLETED/FAILED)
+      // Never skip for PENDING - always re-verify to catch completed payments
       const verificationCheck = shouldSkipVerification(order.id);
       
-      if (verificationCheck.skip) {
-        console.log(`[DOWNLOAD] ⏭️ Skipping PhonePe call: ${verificationCheck.reason}`);
-        
-        if (verificationCheck.cachedStatus === 'COMPLETED') {
-          // Cache says COMPLETED but DB not updated yet (race condition)
-          // Try to update DB and serve
-          try {
-            await prisma.$transaction(async (tx: any) => {
-              await tx.order.update({
-                where: { id: order.id },
-                data: { status: 'PAID', paymentStatus: 'SUCCESS' }
-              });
-              await tx.job.update({
-                where: { id: jobId },
-                data: { isPaid: true }
-              });
-            });
-            console.log(`[DOWNLOAD] ✅ Updated from cache`);
-            return await serveImage(job, type, jobId);
-          } catch (err) {
-            console.error(`[DOWNLOAD] ⚠️ DB update failed:`, err);
-          }
+      if (verificationCheck.skip && verificationCheck.cachedStatus === 'COMPLETED') {
+        console.log(`[DOWNLOAD] ⏭️ Cache says COMPLETED, updating DB...`);
+        // Cache says COMPLETED but DB not updated yet (race condition)
+        const dbUpdated = await updatePaymentInDbWithRetry(
+          order.id, jobId, null, order.userId, order.amount, order.phonePeOrderId
+        );
+        if (dbUpdated) {
+          return await serveImage(job, type, jobId);
         }
-        
-        if (verificationCheck.cachedStatus === 'PENDING') {
-          // Recently verified as pending, ask user to wait
-          return NextResponse.json(
-            {
-              error: 'Payment is being processed',
-              code: 'PAYMENT_PENDING',
-              retryAfter: 5,
-              message: 'PhonePe is processing your payment. Please wait a few seconds and try again.',
-              orderId: order.id,
-            },
-            { status: 402 }
-          );
-        }
+        // If DB update failed, continue to re-verify with PhonePe
       }
+      
+      // Bug 5 fix: Don't skip for cached PENDING - always re-verify
+      // This prevents stale cache from blocking users who just completed payment
 
-      // Call PhonePe to verify payment status
+      // Call PhonePe with retry logic (Bug 2 fix)
       try {
-        console.log(`[DOWNLOAD] 📞 Calling PhonePe API for order ${order.id}...`);
-        const phonePeStatus = await getPhonePeOrderStatus(order.id);
-        console.log(`[DOWNLOAD] 📞 PhonePe response: ${phonePeStatus.state}`);
+        const phonePeStatus = await verifyPhonePeWithRetry(order.id, 3);
+        console.log(`[DOWNLOAD] 📞 PhonePe final response: ${phonePeStatus.state}`);
         
-        // Cache the result
-        setCachedPaymentStatus(order.id, phonePeStatus.state, 30);
+        // DEV ONLY: Simulate payment failure for testing cancelled payments in sandbox
+        // PhonePe sandbox always returns COMPLETED, so we need this to test failure flows
+        const env = getServerEnv();
+        const simulateFailure = env.SIMULATE_PAYMENT_FAILURE === 'true' && 
+                                env.PHONEPE_ENVIRONMENT !== 'production';
+        
+        if (simulateFailure && phonePeStatus.state === PAYMENT_STATUS.COMPLETED) {
+          console.log(`[DOWNLOAD] ⚠️ DEV MODE: Simulating payment FAILURE (SIMULATE_PAYMENT_FAILURE=true)`);
+          phonePeStatus.state = PAYMENT_STATUS.FAILED;
+        }
+        
+        // Only cache final states (Bug 5 fix)
+        if (phonePeStatus.state === PAYMENT_STATUS.COMPLETED || 
+            phonePeStatus.state === PAYMENT_STATUS.FAILED) {
+          setCachedPaymentStatus(order.id, phonePeStatus.state, 60);
+        }
+        // Don't cache PENDING state to ensure fresh checks
 
         if (phonePeStatus.state === PAYMENT_STATUS.COMPLETED) {
-          // ✅✅✅ PAYMENT CONFIRMED! Update everything
+          // ✅✅✅ PAYMENT CONFIRMED! Update everything with retry (Bug 3 fix)
           console.log(`[DOWNLOAD] ✅✅✅ Payment CONFIRMED for order ${order.id}!`);
           
           const transactionId = extractTransactionId(phonePeStatus);
           
-          await prisma.$transaction(async (tx: any) => {
-            // Update order
-            await tx.order.update({
-              where: { id: order.id },
-              data: {
-                status: 'PAID',
-                paymentStatus: 'SUCCESS',
-                paymentId: transactionId,
-              },
-            });
-            
-            // Update job
-            await tx.job.update({
-              where: { id: jobId },
-              data: { isPaid: true },
-            });
-            
-            // Create transaction record
-            const existingTransaction = await tx.transaction.findFirst({
-              where: {
-                orderId: order.id,
-                status: 'SUCCESS',
-              },
-            });
-            
-            if (!existingTransaction) {
-              await tx.transaction.create({
-                data: {
-                  orderId: order.id,
-                  userId: order.userId,
-                  credits: 0,
-                  amount: order.amount,
-                  type: 'CREDIT_PURCHASE',
-                  status: 'SUCCESS',
-                  phonePeOrderId: order.phonePeOrderId,
-                  paymentId: transactionId,
-                },
-              });
-            }
-          });
+          const dbUpdated = await updatePaymentInDbWithRetry(
+            order.id, jobId, transactionId, order.userId, order.amount, order.phonePeOrderId
+          );
           
-          console.log(`[DOWNLOAD] ✅ Database updated successfully`);
+          if (!dbUpdated) {
+            // DB update failed after retries, but payment IS confirmed
+            // Log critical error but still try to serve image
+            console.error(`[DOWNLOAD] 🚨 CRITICAL: Payment confirmed but DB update failed for order ${order.id}`);
+            // Still serve the image - user paid, they deserve their image
+            // The cron job will eventually fix the DB state
+          }
 
           // Track purchase with Facebook Conversions API (non-blocking)
           try {
@@ -250,10 +353,14 @@ export async function GET(request: NextRequest) {
           // ❌ Payment failed
           console.log(`[DOWNLOAD] ❌ PhonePe reports FAILED for order ${order.id}`);
           
-          await prisma.order.update({
-            where: { id: order.id },
-            data: { status: 'FAILED', paymentStatus: 'FAILED' }
-          });
+          try {
+            await prisma.order.update({
+              where: { id: order.id },
+              data: { status: 'FAILED', paymentStatus: 'FAILED' }
+            });
+          } catch (e) {
+            console.error(`[DOWNLOAD] ⚠️ Could not update order to FAILED:`, e);
+          }
           
           return NextResponse.json(
             {
@@ -265,7 +372,7 @@ export async function GET(request: NextRequest) {
             { status: 402 }
           );
           
-        } else {
+        } else if (phonePeStatus.state === PAYMENT_STATUS.PENDING) {
           // ⏳ Still pending at PhonePe
           console.log(`[DOWNLOAD] ⏳ PhonePe reports PENDING for order ${order.id}`);
           
@@ -279,20 +386,43 @@ export async function GET(request: NextRequest) {
             },
             { status: 402 }
           );
+        } else {
+          // ⚠️ Unknown state (could be CANCELLED or other) - treat as failed
+          console.log(`[DOWNLOAD] ⚠️ Unknown PhonePe state: ${phonePeStatus.state} for order ${order.id}, treating as cancelled`);
+          
+          try {
+            await prisma.order.update({
+              where: { id: order.id },
+              data: { status: 'FAILED', paymentStatus: 'FAILED' }
+            });
+          } catch (e) {
+            console.error(`[DOWNLOAD] ⚠️ Could not update order to FAILED:`, e);
+          }
+          
+          return NextResponse.json(
+            {
+              error: 'Payment was cancelled or failed',
+              code: 'PAYMENT_CANCELLED',
+              message: 'Your payment was cancelled. Please try again.',
+              orderId: order.id,
+            },
+            { status: 402 }
+          );
         }
         
       } catch (phonePeError) {
-        console.error(`[DOWNLOAD] ❌ PhonePe verification error:`, phonePeError);
+        // Bug 2 fix: All retries failed
+        console.error(`[DOWNLOAD] ❌ PhonePe verification failed after all retries:`, phonePeError);
         
-        // Cache the error to prevent immediate retry
-        setCachedPaymentStatus(order.id, 'ERROR', 10);
+        // Don't cache errors - let user retry immediately
+        // The next request will try PhonePe again
         
         return NextResponse.json(
           {
             error: 'Unable to verify payment status',
             code: 'VERIFICATION_ERROR',
-            retryAfter: 10,
-            message: 'We\'re having trouble verifying your payment. Please try again in a moment.',
+            retryAfter: 5,
+            message: 'We\'re having trouble verifying your payment. Please try again. If the issue persists, contact support with your Order ID.',
             orderId: order.id,
           },
           { status: 503 } // Service Unavailable

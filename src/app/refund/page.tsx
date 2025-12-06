@@ -60,10 +60,8 @@ export default function RefundPage() {
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Dissatisfaction with colorization results</li>
-                  <li>• Credits used for completed processing</li>
                   <li>• Change of mind after successful processing</li>
                   <li>• Requests made after 10 days of purchase</li>
-                  <li>• Promotional or free credits</li>
                 </ul>
               </div>
             </div>

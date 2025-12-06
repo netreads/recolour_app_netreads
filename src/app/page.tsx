@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles, Star, ArrowRight, ImageIcon, Shield, CheckCircle, Quote, Upload, Download, Wand2, Palette, CheckCircle2, Loader2 } from "lucide-react";
-import { trackInitiateCheckout } from "@/lib/facebookTracking";
+import { trackInitiateCheckout, trackPageView } from "@/lib/facebookTracking";
 import { PRICING } from "@/lib/constants";
 import { getDirectImageUrl } from "@/lib/utils";
 import { SecureImagePreview } from "@/components/SecureImagePreview";
@@ -32,6 +33,7 @@ const LOADING_TIPS = [
 ];
 
 export default function HomePage() {
+  const pathname = usePathname();
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -43,6 +45,36 @@ export default function HomePage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
+  
+  // Track PageView when navigating to home page (e.g., after recolor)
+  useEffect(() => {
+    // Only track if we're on the home page
+    if (pathname !== '/') {
+      return;
+    }
+    
+    // Small delay to ensure pixel is loaded
+    const trackPageViewWithRetry = (attempts = 0, maxAttempts = 10): ReturnType<typeof setTimeout> | null => {
+      if (typeof window !== 'undefined' && window.fbq) {
+        try {
+          trackPageView();
+          return null;
+        } catch (error) {
+          console.error('[PIXEL] Error tracking pageview:', error);
+          return null;
+        }
+      } else if (attempts < maxAttempts) {
+        return setTimeout(() => trackPageViewWithRetry(attempts + 1, maxAttempts), 300);
+      } else {
+        return null;
+      }
+    };
+    
+    const timer = trackPageViewWithRetry();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!isUploading) return;
@@ -878,7 +910,7 @@ export default function HomePage() {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                 >
-                  Start Colorizing Free
+                  Start Colorizing Today
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </div>

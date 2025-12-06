@@ -8,7 +8,36 @@ export const PRICING = {
     NAME: 'Single Image Colorization',
     DESCRIPTION: 'Try It Once',
   },
+  UPSCALE: {
+    '2K': {
+      RUPEES: 150,
+      PAISE: 15000,
+      NAME: '2K HD Upscale',
+      DESCRIPTION: 'Upscale to 2K resolution',
+      FACTOR: '2x' as const,
+      RESOLUTION: '2K',
+    },
+    '4K': {
+      RUPEES: 250,
+      PAISE: 25000,
+      NAME: '4K Ultra HD Upscale',
+      DESCRIPTION: 'Upscale to 4K resolution',
+      FACTOR: '4x' as const,
+      RESOLUTION: '4K',
+    },
+    '6K': {
+      RUPEES: 399,
+      PAISE: 39900,
+      NAME: '6K Premium Upscale',
+      DESCRIPTION: 'Upscale to 6K resolution',
+      FACTOR: '6x' as const,
+      RESOLUTION: '6K',
+    },
+  },
 } as const;
+
+// Type for upscale tiers
+export type UpscaleTier = keyof typeof PRICING.UPSCALE;
 
 // File upload constraints
 export const FILE_CONSTRAINTS = {

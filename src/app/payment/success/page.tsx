@@ -4,9 +4,10 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, Sparkles, Zap, Crown, ArrowRight, Download } from 'lucide-react';
 import Link from 'next/link';
-import { PRICING } from '@/lib/constants';
+import { PRICING, UpscaleTier } from '@/lib/constants';
+import { trackPurchase, trackPageView } from '@/lib/facebookTracking';
 
 interface PaymentStatus {
   success: boolean;
@@ -16,6 +17,12 @@ interface PaymentStatus {
   message?: string;
   jobId?: string;
   status?: string;
+}
+
+interface UpscaleState {
+  selectedTier: UpscaleTier | null;
+  isProcessingPayment: boolean;
+  error: string | null;
 }
 
 function PaymentSuccessContent() {
@@ -56,29 +63,82 @@ function PaymentSuccessContent() {
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [showSupportMessage, setShowSupportMessage] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
   const mountedRef = useRef(false);
+  
+  // Upscale upsell state
+  const [upscaleState, setUpscaleState] = useState<UpscaleState>({
+    selectedTier: null,
+    isProcessingPayment: false,
+    error: null,
+  });
   const loadingStartTimeRef = useRef<number | null>(null);
+  // Ref to track if verification succeeded - prevents stale closure issues with timeouts
+  const verificationSucceededRef = useRef(false);
+  // Ref to store the safety timeout ID so we can clear it when verification succeeds
+  const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Track component mount
+  // Track component mount and pageview
   useEffect(() => {
     if (!mountedRef.current) {
       mountedRef.current = true;
     }
+    
+    // Track PageView for this success page
+    const trackPageViewWithRetry = (attempts = 0, maxAttempts = 10): ReturnType<typeof setTimeout> | null => {
+      if (typeof window !== 'undefined' && window.fbq) {
+        try {
+          trackPageView();
+          return null;
+        } catch (error) {
+          console.error('[PIXEL] Error tracking pageview:', error);
+          return null;
+        }
+      } else if (attempts < maxAttempts) {
+        return setTimeout(() => trackPageViewWithRetry(attempts + 1, maxAttempts), 300);
+      } else {
+        return null;
+      }
+    };
+    
+    const timer = trackPageViewWithRetry();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [orderId, jobId]);
 
   // NEW ARCHITECTURE: Smart delayed verification via download attempt
+  // MAX_RETRIES: Only allow 3 total retry attempts for normal recolor verification
+  const MAX_VERIFICATION_RETRIES = 3;
   const verifyPaymentViaDownload = async (orderId: string, jobId: string, attempt: number = 1) => {
     try {
-      console.log(`[VERIFY] Attempt ${attempt}: Loading image for job ${jobId}...`);
+      console.log(`[VERIFY] Attempt ${attempt}/${MAX_VERIFICATION_RETRIES}: Loading image for job ${jobId}, order ${orderId}...`);
+      
+      // Update verification attempts counter
+      setVerificationAttempts(attempt);
       
       // Try to download/load the image - this triggers payment verification
-      const response = await fetch(`/api/download-image?jobId=${jobId}&type=output`, {
-        signal: AbortSignal.timeout(15000), // 15 second timeout
+      // Include orderId for more reliable order lookup (Bug 6 & 9 fix)
+      const response = await fetch(`/api/download-image?jobId=${jobId}&orderId=${orderId}&type=output`, {
+        signal: AbortSignal.timeout(20000), // 20 second timeout (increased for retries)
       });
       
       if (response.ok) {
         // ✅ SUCCESS! Payment verified and image ready
         console.log(`[VERIFY] ✅ Payment verified, image ready!`);
+        
+        // Mark verification as successful to prevent safety timeout from overwriting state
+        verificationSucceededRef.current = true;
+        
+        // Reset verification attempts on success
+        setVerificationAttempts(0);
+        
+        // Clear the safety timeout since verification succeeded
+        if (safetyTimeoutRef.current) {
+          clearTimeout(safetyTimeoutRef.current);
+          safetyTimeoutRef.current = null;
+        }
         
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -98,6 +158,21 @@ function PaymentSuccessContent() {
         const data = await response.json().catch(() => ({}));
         console.log(`[VERIFY] Response ${response.status}:`, data);
         
+        // Check if we've exceeded max retries
+        if (attempt >= MAX_VERIFICATION_RETRIES) {
+          console.log(`[VERIFY] ⏰ Max retry attempts (${MAX_VERIFICATION_RETRIES}) reached`);
+          setPaymentStatus({
+            success: false,
+            orderId: orderId,
+            jobId: jobId,
+            status: response.status === 402 ? 'PENDING' : 'FAILED',
+            message: 'Payment verification failed after multiple attempts. Please try paying again or contact support.'
+          });
+          setLoading(false);
+          setShowSupportMessage(true);
+          return;
+        }
+        
         if (response.status === 402) {
           // Payment pending or failed
           if (data.code === 'PAYMENT_PENDING') {
@@ -112,25 +187,11 @@ function PaymentSuccessContent() {
               message: data.message || 'Verifying your payment with PhonePe...'
             });
             
-            // Smart retry with exponential backoff (max 5 attempts)
-            if (attempt < 5) {
-              const delay = (data.retryAfter || 5) * 1000;
-              setTimeout(() => {
-                verifyPaymentViaDownload(orderId, jobId, attempt + 1);
-              }, delay);
-            } else {
-              // Max attempts reached
-              console.log(`[VERIFY] ⏰ Max retry attempts reached`);
-              setPaymentStatus({
-                success: false,
-                orderId: orderId,
-                jobId: jobId,
-                status: 'PENDING',
-                message: 'Payment verification is taking longer than expected. Please contact support.'
-              });
-              setLoading(false);
-              setShowSupportMessage(true);
-            }
+            // Retry with max 3 attempts total
+            const delay = (data.retryAfter || 5) * 1000;
+            setTimeout(() => {
+              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+            }, delay);
             
           } else if (data.code === 'PAYMENT_FAILED') {
             // Payment failed
@@ -142,6 +203,19 @@ function PaymentSuccessContent() {
               jobId: jobId,
               status: 'FAILED',
               message: data.message || 'Payment failed. Please try again.'
+            });
+            setLoading(false);
+            
+          } else if (data.code === 'PAYMENT_CANCELLED') {
+            // Payment was cancelled by user
+            console.log(`[VERIFY] ❌ Payment cancelled`);
+            
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              status: 'FAILED',
+              message: data.message || 'Payment was cancelled. Please try again.'
             });
             setLoading(false);
             
@@ -159,45 +233,63 @@ function PaymentSuccessContent() {
             setShowSupportMessage(true);
           }
           
-        } else if (response.status === 503) {
-          // Service error, retry once more
-          console.log(`[VERIFY] ⚠️ Service error, will retry...`);
-          
-          if (attempt < 3) {
-            setTimeout(() => {
-              verifyPaymentViaDownload(orderId, jobId, attempt + 1);
-            }, 10000); // Wait 10 seconds
-          } else {
-            setPaymentStatus({
-              success: false,
-              orderId: orderId,
-              jobId: jobId,
-              message: 'Unable to verify payment. Please try again or contact support.'
-            });
-            setLoading(false);
-            setShowSupportMessage(true);
-          }
-          
-        } else {
-          // Other errors
-          console.error(`[VERIFY] ❌ Unexpected error: ${response.status}`);
+        } else if (response.status === 202) {
+          // Job still processing (Bug 10 fix: proper handling of job status)
+          console.log(`[VERIFY] ⏳ Job still processing, will retry...`);
           
           setPaymentStatus({
             success: false,
             orderId: orderId,
             jobId: jobId,
-            message: data.message || 'Unable to load image. Please contact support.'
+            status: 'PROCESSING',
+            message: data.message || 'Your image is being colorized. Please wait...'
+          });
+          
+          // Retry with max 3 attempts total
+          const delay = (data.retryAfter || 3) * 1000;
+          setTimeout(() => {
+            verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+          }, delay);
+          
+        } else if (response.status === 503) {
+          // Service error, retry with backoff
+          console.log(`[VERIFY] ⚠️ Service error, will retry...`);
+          
+          // Retry with max 3 attempts total
+          const delay = Math.min(5000 * attempt, 20000);
+          setTimeout(() => {
+            verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+          }, delay);
+          
+        } else if (response.status === 500 && data.code === 'JOB_FAILED') {
+          // Job processing failed (Bug 10 fix)
+          console.log(`[VERIFY] ❌ Job processing failed`);
+          
+          setPaymentStatus({
+            success: false,
+            orderId: orderId,
+            jobId: jobId,
+            status: 'FAILED',
+            message: data.message || 'Image processing failed. Please contact support for a refund.'
           });
           setLoading(false);
           setShowSupportMessage(true);
+          
+        } else {
+          // Other errors - retry with max 3 attempts total
+          console.error(`[VERIFY] ❌ Unexpected error: ${response.status}`);
+          
+          setTimeout(() => {
+            verifyPaymentViaDownload(orderId, jobId, attempt + 1);
+          }, 3000);
         }
       }
       
     } catch (error) {
       console.error(`[VERIFY] ❌ Error on attempt ${attempt}:`, error);
       
-      // Retry on network errors (up to 3 times)
-      if (attempt < 3) {
+      // Retry on network errors with max 3 attempts total
+      if (attempt < MAX_VERIFICATION_RETRIES) {
         console.log(`[VERIFY] 🔄 Network error, retrying in 5s...`);
         setTimeout(() => {
           verifyPaymentViaDownload(orderId, jobId, attempt + 1);
@@ -228,8 +320,10 @@ function PaymentSuccessContent() {
         }, 3000); // 3 second delay
         
         // Safety timeout: Force clear loading after 60 seconds
-        const safetyTimeout = setTimeout(() => {
-          if (loading) {
+        // Use ref to avoid stale closure issue - check if verification already succeeded
+        safetyTimeoutRef.current = setTimeout(() => {
+          // Only trigger if verification hasn't succeeded yet
+          if (!verificationSucceededRef.current) {
             console.log(`[SAFETY] 🛡️ Force clearing loading state after 60 seconds`);
             setLoading(false);
             setPaymentStatus({
@@ -240,13 +334,18 @@ function PaymentSuccessContent() {
               message: 'Payment verification is taking longer than expected. Please contact support.'
             });
             setShowSupportMessage(true);
+          } else {
+            console.log(`[SAFETY] ✅ Verification already succeeded, safety timeout ignored`);
           }
         }, 60000);
         
         // Cleanup
         return () => {
           clearTimeout(initialDelay);
-          clearTimeout(safetyTimeout);
+          if (safetyTimeoutRef.current) {
+            clearTimeout(safetyTimeoutRef.current);
+            safetyTimeoutRef.current = null;
+          }
         };
       } else {
         setPaymentStatus({
@@ -292,6 +391,68 @@ function PaymentSuccessContent() {
     };
   }, [imageBlobUrl]);
 
+  // Track if user is doing intentional navigation (like upscale purchase)
+  const isIntentionalNavigationRef = useRef(false);
+
+  // Prevent accidental back navigation when payment is successful
+  useEffect(() => {
+    // Only prevent back navigation when payment is successful
+    if (!paymentStatus?.success) {
+      return;
+    }
+
+    // Push current state to history to intercept back button
+    // Use a unique state object to track our interception
+    const stateKey = { preventBack: true, timestamp: Date.now() };
+    window.history.pushState(stateKey, '', window.location.href);
+
+    // Handle browser back/forward buttons
+    const handlePopState = (event: PopStateEvent) => {
+      // Check if this is intentional navigation
+      if (isIntentionalNavigationRef.current) {
+        isIntentionalNavigationRef.current = false;
+        return; // Allow navigation
+      }
+
+      // Immediately push state back to prevent navigation
+      window.history.pushState(stateKey, '', window.location.href);
+      
+      // Show confirmation dialog
+      const confirmed = window.confirm(
+        'Are you sure you want to go back? Your colorized image is ready to download!'
+      );
+      
+      if (confirmed) {
+        // User confirmed, allow navigation by going back
+        window.history.back();
+      }
+      // If not confirmed, we've already pushed the state back, so user stays on page
+    };
+
+    // Handle page refresh/close (but not programmatic navigation)
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Don't show warning if user is doing intentional navigation
+      if (isIntentionalNavigationRef.current) {
+        return;
+      }
+      
+      // Only show warning if image is loaded and ready
+      if (imageBlobUrl) {
+        event.preventDefault();
+        event.returnValue = 'Your colorized image is ready! Are you sure you want to leave?';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [paymentStatus?.success, imageBlobUrl]);
+
   // Track purchase event - fires ONLY when payment succeeds
   useEffect(() => {
     // Don't track if already tracked
@@ -301,34 +462,62 @@ function PaymentSuccessContent() {
 
     // Get jobId from payment status or URL params
     const trackingJobId = paymentStatus?.jobId || jobId;
+    const trackingOrderId = paymentStatus?.orderId || orderId;
     
     // Only track if we have a jobId AND payment was successful
-    if (!trackingJobId || !paymentStatus?.success) {
+    if (!trackingJobId || !paymentStatus?.success || !trackingOrderId) {
       return;
     }
     
     // Generate event_id for deduplication with server-side tracking
-    const eventId = `${paymentStatus.orderId || orderId}_${trackingJobId}`;
+    const eventId = `${trackingOrderId}_${trackingJobId}`;
+    
+    // Check localStorage to prevent duplicate tracking across page refreshes
+    const storageKey = `purchase_tracked_${eventId}`;
+    const alreadyTracked = typeof window !== 'undefined' && localStorage.getItem(storageKey) === 'true';
+    
+    if (alreadyTracked) {
+      console.log('[PIXEL] Purchase already tracked (localStorage check)');
+      setPurchaseTracked(true);
+      return;
+    }
     
     // Function to track purchase with retries
     const trackPurchaseWithRetry = (attempts = 0, maxAttempts = 20): ReturnType<typeof setTimeout> | null => {
       if (typeof window !== 'undefined' && window.fbq) {
         try {
-          window.fbq('track', 'Purchase', {
-            value: PRICING.SINGLE_IMAGE.RUPEES,
-            currency: 'INR',
-            content_ids: [trackingJobId],
-          }, {
-            eventID: eventId
-          });
+          trackPurchase(
+            PRICING.SINGLE_IMAGE.RUPEES,
+            'INR',
+            [trackingJobId],
+            eventId
+          );
+          
+          // Mark as tracked in localStorage to prevent duplicates
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(storageKey, 'true');
+            // Clean up old tracking keys (keep last 50)
+            try {
+              const keys = Object.keys(localStorage).filter(k => k.startsWith('purchase_tracked_'));
+              if (keys.length > 50) {
+                keys.slice(0, keys.length - 50).forEach(k => localStorage.removeItem(k));
+              }
+            } catch (e) {
+              // Ignore localStorage errors
+            }
+          }
+          
+          console.log(`[PIXEL] ✅ Tracked Purchase for recolor - ₹${PRICING.SINGLE_IMAGE.RUPEES}, EventID: ${eventId}`);
           setPurchaseTracked(true);
           return null;
         } catch (error) {
+          console.error('[PIXEL] Error tracking purchase:', error);
           return null;
         }
       } else if (attempts < maxAttempts) {
         return setTimeout(() => trackPurchaseWithRetry(attempts + 1, maxAttempts), 300);
       } else {
+        console.warn('[PIXEL] Failed to track purchase - fbq not available after retries');
         return null;
       }
     };
@@ -346,12 +535,80 @@ function PaymentSuccessContent() {
   const handleRetryVerification = () => {
     if (!orderId || !jobId) return;
     
-    console.log(`[RETRY] User manually retrying verification...`);
+    // Check if we've exceeded max retries
+    if (verificationAttempts >= MAX_VERIFICATION_RETRIES) {
+      console.log(`[RETRY] Max retry attempts (${MAX_VERIFICATION_RETRIES}) reached, cannot retry`);
+      return;
+    }
+    
+    console.log(`[RETRY] User manually retrying verification (attempt ${verificationAttempts + 1}/${MAX_VERIFICATION_RETRIES})...`);
     setLoading(true);
     setShowSupportMessage(false);
     
-    // Start verification again
-    verifyPaymentViaDownload(orderId, jobId);
+    // Reset the verification succeeded ref for the new attempt
+    verificationSucceededRef.current = false;
+    
+    // Clear any existing safety timeout
+    if (safetyTimeoutRef.current) {
+      clearTimeout(safetyTimeoutRef.current);
+      safetyTimeoutRef.current = null;
+    }
+    
+    // Set a new safety timeout for this retry attempt
+    safetyTimeoutRef.current = setTimeout(() => {
+      if (!verificationSucceededRef.current) {
+        console.log(`[SAFETY] 🛡️ Force clearing loading state after 60 seconds (retry)`);
+        setLoading(false);
+        setPaymentStatus({
+          success: false,
+          orderId: orderId,
+          jobId: jobId,
+          status: 'PENDING',
+          message: 'Payment verification is taking longer than expected. Please contact support.'
+        });
+        setShowSupportMessage(true);
+      }
+    }, 60000);
+    
+    // Start verification again with incremented attempt count
+    verifyPaymentViaDownload(orderId, jobId, verificationAttempts + 1);
+  };
+
+  // Handle "Retry Payment" - creates new order and redirects to payment
+  const handlePayAgain = async () => {
+    if (!jobId) return;
+    
+    // Mark as intentional navigation to prevent back button dialog
+    isIntentionalNavigationRef.current = true;
+    
+    // Reset verification attempts when starting a new payment
+    setVerificationAttempts(0);
+    
+    setIsProcessingPayment(true);
+    try {
+      const orderResponse = await fetch('/api/payments/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: jobId,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const { redirectUrl } = await orderResponse.json();
+      
+      // Redirect to payment page
+      window.location.href = redirectUrl;
+    } catch (error) {
+      console.error('Payment error:', error);
+      // Reset flag on error
+      isIntentionalNavigationRef.current = false;
+      alert('Failed to initiate payment. Please try again.');
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleDownload = async () => {
@@ -359,18 +616,31 @@ function PaymentSuccessContent() {
     
     setDownloading(true);
     try {
-      console.log(`[DOWNLOAD] Downloading image for job ${paymentStatus.jobId}`);
+      console.log(`[DOWNLOAD] Downloading image for job ${paymentStatus.jobId}, order ${paymentStatus.orderId}`);
       
-      const response = await fetch(`/api/download-image?jobId=${paymentStatus.jobId}&type=output`);
+      // Include orderId for more reliable order lookup (Bug 6 & 9 fix)
+      const downloadUrl = paymentStatus.orderId 
+        ? `/api/download-image?jobId=${paymentStatus.jobId}&orderId=${paymentStatus.orderId}&type=output`
+        : `/api/download-image?jobId=${paymentStatus.jobId}&type=output`;
+      
+      const response = await fetch(downloadUrl);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error(`[DOWNLOAD] Failed to download image: ${response.status}`, errorData);
         
-        if (response.status === 403) {
-          alert('Payment verification is still in progress. Please wait a moment and try again.');
+        if (response.status === 402) {
+          // Payment required or pending
+          if (errorData.code === 'PAYMENT_PENDING') {
+            alert('Payment verification is still in progress. Please wait a moment and try again.');
+          } else {
+            alert('Payment issue detected. Please contact support with your Order ID: ' + (paymentStatus.orderId || 'N/A'));
+          }
         } else if (response.status === 404) {
           alert('Image is still being processed. Please wait a moment and try again.');
+        } else if (response.status === 202) {
+          // Job still processing
+          alert('Your image is still being colorized. Please wait a moment and try again.');
         } else {
           alert('Failed to download image. Please try again or contact support.');
         }
@@ -401,6 +671,49 @@ function PaymentSuccessContent() {
       alert('Failed to download image. Please try again or contact support.');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Handle upscale purchase
+  const handleUpscalePurchase = async (tier: UpscaleTier) => {
+    if (!paymentStatus?.jobId) return;
+    
+    // Mark as intentional navigation to prevent back button dialog
+    isIntentionalNavigationRef.current = true;
+    
+    setUpscaleState(prev => ({
+      ...prev,
+      selectedTier: tier,
+      isProcessingPayment: true,
+      error: null,
+    }));
+
+    try {
+      const response = await fetch('/api/upscale/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: paymentStatus.jobId,
+          tier,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create upscale order');
+      }
+
+      const { redirectUrl } = await response.json();
+      window.location.href = redirectUrl;
+    } catch (error) {
+      console.error('[UPSCALE] Purchase error:', error);
+      // Reset flag on error
+      isIntentionalNavigationRef.current = false;
+      setUpscaleState(prev => ({
+        ...prev,
+        isProcessingPayment: false,
+        error: error instanceof Error ? error.message : 'Failed to initiate upscale purchase',
+      }));
     }
   };
 
@@ -582,6 +895,110 @@ function PaymentSuccessContent() {
                         )}
                       </Button>
 
+                      {/* Upscale Upsell Section */}
+                      <div className="border-t border-gray-100 pt-6 sm:pt-8 mt-2">
+                          {/* Header */}
+                          <div className="text-center mb-4 sm:mb-5">
+                            <p className="text-xs sm:text-sm text-orange-600 font-semibold mb-1">✨ ENHANCE YOUR PHOTO</p>
+                            <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                              Want Print-Ready Quality?
+                            </h3>
+                          </div>
+
+                          {/* Options */}
+                          <div className="space-y-2 sm:space-y-3">
+                            {/* 4K - Recommended */}
+                            <button
+                              onClick={() => handleUpscalePurchase('4K')}
+                              disabled={upscaleState.isProcessingPayment}
+                              className="w-full bg-gradient-to-r from-orange-50 to-green-50 border-2 border-orange-200 hover:border-orange-400 rounded-xl p-3 sm:p-4 flex items-center justify-between transition-all disabled:opacity-60 group relative overflow-hidden"
+                            >
+                              <div className="absolute top-0 right-0 bg-gradient-to-r from-orange-500 to-green-600 text-white text-[9px] sm:text-[10px] font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-bl-lg">
+                                RECOMMENDED
+                              </div>
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-orange-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <Sparkles className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="text-left">
+                                  <span className="font-bold text-gray-900 text-sm sm:text-base block">4K Ultra HD</span>
+                                  <span className="text-gray-500 text-xs sm:text-sm">Perfect for framing & prints</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 sm:gap-2 mt-3 sm:mt-0">
+                                <span className="text-lg sm:text-xl font-bold text-gray-900">₹{PRICING.UPSCALE['4K'].RUPEES}</span>
+                                {upscaleState.isProcessingPayment && upscaleState.selectedTier === '4K' ? (
+                                  <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-orange-500" />
+                                ) : (
+                                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 group-hover:translate-x-0.5 transition-transform" />
+                                )}
+                              </div>
+                            </button>
+
+                            {/* 2K and 6K Row */}
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                              {/* 2K */}
+                              <button
+                                onClick={() => handleUpscalePurchase('2K')}
+                                disabled={upscaleState.isProcessingPayment}
+                                className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl p-3 sm:p-4 text-left transition-all disabled:opacity-60"
+                              >
+                                <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                                  <Zap className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">2K HD</span>
+                                </div>
+                                <p className="text-gray-500 text-[10px] sm:text-xs mb-2 sm:mb-3">Social & digital</p>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-base sm:text-lg font-bold text-gray-900">₹{PRICING.UPSCALE['2K'].RUPEES}</span>
+                                  {upscaleState.isProcessingPayment && upscaleState.selectedTier === '2K' ? (
+                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-blue-500" />
+                                  ) : (
+                                    <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
+                                  )}
+                                </div>
+                              </button>
+
+                              {/* 6K */}
+                              <button
+                                onClick={() => handleUpscalePurchase('6K')}
+                                disabled={upscaleState.isProcessingPayment}
+                                className="bg-white border border-gray-200 hover:border-amber-300 rounded-xl p-3 sm:p-4 text-left transition-all disabled:opacity-60"
+                              >
+                                <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                                  <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">6K Premium</span>
+                                </div>
+                                <p className="text-gray-500 text-[10px] sm:text-xs mb-2 sm:mb-3">Wall art quality</p>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-base sm:text-lg font-bold text-gray-900">₹{PRICING.UPSCALE['6K'].RUPEES}</span>
+                                  {upscaleState.isProcessingPayment && upscaleState.selectedTier === '6K' ? (
+                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-amber-500" />
+                                  ) : (
+                                    <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
+                                  )}
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+
+                          {upscaleState.error && (
+                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs sm:text-sm">
+                              {upscaleState.error}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-gray-400 mt-3 sm:mt-4">
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              UPI Payment
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              AI Enhanced
+                            </span>
+                          </div>
+                        </div>
+
                       {/* Bulk Order WhatsApp Button */}
                       <Button 
                         asChild 
@@ -621,10 +1038,49 @@ function PaymentSuccessContent() {
               </CardHeader>
               
               <CardContent className="space-y-4 pb-12 px-6">
-                <Button asChild className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700" size="lg">
-                  <Link href="/">
-                    Try Again
-                  </Link>
+                {/* Only show retry button if attempts < 3 */}
+                {verificationAttempts < MAX_VERIFICATION_RETRIES && (
+                  <Button 
+                    onClick={handleRetryVerification}
+                    disabled={loading}
+                    className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-green-600 hover:from-orange-600 hover:to-green-700" 
+                    size="lg"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Verifying Payment...
+                      </>
+                    ) : (
+                      <>🔄 Retry Payment Verification ({verificationAttempts}/{MAX_VERIFICATION_RETRIES})</>
+                    )}
+                  </Button>
+                )}
+                
+                {/* Show message when max retries reached */}
+                {verificationAttempts >= MAX_VERIFICATION_RETRIES && (
+                  <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-orange-800 text-center">
+                      <strong>Maximum verification attempts reached.</strong> Please use "Retry Payment" to create a new payment order.
+                    </p>
+                  </div>
+                )}
+
+                {/* Retry Payment Button */}
+                <Button 
+                  onClick={handlePayAgain}
+                  disabled={isProcessingPayment || !jobId}
+                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white" 
+                  size="lg"
+                >
+                  {isProcessingPayment ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Creating New Order...
+                    </>
+                  ) : (
+                    <>💳  Retry Payment</>
+                  )}
                 </Button>
                 
                 {/* Payment Deducted Notice */}
