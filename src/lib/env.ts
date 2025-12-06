@@ -40,6 +40,9 @@ interface ServerEnv {
   // App
   NEXT_PUBLIC_APP_URL?: string;
   NODE_ENV: string;
+  
+  // Testing (Development Only)
+  SIMULATE_PAYMENT_FAILURE?: string; // Set to 'true' to simulate failed payments in sandbox
 }
 
 interface ClientEnv {
@@ -108,6 +111,7 @@ class EnvValidator {
       CRON_SECRET: env.CRON_SECRET,
       NEXT_PUBLIC_APP_URL: env.NEXT_PUBLIC_APP_URL,
       NODE_ENV: env.NODE_ENV || 'development',
+      SIMULATE_PAYMENT_FAILURE: env.SIMULATE_PAYMENT_FAILURE,
     };
 
     return this.serverEnv;

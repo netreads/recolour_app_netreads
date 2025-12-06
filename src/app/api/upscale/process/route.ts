@@ -77,6 +77,17 @@ export async function POST(request: NextRequest) {
       
       try {
         const phonePeStatus = await getPhonePeOrderStatus(orderId);
+        console.log(`[UPSCALE] PhonePe status for ${orderId}: ${phonePeStatus.state}`);
+        
+        // DEV ONLY: Simulate payment failure for testing cancelled payments in sandbox
+        // PhonePe sandbox always returns COMPLETED, so we need this to test failure flows
+        const simulateFailure = env.SIMULATE_PAYMENT_FAILURE === 'true' && 
+                                env.PHONEPE_ENVIRONMENT !== 'production';
+        
+        if (simulateFailure && phonePeStatus.state === PAYMENT_STATUS.COMPLETED) {
+          console.log(`[UPSCALE] ⚠️ DEV MODE: Simulating payment FAILURE (SIMULATE_PAYMENT_FAILURE=true)`);
+          phonePeStatus.state = PAYMENT_STATUS.FAILED;
+        }
         
         if (phonePeStatus.state === PAYMENT_STATUS.COMPLETED) {
           // Update order status
@@ -95,13 +106,33 @@ export async function POST(request: NextRequest) {
               paymentStatus: 'FAILED',
             },
           });
-          return NextResponse.json({ error: 'Payment failed', code: 'PAYMENT_FAILED' }, { status: 402 });
-        } else {
+          return NextResponse.json({ 
+            error: 'Payment failed', 
+            code: 'PAYMENT_FAILED',
+            message: 'Your payment was not completed. Please try again.',
+          }, { status: 402 });
+        } else if (phonePeStatus.state === PAYMENT_STATUS.PENDING) {
+          // Still pending - user needs to wait
           return NextResponse.json({ 
             error: 'Payment pending', 
             code: 'PAYMENT_PENDING',
             message: 'Please wait for payment to complete',
             retryAfter: 5,
+          }, { status: 402 });
+        } else {
+          // Unknown state (could be CANCELLED or other) - treat as failed
+          console.log(`[UPSCALE] Unknown PhonePe state: ${phonePeStatus.state}, treating as cancelled`);
+          await prisma.order.update({
+            where: { id: orderId },
+            data: {
+              status: 'FAILED',
+              paymentStatus: 'FAILED',
+            },
+          });
+          return NextResponse.json({ 
+            error: 'Payment was cancelled or failed', 
+            code: 'PAYMENT_CANCELLED',
+            message: 'Your payment was cancelled. Please try again.',
           }, { status: 402 });
         }
       } catch (phonepeError) {
@@ -109,6 +140,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ 
           error: 'Payment verification failed', 
           code: 'VERIFICATION_ERROR',
+          message: 'Unable to verify payment. Please try again.',
           retryAfter: 5,
         }, { status: 503 });
       }
@@ -120,7 +152,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!updatedOrder || updatedOrder.status !== 'PAID') {
-      return NextResponse.json({ error: 'Order not paid' }, { status: 402 });
+      return NextResponse.json({ 
+        error: 'Order not paid',
+        code: 'PAYMENT_REQUIRED',
+        message: 'Payment was not completed for this order.',
+      }, { status: 402 });
     }
 
     // Check if Replicate API token is configured

@@ -4,6 +4,7 @@ import { getPhonePeOrderStatus } from '@/lib/phonepe';
 import { PAYMENT_STATUS, JOB_STATUS } from '@/lib/constants';
 import { setCachedPaymentStatus, shouldSkipVerification } from '@/lib/payment-cache';
 import { trackPurchaseServerSide } from '@/lib/facebookConversionsAPI';
+import { getServerEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
 export const maxDuration = 25; // Increased to handle PhonePe verification with retries
@@ -284,6 +285,17 @@ export async function GET(request: NextRequest) {
         const phonePeStatus = await verifyPhonePeWithRetry(order.id, 3);
         console.log(`[DOWNLOAD] 📞 PhonePe final response: ${phonePeStatus.state}`);
         
+        // DEV ONLY: Simulate payment failure for testing cancelled payments in sandbox
+        // PhonePe sandbox always returns COMPLETED, so we need this to test failure flows
+        const env = getServerEnv();
+        const simulateFailure = env.SIMULATE_PAYMENT_FAILURE === 'true' && 
+                                env.PHONEPE_ENVIRONMENT !== 'production';
+        
+        if (simulateFailure && phonePeStatus.state === PAYMENT_STATUS.COMPLETED) {
+          console.log(`[DOWNLOAD] ⚠️ DEV MODE: Simulating payment FAILURE (SIMULATE_PAYMENT_FAILURE=true)`);
+          phonePeStatus.state = PAYMENT_STATUS.FAILED;
+        }
+        
         // Only cache final states (Bug 5 fix)
         if (phonePeStatus.state === PAYMENT_STATUS.COMPLETED || 
             phonePeStatus.state === PAYMENT_STATUS.FAILED) {
@@ -360,7 +372,7 @@ export async function GET(request: NextRequest) {
             { status: 402 }
           );
           
-        } else {
+        } else if (phonePeStatus.state === PAYMENT_STATUS.PENDING) {
           // ⏳ Still pending at PhonePe
           console.log(`[DOWNLOAD] ⏳ PhonePe reports PENDING for order ${order.id}`);
           
@@ -370,6 +382,28 @@ export async function GET(request: NextRequest) {
               code: 'PAYMENT_PENDING',
               retryAfter: 5,
               message: 'PhonePe is processing your payment. This usually takes just a few seconds. Please wait and try again.',
+              orderId: order.id,
+            },
+            { status: 402 }
+          );
+        } else {
+          // ⚠️ Unknown state (could be CANCELLED or other) - treat as failed
+          console.log(`[DOWNLOAD] ⚠️ Unknown PhonePe state: ${phonePeStatus.state} for order ${order.id}, treating as cancelled`);
+          
+          try {
+            await prisma.order.update({
+              where: { id: order.id },
+              data: { status: 'FAILED', paymentStatus: 'FAILED' }
+            });
+          } catch (e) {
+            console.error(`[DOWNLOAD] ⚠️ Could not update order to FAILED:`, e);
+          }
+          
+          return NextResponse.json(
+            {
+              error: 'Payment was cancelled or failed',
+              code: 'PAYMENT_CANCELLED',
+              message: 'Your payment was cancelled. Please try again.',
               orderId: order.id,
             },
             { status: 402 }

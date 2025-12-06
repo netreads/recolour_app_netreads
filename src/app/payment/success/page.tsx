@@ -172,6 +172,19 @@ function PaymentSuccessContent() {
             });
             setLoading(false);
             
+          } else if (data.code === 'PAYMENT_CANCELLED') {
+            // Payment was cancelled by user
+            console.log(`[VERIFY] ❌ Payment cancelled`);
+            
+            setPaymentStatus({
+              success: false,
+              orderId: orderId,
+              jobId: jobId,
+              status: 'FAILED',
+              message: data.message || 'Payment was cancelled. Please try again.'
+            });
+            setLoading(false);
+            
           } else if (data.code === 'NO_PAYMENT') {
             // No payment found
             console.log(`[VERIFY] ❌ No payment found`);

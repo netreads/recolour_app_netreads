@@ -61,6 +61,10 @@ function UpscaleSuccessContent() {
     }
   }, [status]);
 
+  // Track retry attempts
+  const retryCountRef = useRef(0);
+  const MAX_RETRY_ATTEMPTS = 10; // Max 10 retries (50 seconds total)
+
   // Process upscale
   const processUpscale = async () => {
     if (!orderId || !jobId) return;
@@ -79,11 +83,39 @@ function UpscaleSuccessContent() {
 
       if (response.status === 402) {
         if (data.code === 'PAYMENT_PENDING') {
+          retryCountRef.current += 1;
+          
+          // Check if max retries reached
+          if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
+            console.log('[UPSCALE] Max retry attempts reached');
+            throw new Error('Payment verification timed out. If your payment was deducted, please contact support.');
+          }
+          
           // Retry after delay
+          console.log(`[UPSCALE] Payment pending, retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS}...`);
           setTimeout(() => processUpscale(), 5000);
           return;
         }
+        
+        // Payment failed or cancelled
+        if (data.code === 'PAYMENT_FAILED' || data.code === 'PAYMENT_CANCELLED') {
+          throw new Error(data.message || 'Payment was not completed. Please try again.');
+        }
+        
         throw new Error(data.error || 'Payment verification failed');
+      }
+
+      // Handle service unavailable (temporary error)
+      if (response.status === 503) {
+        retryCountRef.current += 1;
+        
+        if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
+          throw new Error('Service temporarily unavailable. Please try again later.');
+        }
+        
+        console.log(`[UPSCALE] Service error, retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS}...`);
+        setTimeout(() => processUpscale(), data.retryAfter ? data.retryAfter * 1000 : 5000);
+        return;
       }
 
       if (!response.ok) {
