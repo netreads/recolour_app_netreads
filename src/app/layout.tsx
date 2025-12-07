@@ -16,7 +16,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://netreads.in'),
   title: "ReColor AI - Bring Old Photos to Life",
   description: "Recolorize your old black & white images using AI",
-  icons: { icon: "/favicon.ico" },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", type: "image/x-icon" },
+    ],
+    apple: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
   openGraph: {
     title: "ReColor AI - Bring Old Photos to Life",
     description: "Recolorize your old black & white images using AI",

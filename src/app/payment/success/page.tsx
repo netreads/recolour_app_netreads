@@ -901,7 +901,7 @@ function PaymentSuccessContent() {
                           <div className="text-center mb-4 sm:mb-5">
                             <p className="text-xs sm:text-sm text-orange-600 font-semibold mb-1">✨ ENHANCE YOUR PHOTO</p>
                             <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                              Want Print-Ready Quality?
+                              Want Print-Ready Quality of above image?
                             </h3>
                           </div>
 
