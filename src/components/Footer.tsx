@@ -93,6 +93,9 @@ export function Footer() {
                   <Link href="/refund" className="block py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     Refund & Cancellation
                   </Link>
+                  <Link href="/shipping" className="block py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    Shipping & Delivery
+                  </Link>
                 </nav>
               )}
             </div>
@@ -168,6 +171,9 @@ export function Footer() {
                   </Link>
                   <Link href="/refund" className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all">
                     Refunds
+                  </Link>
+                  <Link href="/shipping" className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all">
+                    Shipping
                   </Link>
                 </nav>
               </div>

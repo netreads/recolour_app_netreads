@@ -417,7 +417,7 @@ export default function AboutPage() {
                   <div>
                     <h4 className="font-medium mb-1">Contact Us</h4>
                     <p className="text-sm text-muted-foreground">
-                      Email: azcontent101@gmail.com<br />
+                      Email: help@netreads.in<br />
                       Mobile: +91 7984837468<br />
                       Hours: Mon-Fri 9 AM - 6 PM IST
                     </p>

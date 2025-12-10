@@ -218,7 +218,7 @@ export default function FaqPage() {
           <div className="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-8">
             <div className="flex items-center space-x-2">
               <Image className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">azcontent101@gmail.com</span>
+              <span className="text-sm">help@netreads.in</span>
             </div>
             <div className="flex items-center space-x-2">
               <Shield className="h-4 w-4 text-muted-foreground" />

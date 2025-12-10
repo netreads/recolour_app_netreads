@@ -45,7 +45,8 @@ export default function PrivacyPage() {
                 <ul className="list-disc pl-6 space-y-2 text-sm text-muted-foreground">
                   <li>Account information (email address, name, password)</li>
                   <li>Images you upload for colorization</li>
-                  <li>Payment information (processed securely by third-party providers)</li>
+                  <li>Payment information (processed securely through payment processors)</li>
+                  <li>Billing details and transaction history</li>
                   <li>Communication preferences and support requests</li>
                   <li>Profile information and settings</li>
                 </ul>
@@ -129,13 +130,21 @@ export default function PrivacyPage() {
                   <li>Analytics and performance monitoring</li>
                   <li>Customer support and communication</li>
                 </ul>
+                <p className="text-sm text-muted-foreground mt-3">
+                  <strong>Payment Processing:</strong> When you make a payment, your payment information is processed 
+                  securely by payment processors. We do not store your complete payment card details on our servers. 
+                  payment processors comply with PCI DSS (Payment Card Industry Data Security Standard) requirements and handle 
+                  all payment data in accordance with applicable data protection laws and RBI guidelines.
+                </p>
               </div>
               
               <div>
                 <h4 className="font-medium mb-2">Legal Requirements</h4>
                 <p className="text-sm text-muted-foreground">
                   We may disclose your information if required by law or to protect our rights, 
-                  property, or safety, or that of our users or the public.
+                  property, or safety, or that of our users or the public. This includes compliance 
+                  with legal obligations, court orders, or requests from government authorities, 
+                  including those related to payment processing and financial regulations.
                 </p>
               </div>
             </div>
@@ -346,7 +355,7 @@ export default function PrivacyPage() {
           <div className="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-4">
             <Button variant="outline">
               <Mail className="h-4 w-4 mr-2" />
-              privacy@recolorai.com
+              help@netreads.in
             </Button>
             <Button variant="outline">
               <Shield className="h-4 w-4 mr-2" />

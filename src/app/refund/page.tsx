@@ -36,6 +36,8 @@ export default function RefundPage() {
             <p className="text-muted-foreground">
               At ReColor AI, we believe in providing exceptional service and are committed to your satisfaction. 
               Our refund policy is designed to protect both our customers and our business while ensuring fair treatment for everyone.
+              All payments are processed securely through payment processors, and refunds are processed in accordance 
+              with Razorpay's policies and applicable Indian laws.
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -94,7 +96,7 @@ export default function RefundPage() {
                     <div>
                       <h5 className="font-medium text-sm">Contact Support</h5>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Email us at azcontent101@gmail.com with your refund request. Include your account email and order details.
+                        Email us at help@netreads.in with your refund request. Include your account email and order details.
                       </p>
                     </div>
                   </div>
@@ -124,7 +126,8 @@ export default function RefundPage() {
                     <div>
                       <h5 className="font-medium text-sm">Refund Processing</h5>
                       <p className="text-sm text-muted-foreground mt-1">
-                        If approved, refunds are processed within 3-5 business days to your original payment method.
+                        If approved, refunds are processed through payment processors within 3-5 business days 
+                        to your original payment method (credit card, debit card, UPI, net banking, or wallet).
                       </p>
                     </div>
                   </div>
@@ -165,12 +168,20 @@ export default function RefundPage() {
                 <span className="text-sm text-muted-foreground">1-2 business days</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-sm font-medium">Credit Card Refunds</span>
+                <span className="text-sm font-medium">Credit/Debit Card Refunds</span>
                 <span className="text-sm text-muted-foreground">3-5 business days</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-sm font-medium">Bank Transfer Refunds</span>
+                <span className="text-sm font-medium">UPI Refunds</span>
+                <span className="text-sm text-muted-foreground">3-5 business days</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-sm font-medium">Net Banking Refunds</span>
                 <span className="text-sm text-muted-foreground">5-7 business days</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-sm font-medium">Wallet Refunds</span>
+                <span className="text-sm text-muted-foreground">3-5 business days</span>
               </div>
              
             </div>
@@ -181,8 +192,9 @@ export default function RefundPage() {
                 <div>
                   <p className="text-sm font-medium text-blue-800">Processing Note</p>
                   <p className="text-sm text-blue-700 mt-1">
-                    Refund processing times may vary during holidays or peak periods. We'll keep you updated 
-                    throughout the process via email.
+                    Refund processing times may vary during holidays or peak periods. All refunds are processed 
+                    through payment processors, and the actual credit to your account depends on your bank 
+                    or payment provider. We'll keep you updated throughout the process via email.
                   </p>
                 </div>
               </div>
@@ -197,7 +209,7 @@ export default function RefundPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              You can request to cancel your ReColor AI account at any time by emailing us at azcontent101@gmail.com. Here's what happens when you cancel 
+              You can request to cancel your ReColor AI account at any time by emailing us at help@netreads.in. Here's what happens when you cancel 
               and how to do it properly.
             </p>
             
@@ -307,8 +319,10 @@ export default function RefundPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              Our refund policy complies with applicable consumer protection laws and regulations 
-              in the jurisdictions where we operate.
+              Our refund policy complies with applicable consumer protection laws and regulations in India, 
+              including the Consumer Protection Act, 2019. All refunds are processed in accordance with 
+              payment processors policies and RBI guidelines for payment 
+              processing and refunds.
             </p>
             
             <div className="space-y-4">
@@ -366,7 +380,7 @@ export default function RefundPage() {
           <div className="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-4">
             <Button variant="outline">
               <Mail className="h-4 w-4 mr-2" />
-              azcontent101@gmail.com
+              help@netreads.in
             </Button>
            
           </div>

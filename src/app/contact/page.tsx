@@ -16,6 +16,9 @@ export default function ContactPage() {
             Have a question, suggestion, or need support? We'd love to hear from you. 
             Get in touch with our team and we'll respond as soon as possible.
           </p>
+          <p className="text-sm text-muted-foreground">
+            For payment-related queries, refund requests, or technical support, please contact us using the information below.
+          </p>
         </div>
 
         {/* Contact Information */}
@@ -30,7 +33,7 @@ export default function ContactPage() {
                   <Mail className="h-5 w-5 text-primary mt-0.5" />
                   <div>
                     <h4 className="font-medium">Email Support</h4>
-                    <p className="text-sm text-muted-foreground">azcontent101@gmail.com</p>
+                    <p className="text-sm text-muted-foreground">help@netreads.in</p>
                     <p className="text-sm text-muted-foreground">For general inquiries and support</p>
                   </div>
                 </div>
@@ -39,7 +42,7 @@ export default function ContactPage() {
                   <Mail className="h-5 w-5 text-primary mt-0.5" />
                   <div>
                     <h4 className="font-medium">Business Inquiries</h4>
-                    <p className="text-sm text-muted-foreground">azcontent101@gmail.com</p>
+                    <p className="text-sm text-muted-foreground">help@netreads.in</p>
                     <p className="text-sm text-muted-foreground">For partnerships and business opportunities</p>
                   </div>
                 </div>
@@ -67,11 +70,16 @@ export default function ContactPage() {
                 <div className="flex items-start space-x-3">
                   <MapPin className="h-5 w-5 text-primary mt-0.5" />
                   <div>
-                    <h4 className="font-medium">Address</h4>
+                    <h4 className="font-medium">Registered Business Address</h4>
                     <p className="text-sm text-muted-foreground">
+                      ReColor AI<br />
                       Whitefield<br />
                       Bangalore, Karnataka<br />
                       India - 560001
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      
+  
                     </p>
                   </div>
                 </div>

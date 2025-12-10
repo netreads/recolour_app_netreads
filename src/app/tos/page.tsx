@@ -237,10 +237,12 @@ export default function TermsPage() {
               <div>
                 <h4 className="font-medium mb-2">Payment Processing</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Payments are processed by secure third-party providers</li>
-                  <li>• We do not store your payment information</li>
-                  <li>• All transactions are encrypted and secure</li>
-                  <li>• Refunds are available within 30 days of purchase</li>
+                  <li>• Payments are processed securely through payment processors</li>
+                  <li>• We do not store your complete payment card details on our servers</li>
+                  <li>• All transactions are encrypted and comply with PCI DSS standards</li>
+                  <li>• payment processors handle payment processing in accordance with RBI guidelines</li>
+                  <li>• Refunds are processed through payment processors and available as per our refund policy</li>
+                  <li>• Accepted payment methods: Credit/Debit Cards, UPI, Net Banking, Wallets</li>
                 </ul>
               </div>
             </div>
@@ -404,14 +406,17 @@ export default function TermsPage() {
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
               These terms shall be governed by and construed in accordance with the laws of India, 
-              without regard to conflict of law principles.
+              without regard to conflict of law principles. All payment transactions are subject to 
+              the terms and conditions of payment processors and applicable Indian financial regulations.
             </p>
             
             <div className="space-y-2">
               <h4 className="font-medium">Dispute Resolution</h4>
               <p className="text-sm text-muted-foreground">
                 Any disputes arising from these terms or our services shall be resolved through 
-                binding arbitration in accordance with the Arbitration and Conciliation Act, 2015.
+                binding arbitration in accordance with the Arbitration and Conciliation Act, 2015. 
+                For payment-related disputes, you may also contact Razorpay's customer support or 
+                file a complaint through their dispute resolution mechanism.
               </p>
             </div>
           </CardContent>
@@ -449,7 +454,7 @@ export default function TermsPage() {
           <div className="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-4">
             <Button variant="outline">
               <Mail className="h-4 w-4 mr-2" />
-              legal@recolorai.com
+              help@netreads.in
             </Button>
             <Button variant="outline">
               <FileText className="h-4 w-4 mr-2" />
